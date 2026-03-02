@@ -5,8 +5,14 @@
     "dev:dashboard": "turbo run dev --filter=@nexus/dashboard",
     "dev:driver": "turbo run dev --filter=@nexus/driver",
     "build": "turbo run build",
+    "build:dashboard": "turbo run build --filter=@nexus/dashboard",
+    "build:functions": "cd functions && npm run build",
     "lint": "turbo run lint",
-    "clean": "turbo run clean"
+    "clean": "turbo run clean",
+    "deploy": "pnpm run build:dashboard && pnpm run build:functions && firebase deploy",
+    "deploy:hosting": "pnpm run build:dashboard && firebase deploy --only hosting",
+    "deploy:functions": "pnpm run build:functions && firebase deploy --only functions",
+    "deploy:rules": "firebase deploy --only firestore:rules,database"
   },
   "devDependencies": {
     "turbo": "^2.4.0",
