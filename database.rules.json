@@ -6,7 +6,14 @@
         "$driverId": {
           "current": {
             ".write": "auth != null && auth.uid === $driverId",
-            ".validate": "newData.hasChildren(['lat', 'lng', 'timestamp', 'batteryLevel', 'isOnline']) && newData.child('lat').isNumber() && newData.child('lng').isNumber() && newData.child('timestamp').isNumber() && newData.child('batteryLevel').isNumber() && newData.child('isOnline').isBoolean()"
+            "isOnline": { ".validate": "newData.isBoolean()" },
+            "lat": { ".validate": "newData.isNumber()" },
+            "lng": { ".validate": "newData.isNumber()" },
+            "timestamp": { ".validate": "newData.isNumber()" },
+            "batteryLevel": { ".validate": "newData.isNumber()" },
+            "isCharging": { ".validate": "newData.isBoolean()" },
+            "speed": { ".validate": "newData.isNumber()" },
+            "heading": { ".validate": "newData.isNumber()" }
           },
           "history": {
             ".write": "auth != null && auth.uid === $driverId",

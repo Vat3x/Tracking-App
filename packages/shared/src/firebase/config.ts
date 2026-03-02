@@ -1,11 +1,10 @@
-// Firebase configuration
-// Replace these values with your actual Firebase project config
 export const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.firebasestorage.app",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID",
+  apiKey: "AIzaSyDYWVFvd3X5vrSHiqfVnEqKkKFkATVPg7A",
+  authDomain: "tracking-app-f6ad7.firebaseapp.com",
+  databaseURL: "https://tracking-app-f6ad7-default-rtdb.firebaseio.com",
+  projectId: "tracking-app-f6ad7",
+  storageBucket: "tracking-app-f6ad7.firebasestorage.app",
+  messagingSenderId: "463711773961",
+  appId: "1:463711773961:web:c755239e975cef1c2c1fd8",
+  measurementId: "G-THQC2D5JQG",
 };

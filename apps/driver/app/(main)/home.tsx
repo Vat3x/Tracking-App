@@ -1,8 +1,127 @@
-import { View, Text, StyleSheet } from "react-native";
+import { useEffect, useCallback } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Switch,
+  Alert,
+  Platform,
+  Linking,
+} from "react-native";
 import { useAuthStore } from "../../src/stores/auth";
+import { useTrackingStore } from "../../src/stores/tracking";
+import {
+  requestForegroundPermission,
+  requestBackgroundPermission,
+  checkPermissions,
+  startBackgroundTracking,
+  stopBackgroundTracking,
+  getCurrentLocation,
+} from "../../src/services/location";
+import { updateDriverLocation, markDriverOffline } from "../../src/services/tracking";
+
+function formatTimeAgo(ts: number): string {
+  const diff = Date.now() - ts;
+  if (diff < 60_000) return "Just now";
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  return `${Math.floor(diff / 3_600_000)}h ago`;
+}
 
 export default function HomeScreen() {
   const { userDoc } = useAuthStore();
+  const {
+    isOnline,
+    lastSync,
+    permissionStatus,
+    setOnline,
+    setIdentity,
+    setPermissionStatus,
+  } = useTrackingStore();
+
+  // Sync identity to tracking store when user doc changes
+  useEffect(() => {
+    if (userDoc) {
+      setIdentity(userDoc.companyId, userDoc.id);
+    }
+  }, [userDoc, setIdentity]);
+
+  // Check permissions on mount
+  useEffect(() => {
+    checkPermissions().then(({ foreground, background }) => {
+      if (background) setPermissionStatus("background");
+      else if (foreground) setPermissionStatus("foreground");
+      else setPermissionStatus("denied");
+    });
+  }, [setPermissionStatus]);
+
+  const handleToggle = useCallback(
+    async (value: boolean) => {
+      if (!userDoc?.companyId) {
+        Alert.alert(
+          "No Company",
+          "You need to accept a tracking request from a dispatcher first."
+        );
+        return;
+      }
+
+      if (value) {
+        // Going online — request permissions
+        const hasFg = await requestForegroundPermission();
+        if (!hasFg) {
+          Alert.alert(
+            "Permission Required",
+            "Location permission is needed to share your position with your dispatcher.",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Open Settings",
+                onPress: () => Linking.openSettings(),
+              },
+            ]
+          );
+          return;
+        }
+        setPermissionStatus("foreground");
+
+        const hasBg = await requestBackgroundPermission();
+        if (!hasBg) {
+          Alert.alert(
+            "Background Permission",
+            "Background location is needed so tracking works when the app is minimized. You can enable it in Settings.",
+            [
+              { text: "Continue Anyway" },
+              {
+                text: "Open Settings",
+                onPress: () => Linking.openSettings(),
+              },
+            ]
+          );
+          // Still allow foreground-only tracking
+        } else {
+          setPermissionStatus("background");
+        }
+
+        // Start tracking
+        const started = await startBackgroundTracking();
+        if (started) {
+          setOnline(true);
+          // Send initial location immediately
+          const loc = await getCurrentLocation();
+          if (loc) await updateDriverLocation(loc);
+        } else {
+          Alert.alert("Error", "Failed to start location tracking.");
+        }
+      } else {
+        // Going offline
+        setOnline(false);
+        await stopBackgroundTracking();
+        await markDriverOffline();
+      }
+    },
+    [userDoc, setOnline, setPermissionStatus]
+  );
+
+  const hasCompany = !!userDoc?.companyId;
 
   return (
     <View style={styles.container}>
@@ -10,7 +129,7 @@ export default function HomeScreen() {
         Hello, {userDoc?.displayName ?? "Driver"}
       </Text>
 
-      {userDoc?.companyId ? (
+      {hasCompany ? (
         <Text style={styles.companyStatus}>Connected to company</Text>
       ) : (
         <Text style={styles.noCompany}>
@@ -19,12 +138,90 @@ export default function HomeScreen() {
         </Text>
       )}
 
-      <View style={styles.statusCard}>
-        <Text style={styles.status}>Offline</Text>
-        <Text style={styles.info}>
-          Location tracking will be implemented in Phase 3
-        </Text>
+      {/* Online/Offline Toggle */}
+      <View style={[styles.statusCard, isOnline && styles.statusCardOnline]}>
+        <View style={styles.toggleRow}>
+          <View>
+            <Text style={[styles.status, isOnline && styles.statusOnline]}>
+              {isOnline ? "Online" : "Offline"}
+            </Text>
+            <Text style={styles.statusHint}>
+              {isOnline
+                ? "Sharing location with dispatcher"
+                : hasCompany
+                  ? "Tap to start sharing location"
+                  : "Link to a company first"}
+            </Text>
+          </View>
+          <Switch
+            value={isOnline}
+            onValueChange={handleToggle}
+            disabled={!hasCompany}
+            trackColor={{ false: "#e5e7eb", true: "#86efac" }}
+            thumbColor={isOnline ? "#22c55e" : "#999"}
+            ios_backgroundColor="#e5e7eb"
+          />
+        </View>
       </View>
+
+      {/* Status Info Cards */}
+      {isOnline && lastSync && (
+        <View style={styles.infoGrid}>
+          <View style={styles.infoCard}>
+            <Text style={styles.infoLabel}>Last Sync</Text>
+            <Text style={styles.infoValue}>
+              {formatTimeAgo(lastSync.timestamp)}
+            </Text>
+          </View>
+
+          <View style={styles.infoCard}>
+            <Text style={styles.infoLabel}>Battery</Text>
+            <Text style={styles.infoValue}>
+              {Math.round(lastSync.batteryLevel * 100)}%
+              {lastSync.isCharging ? " ⚡" : ""}
+            </Text>
+          </View>
+
+          <View style={styles.infoCard}>
+            <Text style={styles.infoLabel}>Speed</Text>
+            <Text style={styles.infoValue}>
+              {lastSync.speed > 0
+                ? `${Math.round(lastSync.speed * 3.6)} km/h`
+                : "Stationary"}
+            </Text>
+          </View>
+
+          <View style={styles.infoCard}>
+            <Text style={styles.infoLabel}>Location</Text>
+            <Text style={styles.infoValue}>
+              {lastSync.lat.toFixed(4)}, {lastSync.lng.toFixed(4)}
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* Permission Warning */}
+      {isOnline && permissionStatus === "foreground" && (
+        <View style={styles.warningCard}>
+          <Text style={styles.warningTitle}>Background tracking limited</Text>
+          <Text style={styles.warningText}>
+            Location updates may stop when the app is in the background.
+            {Platform.OS === "android"
+              ? " Also disable battery optimization for this app in your phone settings."
+              : ""}
+          </Text>
+        </View>
+      )}
+
+      {/* Android Battery Optimization Warning */}
+      {isOnline && Platform.OS === "android" && (
+        <View style={styles.tipCard}>
+          <Text style={styles.tipText}>
+            Tip: Disable battery optimization for Nexus Tracking in your phone
+            settings to ensure reliable location updates.
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -44,31 +241,100 @@ const styles = StyleSheet.create({
   companyStatus: {
     fontSize: 14,
     color: "#22c55e",
-    marginBottom: 32,
+    marginBottom: 24,
   },
   noCompany: {
     fontSize: 14,
     color: "#f59e0b",
-    marginBottom: 32,
+    marginBottom: 24,
     lineHeight: 20,
   },
   statusCard: {
     backgroundColor: "#f9fafb",
-    borderRadius: 12,
-    padding: 24,
-    alignItems: "center",
+    borderRadius: 16,
+    padding: 20,
     borderWidth: 1,
     borderColor: "#e5e7eb",
+    marginBottom: 16,
+  },
+  statusCardOnline: {
+    backgroundColor: "#f0fdf4",
+    borderColor: "#bbf7d0",
+  },
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   status: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: "700",
     color: "#999",
-    marginBottom: 8,
+    marginBottom: 2,
   },
-  info: {
-    fontSize: 14,
-    color: "#666",
-    textAlign: "center",
+  statusOnline: {
+    color: "#16a34a",
+  },
+  statusHint: {
+    fontSize: 13,
+    color: "#6b7280",
+  },
+  infoGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 16,
+  },
+  infoCard: {
+    backgroundColor: "#f9fafb",
+    borderRadius: 12,
+    padding: 14,
+    width: "48%",
+    flexGrow: 1,
+    borderWidth: 1,
+    borderColor: "#f0f0f0",
+  },
+  infoLabel: {
+    fontSize: 11,
+    color: "#9ca3af",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  infoValue: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1a1a1a",
+  },
+  warningCard: {
+    backgroundColor: "#fffbeb",
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#fde68a",
+    marginBottom: 12,
+  },
+  warningTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#92400e",
+    marginBottom: 4,
+  },
+  warningText: {
+    fontSize: 12,
+    color: "#a16207",
+    lineHeight: 18,
+  },
+  tipCard: {
+    backgroundColor: "#eff6ff",
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+  },
+  tipText: {
+    fontSize: 12,
+    color: "#1d4ed8",
+    lineHeight: 18,
   },
 });

@@ -2,10 +2,17 @@ import { useEffect } from "react";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import * as Linking from "expo-linking";
 import { onAuthChange, getUserDoc } from "../src/services/auth";
 import { useAuthStore } from "../src/stores/auth";
 
 const queryClient = new QueryClient();
+
+function extractInviteId(url: string): string | null {
+  // Handle both https://tracking.nexus.app/invite/{id} and nexustracking://invite/{id}
+  const match = url.match(/\/invite\/([a-zA-Z0-9]+)/);
+  return match ? match[1] : null;
+}
 
 function AuthGate() {
   const router = useRouter();
@@ -13,6 +20,7 @@ function AuthGate() {
   const { firebaseUser, loading, setFirebaseUser, setUserDoc, setLoading } =
     useAuthStore();
 
+  // Handle auth state
   useEffect(() => {
     const unsubscribe = onAuthChange(async (user) => {
       if (user) {
@@ -29,14 +37,39 @@ function AuthGate() {
     return unsubscribe;
   }, [setFirebaseUser, setUserDoc, setLoading]);
 
+  // Handle deep links
+  useEffect(() => {
+    function handleDeepLink(event: { url: string }) {
+      const inviteId = extractInviteId(event.url);
+      if (inviteId) {
+        router.push({
+          pathname: "/(auth)/accept-invite",
+          params: { id: inviteId },
+        });
+      }
+    }
+
+    // Check if app was opened via deep link
+    Linking.getInitialURL().then((url) => {
+      if (url) handleDeepLink({ url });
+    });
+
+    // Listen for deep links while app is open
+    const sub = Linking.addEventListener("url", handleDeepLink);
+    return () => sub.remove();
+  }, [router]);
+
+  // Auth-based routing
   useEffect(() => {
     if (loading) return;
 
     const inAuthGroup = segments[0] === "(auth)";
+    // Don't redirect away from accept-invite screen
+    const onAcceptInvite = (segments as string[])[1] === "accept-invite";
 
     if (!firebaseUser && !inAuthGroup) {
       router.replace("/(auth)/login");
-    } else if (firebaseUser && inAuthGroup) {
+    } else if (firebaseUser && inAuthGroup && !onAcceptInvite) {
       router.replace("/(main)/home");
     }
   }, [firebaseUser, loading, segments, router]);

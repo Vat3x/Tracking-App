@@ -41,10 +41,14 @@ service cloud.firestore {
       allow read: if isAuth();
       allow create: if isAuth() &&
         isCompanyMember(request.resource.data.companyId);
-      allow update: if isAuth() &&
-        resource.data.status == 'pending' &&
-        request.resource.data.status == 'accepted' &&
-        request.resource.data.acceptedBy == request.auth.uid;
+      allow update: if isAuth() && resource.data.status == 'pending' && (
+        // Driver accepts invite
+        (request.resource.data.status == 'accepted' &&
+         request.resource.data.acceptedBy == request.auth.uid) ||
+        // Dispatcher revokes invite
+        (request.resource.data.status == 'expired' &&
+         isCompanyMember(resource.data.companyId))
+      );
       allow delete: if false;
     }
 
