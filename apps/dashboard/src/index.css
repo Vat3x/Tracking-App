@@ -14,3 +14,21 @@ html {
 html.dark {
   color-scheme: dark;
 }
+
+/* MapLibre navigation control — dark mode */
+.dark .maplibregl-ctrl-group {
+  background: #1f2937;
+  border-color: #374151;
+}
+.dark .maplibregl-ctrl-group button {
+  background-color: #1f2937;
+}
+.dark .maplibregl-ctrl-group button + button {
+  border-top-color: #374151;
+}
+.dark .maplibregl-ctrl-group button:hover {
+  background-color: #374151;
+}
+.dark .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(1);
+}
