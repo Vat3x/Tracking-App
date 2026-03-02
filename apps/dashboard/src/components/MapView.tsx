@@ -2,7 +2,7 @@ import { useRef, useEffect, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { DriverLocationEntry } from "@/services/locations";
-import { type User, STALE_THRESHOLD_MS } from "@nexus/shared";
+import { type User, STALE_THRESHOLD_MS, timeAgo } from "@nexus/shared";
 
 // Free OpenStreetMap tile style — no API key needed
 const MAP_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
@@ -18,13 +18,6 @@ interface Props {
   driverProfiles: Map<string, User>;
   selectedDriverId: string | null;
   onSelectDriver: (driverId: string | null) => void;
-}
-
-function formatTimeAgo(ts: number): string {
-  const diff = Date.now() - ts;
-  if (diff < 60_000) return "Just now";
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
-  return `${Math.floor(diff / 3_600_000)}h ago`;
 }
 
 export default function MapView({
@@ -83,7 +76,7 @@ export default function MapView({
         .setHTML(
           `<div style="font-family:system-ui;font-size:13px;line-height:1.5">
             <strong>${name}</strong><br/>
-            <span style="color:#6b7280">${formatTimeAgo(c.timestamp)}</span><br/>
+            <span style="color:#6b7280">${timeAgo(c.timestamp)}</span><br/>
             ${Math.round(c.batteryLevel * 100)}% battery${c.isCharging ? " ⚡" : ""}<br/>
             ${c.speed > 0 ? `${Math.round(c.speed * 3.6)} km/h` : "Stationary"}
           </div>`

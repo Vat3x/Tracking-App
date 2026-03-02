@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { createTrip } from "@/services/trips";
 import { useAuthStore } from "@/stores/auth";
 import { useDriversStore } from "@/stores/drivers";
+import { toast } from "sonner";
 import type { User } from "@nexus/shared";
 
 interface Props {
@@ -82,6 +83,7 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
         origin: { label: originLabel, lat: lat1, lng: lng1 },
         destination: { label: destLabel, lat: lat2, lng: lng2 },
       });
+      toast.success("Trip created");
       handleClose();
     } catch {
       setError("Failed to create trip. Try again.");
@@ -120,18 +122,24 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Assign to Driver
             </label>
-            <select
-              value={driverId}
-              onChange={(e) => setDriverId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Select a driver...</option>
-              {driverOptions.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
+            {driverOptions.length === 0 ? (
+              <p className="text-sm text-gray-500 py-2">
+                No drivers found. Invite drivers to your company first.
+              </p>
+            ) : (
+              <select
+                value={driverId}
+                onChange={(e) => setDriverId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select a driver...</option>
+                {driverOptions.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Origin */}
@@ -200,7 +208,7 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || driverOptions.length === 0}
               className="flex-1 py-2 px-4 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
               {loading ? "Creating..." : "Create Trip"}

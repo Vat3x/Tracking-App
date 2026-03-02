@@ -7,6 +7,7 @@ import { subscribeToCompanyLocations } from "@/services/locations";
 import TripModal from "@/components/TripModal";
 import { useNavigate } from "react-router-dom";
 import { logout } from "@/services/auth";
+import { toast } from "sonner";
 import type { Trip, TripStatus, User } from "@nexus/shared";
 
 const STATUS_CONFIG: Record<TripStatus, { label: string; bg: string; text: string }> = {
@@ -60,12 +61,18 @@ export default function Trips() {
   }, [userDoc?.companyId, setDrivers]);
 
   async function handleLogout() {
+    if (!window.confirm("Are you sure you want to sign out?")) return;
     await logout();
     navigate("/login");
   }
 
   async function handleCancel(tripId: string) {
-    await updateTripStatus(tripId, "completed");
+    try {
+      await updateTripStatus(tripId, "completed");
+      toast.success("Trip cancelled");
+    } catch {
+      toast.error("Failed to cancel trip");
+    }
   }
 
   const filteredTrips = trips.filter((t) => {
@@ -87,6 +94,12 @@ export default function Trips() {
             className="h-8 px-3 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
           >
             Map
+          </button>
+          <button
+            onClick={() => navigate("/settings")}
+            className="h-8 px-3 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            Settings
           </button>
           <button
             onClick={() => setTripModalOpen(true)}

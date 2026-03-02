@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { registerDispatcher, getUserDoc } from "@/services/auth";
 import { useAuthStore } from "@/stores/auth";
+import { Loader2 } from "lucide-react";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -153,7 +154,12 @@ export default function Register() {
               disabled={loading}
               className="w-full py-2 px-4 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? "Creating account..." : "Create Account"}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Creating account...
+                </span>
+              ) : "Create Account"}
             </button>
           </form>
 

@@ -1,18 +1,11 @@
 import type { DriverLocationEntry } from "@/services/locations";
-import type { User } from "@nexus/shared";
+import { type User, STALE_THRESHOLD_MS, timeAgo } from "@nexus/shared";
 
 interface Props {
   drivers: DriverLocationEntry[];
   driverProfiles: Map<string, User>;
   selectedDriverId: string | null;
   onSelectDriver: (driverId: string) => void;
-}
-
-function formatTimeAgo(ts: number): string {
-  const diff = Date.now() - ts;
-  if (diff < 60_000) return "Just now";
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
-  return `${Math.floor(diff / 3_600_000)}h ago`;
 }
 
 function DriverCard({
@@ -28,7 +21,7 @@ function DriverCard({
 }) {
   const c = driver.current;
   const name = profile?.displayName ?? `Driver ${driver.driverId.slice(0, 6)}`;
-  const isStale = Date.now() - c.timestamp > 50 * 60_000; // 50 min = stale
+  const isStale = Date.now() - c.timestamp > STALE_THRESHOLD_MS;
 
   return (
     <button
@@ -49,7 +42,7 @@ function DriverCard({
       </div>
       <div className="flex items-center gap-3 text-xs text-gray-500">
         <span>{c.isOnline ? (isStale ? "Stale" : "Online") : "Offline"}</span>
-        <span>{formatTimeAgo(c.timestamp)}</span>
+        <span>{timeAgo(c.timestamp)}</span>
       </div>
       <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
         <span>{Math.round(c.batteryLevel * 100)}%{c.isCharging ? " ⚡" : ""}</span>

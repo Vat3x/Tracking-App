@@ -1,12 +1,25 @@
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { useState, useEffect } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
+import Constants from "expo-constants";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../../src/services/firebase";
 import { logout } from "../../src/services/auth";
 import { useAuthStore } from "../../src/stores/auth";
 import { clearFcmToken } from "../../src/services/notifications";
+import { COLLECTIONS } from "@nexus/shared";
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { userDoc, reset } = useAuthStore();
+  const [companyName, setCompanyName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!userDoc?.companyId) return;
+    getDoc(doc(db, COLLECTIONS.COMPANIES, userDoc.companyId)).then((snap) => {
+      if (snap.exists()) setCompanyName(snap.data().name ?? null);
+    });
+  }, [userDoc?.companyId]);
 
   async function handleLogout() {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
@@ -26,47 +39,83 @@ export default function SettingsScreen() {
     ]);
   }
 
+  const appVersion = Constants.expoConfig?.version ?? "1.0.0";
+
   return (
-    <View style={styles.container}>
-      <View style={styles.section}>
-        <Text style={styles.label}>Name</Text>
-        <Text style={styles.value}>{userDoc?.displayName ?? "—"}</Text>
+    <ScrollView style={styles.container}>
+      {/* Profile Section */}
+      <Text style={styles.sectionHeader}>Profile</Text>
+      <View style={styles.card}>
+        <View style={styles.row}>
+          <Text style={styles.label}>Name</Text>
+          <Text style={styles.value}>{userDoc?.displayName ?? "—"}</Text>
+        </View>
+        <View style={styles.divider} />
+        <View style={styles.row}>
+          <Text style={styles.label}>Email</Text>
+          <Text style={styles.value}>{userDoc?.email ?? "—"}</Text>
+        </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.label}>Email</Text>
-        <Text style={styles.value}>{userDoc?.email ?? "—"}</Text>
+      {/* Company Section */}
+      <Text style={styles.sectionHeader}>Company</Text>
+      <View style={styles.card}>
+        <View style={styles.row}>
+          <Text style={styles.label}>Company</Text>
+          <Text style={styles.value}>
+            {companyName ?? (userDoc?.companyId ? "Loading..." : "Not linked")}
+          </Text>
+        </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.label}>Role</Text>
-        <Text style={styles.value}>{userDoc?.role ?? "—"}</Text>
+      {/* App Section */}
+      <Text style={styles.sectionHeader}>App</Text>
+      <View style={styles.card}>
+        <View style={styles.row}>
+          <Text style={styles.label}>Version</Text>
+          <Text style={styles.value}>{appVersion}</Text>
+        </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.label}>Company</Text>
-        <Text style={styles.value}>
-          {userDoc?.companyId ? "Linked" : "Not linked"}
-        </Text>
+      {/* Account Section */}
+      <View style={{ marginTop: 24, paddingBottom: 40 }}>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Text style={styles.logoutText}>Sign Out</Text>
+        </TouchableOpacity>
       </View>
-
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutText}>Sign Out</Text>
-      </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#f5f5f5",
     padding: 16,
   },
-  section: {
+  sectionHeader: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#999",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginTop: 20,
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  row: {
+    paddingHorizontal: 16,
     paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#f0f0f0",
+    marginLeft: 16,
   },
   label: {
     fontSize: 12,
@@ -80,10 +129,9 @@ const styles = StyleSheet.create({
     color: "#1a1a1a",
   },
   logoutButton: {
-    marginTop: 32,
     height: 48,
     backgroundColor: "#fee2e2",
-    borderRadius: 8,
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
   },

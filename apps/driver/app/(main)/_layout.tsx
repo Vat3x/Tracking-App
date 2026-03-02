@@ -1,4 +1,5 @@
 import { Tabs } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function MainLayout() {
   return (
@@ -13,6 +14,9 @@ export default function MainLayout() {
         options={{
           title: "Home",
           headerTitle: "Nexus Tracking",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="home-outline" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -20,6 +24,9 @@ export default function MainLayout() {
         options={{
           title: "Trips",
           headerTitle: "Trip Assignments",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="navigate-outline" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -27,6 +34,9 @@ export default function MainLayout() {
         options={{
           title: "Settings",
           headerTitle: "Settings",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="settings-outline" size={size} color={color} />
+          ),
         }}
       />
     </Tabs>

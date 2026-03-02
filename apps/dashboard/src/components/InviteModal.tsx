@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { createInvite, generateInviteLink } from "@/services/invites";
 import { useAuthStore } from "@/stores/auth";
+import { toast } from "sonner";
 
 interface InviteModalProps {
   open: boolean;
   onClose: () => void;
+  companyName: string;
 }
 
-export default function InviteModal({ open, onClose }: InviteModalProps) {
+export default function InviteModal({ open, onClose, companyName }: InviteModalProps) {
   const { userDoc } = useAuthStore();
   const [link, setLink] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -21,12 +23,13 @@ export default function InviteModal({ open, onClose }: InviteModalProps) {
     try {
       const invite = await createInvite(
         userDoc.companyId,
-        "My Company", // We'll fetch the company name later
+        companyName,
         userDoc.id
       );
       setLink(generateInviteLink(invite.id));
-    } catch (err) {
-      console.error("Failed to create invite:", err);
+      toast.success("Invite link generated");
+    } catch {
+      toast.error("Failed to generate invite link");
     } finally {
       setLoading(false);
     }
@@ -36,6 +39,7 @@ export default function InviteModal({ open, onClose }: InviteModalProps) {
     if (!link) return;
     navigator.clipboard.writeText(link);
     setCopied(true);
+    toast.success("Link copied to clipboard");
     setTimeout(() => setCopied(false), 2000);
   }
 

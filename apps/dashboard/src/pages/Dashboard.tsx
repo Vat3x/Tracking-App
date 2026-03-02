@@ -9,7 +9,10 @@ import InviteModal from "@/components/InviteModal";
 import MapView from "@/components/MapView";
 import DriverList from "@/components/DriverList";
 import { useNavigate } from "react-router-dom";
-import type { Invite, User } from "@nexus/shared";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/services/firebase";
+import { toast } from "sonner";
+import { COLLECTIONS, type Invite, type User } from "@nexus/shared";
 
 function formatTime(ts: number): string {
   const d = new Date(ts);
@@ -37,6 +40,15 @@ export default function Dashboard() {
   const [invites, setInvites] = useState<Invite[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [driverProfiles, setDriverProfiles] = useState<Map<string, User>>(new Map());
+  const [companyName, setCompanyName] = useState("My Company");
+
+  // Fetch company name
+  useEffect(() => {
+    if (!userDoc?.companyId) return;
+    getDoc(doc(db, COLLECTIONS.COMPANIES, userDoc.companyId)).then((snap) => {
+      if (snap.exists()) setCompanyName(snap.data().name ?? "My Company");
+    });
+  }, [userDoc?.companyId]);
 
   // Subscribe to invites
   useEffect(() => {
@@ -66,6 +78,7 @@ export default function Dashboard() {
   }, [drivers, driverProfiles, userDoc?.companyId]);
 
   async function handleLogout() {
+    if (!window.confirm("Are you sure you want to sign out?")) return;
     await logout();
     navigate("/login");
   }
@@ -73,11 +86,17 @@ export default function Dashboard() {
   function handleCopyLink(inviteId: string) {
     navigator.clipboard.writeText(generateInviteLink(inviteId));
     setCopiedId(inviteId);
+    toast.success("Link copied to clipboard");
     setTimeout(() => setCopiedId(null), 2000);
   }
 
   async function handleExpire(inviteId: string) {
-    await expireInvite(inviteId);
+    try {
+      await expireInvite(inviteId);
+      toast.success("Invite revoked");
+    } catch {
+      toast.error("Failed to revoke invite");
+    }
   }
 
   const handleSelectDriver = useCallback(
@@ -114,6 +133,12 @@ export default function Dashboard() {
                 {pendingInvites}
               </span>
             )}
+          </button>
+          <button
+            onClick={() => navigate("/settings")}
+            className="h-8 px-3 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            Settings
           </button>
           <button
             onClick={() => setInviteModalOpen(true)}
@@ -235,6 +260,7 @@ export default function Dashboard() {
       <InviteModal
         open={inviteModalOpen}
         onClose={() => setInviteModalOpen(false)}
+        companyName={companyName}
       />
     </div>
   );

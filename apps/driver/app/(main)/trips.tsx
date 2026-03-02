@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { useAuthStore } from "../../src/stores/auth";
 import { subscribeToDriverTrips, respondToTrip } from "../../src/services/trips";
@@ -120,10 +121,14 @@ export default function TripsScreen() {
   const { userDoc, firebaseUser } = useAuthStore();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   useEffect(() => {
     if (!firebaseUser?.uid) return;
-    return subscribeToDriverTrips(firebaseUser.uid, setTrips);
+    return subscribeToDriverTrips(firebaseUser.uid, (newTrips) => {
+      setTrips(newTrips);
+      setInitialLoading(false);
+    });
   }, [firebaseUser?.uid]);
 
   async function handleRespond(tripId: string, status: TripStatus) {
@@ -169,7 +174,11 @@ export default function TripsScreen() {
 
   return (
     <View style={styles.container}>
-      {!hasCompany ? (
+      {initialLoading ? (
+        <View style={styles.emptyContainer}>
+          <ActivityIndicator size="large" color="#1a73e8" />
+        </View>
+      ) : !hasCompany ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>
             Link to a company first to receive trip assignments.

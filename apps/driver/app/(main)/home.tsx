@@ -19,13 +19,7 @@ import {
   getCurrentLocation,
 } from "../../src/services/location";
 import { updateDriverLocation, markDriverOffline } from "../../src/services/tracking";
-
-function formatTimeAgo(ts: number): string {
-  const diff = Date.now() - ts;
-  if (diff < 60_000) return "Just now";
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
-  return `${Math.floor(diff / 3_600_000)}h ago`;
-}
+import { timeAgo } from "@nexus/shared";
 
 export default function HomeScreen() {
   const { userDoc } = useAuthStore();
@@ -105,13 +99,17 @@ export default function HomeScreen() {
 
         // Start tracking
         const started = await startBackgroundTracking();
-        if (started) {
-          setOnline(true);
-          // Send initial location immediately
+        if (!started) {
+          Alert.alert("Error", "Failed to start location tracking.");
+          return;
+        }
+        setOnline(true);
+        // Send initial location immediately (non-critical — background task handles next update)
+        try {
           const loc = await getCurrentLocation();
           if (loc) await updateDriverLocation(loc);
-        } else {
-          Alert.alert("Error", "Failed to start location tracking.");
+        } catch {
+          // Silently ignore — background task will send next update
         }
       } else {
         // Going offline
@@ -172,7 +170,7 @@ export default function HomeScreen() {
           <View style={styles.infoCard}>
             <Text style={styles.infoLabel}>Last Sync</Text>
             <Text style={styles.infoValue}>
-              {formatTimeAgo(lastSync.timestamp)}
+              {timeAgo(lastSync.timestamp)}
             </Text>
           </View>
 

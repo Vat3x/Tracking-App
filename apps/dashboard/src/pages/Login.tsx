@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { loginWithEmail } from "@/services/auth";
-import { getUserDoc } from "@/services/auth";
+import { loginWithEmail, getUserDoc } from "@/services/auth";
 import { useAuthStore } from "@/stores/auth";
+import { Loader2 } from "lucide-react";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -96,7 +96,12 @@ export default function Login() {
               disabled={loading}
               className="w-full py-2 px-4 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? "Signing in..." : "Sign In"}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Signing in...
+                </span>
+              ) : "Sign In"}
             </button>
           </form>
 

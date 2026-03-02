@@ -5,6 +5,7 @@ import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Dashboard from "@/pages/Dashboard";
 import Trips from "@/pages/Trips";
+import Settings from "@/pages/Settings";
 
 function App() {
   useAuthListener();
@@ -33,7 +34,7 @@ function App() {
         path="/settings"
         element={
           <ProtectedRoute>
-            <div>Settings — Phase 7</div>
+            <Settings />
           </ProtectedRoute>
         }
       />
