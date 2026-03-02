@@ -1,0 +1,4 @@
+export const TRACKING_INTERVAL_MS = 40 * 60 * 1000; // 40 minutes
+export const DISTANCE_FILTER_METERS = 100;
+export const INVITE_EXPIRY_HOURS = 72;
+export const LOCATION_HISTORY_RETENTION_DAYS = 30;

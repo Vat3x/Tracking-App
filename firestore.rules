@@ -1,0 +1,67 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isCompanyMember(companyId) {
+      return isAuth() &&
+        exists(/databases/$(database)/documents/companies/$(companyId)/members/$(request.auth.uid));
+    }
+
+    function isOwner(userId) {
+      return isAuth() && request.auth.uid == userId;
+    }
+
+    // Companies
+    match /companies/{companyId} {
+      allow read: if isCompanyMember(companyId);
+      allow create: if isAuth();
+      allow update: if isCompanyMember(companyId);
+      allow delete: if false;
+
+      match /members/{memberId} {
+        allow read: if isCompanyMember(companyId);
+        allow write: if isCompanyMember(companyId);
+      }
+    }
+
+    // Users
+    match /users/{userId} {
+      allow read: if isAuth();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if false;
+    }
+
+    // Invites
+    match /invites/{inviteId} {
+      allow read: if isAuth();
+      allow create: if isAuth() &&
+        isCompanyMember(request.resource.data.companyId);
+      allow update: if isAuth() &&
+        resource.data.status == 'pending' &&
+        request.resource.data.status == 'accepted' &&
+        request.resource.data.acceptedBy == request.auth.uid;
+      allow delete: if false;
+    }
+
+    // Trips
+    match /trips/{tripId} {
+      allow read: if isAuth() && (
+        isCompanyMember(resource.data.companyId) ||
+        resource.data.driverId == request.auth.uid
+      );
+      allow create: if isAuth() &&
+        isCompanyMember(request.resource.data.companyId);
+      allow update: if isAuth() && (
+        isCompanyMember(resource.data.companyId) ||
+        (resource.data.driverId == request.auth.uid &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'respondedAt', 'updatedAt']))
+      );
+      allow delete: if false;
+    }
+  }
+}

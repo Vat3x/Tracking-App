@@ -1,0 +1,21 @@
+{
+  "name": "nexus-tracking",
+  "private": true,
+  "scripts": {
+    "dev:dashboard": "turbo run dev --filter=@nexus/dashboard",
+    "dev:driver": "turbo run dev --filter=@nexus/driver",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean"
+  },
+  "devDependencies": {
+    "turbo": "^2.4.0",
+    "typescript": "^5.7.0"
+  },
+  "packageManager": "pnpm@10.6.2",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}
