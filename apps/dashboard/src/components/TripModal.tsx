@@ -107,11 +107,11 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40" onClick={handleClose} />
-      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">New Trip</h2>
+      <div className="relative bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">New Trip</h2>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-sm text-red-700 dark:text-red-400">
             {error}
           </div>
         )}
@@ -119,18 +119,18 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Driver select */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Assign to Driver
             </label>
             {driverOptions.length === 0 ? (
-              <p className="text-sm text-gray-500 py-2">
+              <p className="text-sm text-gray-500 dark:text-gray-400 py-2">
                 No drivers found. Invite drivers to your company first.
               </p>
             ) : (
               <select
                 value={driverId}
                 onChange={(e) => setDriverId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select a driver...</option>
                 {driverOptions.map((d) => (
@@ -144,13 +144,13 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
 
           {/* Origin */}
           <fieldset className="space-y-2">
-            <legend className="text-sm font-medium text-gray-700">Origin</legend>
+            <legend className="text-sm font-medium text-gray-700 dark:text-gray-300">Origin</legend>
             <input
               type="text"
               placeholder="Location name (e.g. Warehouse A)"
               value={originLabel}
               onChange={(e) => setOriginLabel(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <div className="flex gap-2">
               <input
@@ -158,27 +158,27 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
                 placeholder="Latitude"
                 value={originLat}
                 onChange={(e) => setOriginLat(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <input
                 type="text"
                 placeholder="Longitude"
                 value={originLng}
                 onChange={(e) => setOriginLng(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </fieldset>
 
           {/* Destination */}
           <fieldset className="space-y-2">
-            <legend className="text-sm font-medium text-gray-700">Destination</legend>
+            <legend className="text-sm font-medium text-gray-700 dark:text-gray-300">Destination</legend>
             <input
               type="text"
               placeholder="Location name (e.g. Customer Site B)"
               value={destLabel}
               onChange={(e) => setDestLabel(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <div className="flex gap-2">
               <input
@@ -186,14 +186,14 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
                 placeholder="Latitude"
                 value={destLat}
                 onChange={(e) => setDestLat(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <input
                 type="text"
                 placeholder="Longitude"
                 value={destLng}
                 onChange={(e) => setDestLng(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </fieldset>
@@ -202,7 +202,7 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
             <button
               type="button"
               onClick={handleClose}
-              className="flex-1 py-2 px-4 border border-gray-300 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50"
+              className="flex-1 py-2 px-4 border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
             >
               Cancel
             </button>

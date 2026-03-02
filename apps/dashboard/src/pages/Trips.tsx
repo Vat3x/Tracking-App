@@ -9,13 +9,14 @@ import { useNavigate } from "react-router-dom";
 import { logout } from "@/services/auth";
 import { toast } from "sonner";
 import type { Trip, TripStatus, User } from "@nexus/shared";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const STATUS_CONFIG: Record<TripStatus, { label: string; bg: string; text: string }> = {
-  pending: { label: "Pending", bg: "bg-yellow-50", text: "text-yellow-700" },
-  accepted: { label: "Accepted", bg: "bg-blue-50", text: "text-blue-700" },
-  rejected: { label: "Rejected", bg: "bg-red-50", text: "text-red-700" },
-  in_progress: { label: "In Progress", bg: "bg-indigo-50", text: "text-indigo-700" },
-  completed: { label: "Completed", bg: "bg-green-50", text: "text-green-700" },
+  pending: { label: "Pending", bg: "bg-yellow-50 dark:bg-yellow-900/30", text: "text-yellow-700 dark:text-yellow-400" },
+  accepted: { label: "Accepted", bg: "bg-blue-50 dark:bg-blue-900/30", text: "text-blue-700 dark:text-blue-400" },
+  rejected: { label: "Rejected", bg: "bg-red-50 dark:bg-red-900/30", text: "text-red-700 dark:text-red-400" },
+  in_progress: { label: "In Progress", bg: "bg-indigo-50 dark:bg-indigo-900/30", text: "text-indigo-700 dark:text-indigo-400" },
+  completed: { label: "Completed", bg: "bg-green-50 dark:bg-green-900/30", text: "text-green-700 dark:text-green-400" },
 };
 
 function StatusBadge({ status }: { status: TripStatus }) {
@@ -83,37 +84,38 @@ export default function Trips() {
 
   return (
     <div className="h-screen flex flex-col">
-      <header className="bg-white border-b border-gray-200 px-4 py-2.5 flex items-center justify-between shrink-0">
+      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center justify-between shrink-0">
         <div>
-          <h1 className="text-base font-semibold text-gray-900">Nexus Tracking</h1>
-          <p className="text-xs text-gray-500">{userDoc?.displayName}</p>
+          <h1 className="text-base font-semibold text-gray-900 dark:text-gray-100">Nexus Tracking</h1>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{userDoc?.displayName}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigate("/")}
-            className="h-8 px-3 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            className="h-8 px-3 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             Map
           </button>
           <button
             onClick={() => navigate("/settings")}
-            className="h-8 px-3 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            className="h-8 px-3 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             Settings
           </button>
+          <ThemeToggle />
           <button
             onClick={() => setTripModalOpen(true)}
             className="h-8 px-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
           >
             New Trip
           </button>
-          <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-600 ml-1">
+          <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 ml-1">
             Sign out
           </button>
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto bg-gray-50 p-6">
+      <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950 p-6">
         <div className="max-w-4xl mx-auto">
           {/* Filter tabs */}
           <div className="flex items-center gap-1 mb-4">
@@ -123,22 +125,22 @@ export default function Trips() {
                 onClick={() => setFilter(f)}
                 className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
                   filter === f
-                    ? "bg-white text-gray-900 font-medium shadow-sm border border-gray-200"
-                    : "text-gray-500 hover:text-gray-700"
+                    ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-medium shadow-sm border border-gray-200 dark:border-gray-700"
+                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                 }`}
               >
                 {f.charAt(0).toUpperCase() + f.slice(1)}
               </button>
             ))}
-            <span className="text-xs text-gray-400 ml-2">
+            <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">
               {filteredTrips.length} trip{filteredTrips.length !== 1 ? "s" : ""}
             </span>
           </div>
 
           {/* Trip list */}
           {filteredTrips.length === 0 ? (
-            <div className="bg-white border border-gray-200 rounded-xl py-16 text-center">
-              <p className="text-sm text-gray-500 mb-3">
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl py-16 text-center">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
                 {filter === "all" ? "No trips yet" : `No ${filter} trips`}
               </p>
               <button
@@ -159,15 +161,15 @@ export default function Trips() {
                 return (
                   <div
                     key={trip.id}
-                    className="bg-white border border-gray-200 rounded-xl px-5 py-4"
+                    className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-5 py-4"
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-medium text-gray-900">{driverName}</span>
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{driverName}</span>
                           <StatusBadge status={trip.status} />
                         </div>
-                        <p className="text-xs text-gray-400">
+                        <p className="text-xs text-gray-400 dark:text-gray-500">
                           Created {formatTime(trip.createdAt)}
                           {trip.respondedAt && <> · Responded {formatTime(trip.respondedAt)}</>}
                         </p>
@@ -184,17 +186,17 @@ export default function Trips() {
 
                     <div className="flex gap-4">
                       <div className="flex-1">
-                        <p className="text-xs text-gray-500 uppercase tracking-wider mb-0.5">Origin</p>
-                        <p className="text-sm text-gray-900">{trip.origin.label}</p>
-                        <p className="text-xs text-gray-400">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-0.5">Origin</p>
+                        <p className="text-sm text-gray-900 dark:text-gray-100">{trip.origin.label}</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">
                           {trip.origin.lat.toFixed(4)}, {trip.origin.lng.toFixed(4)}
                         </p>
                       </div>
-                      <div className="text-gray-300 self-center">&rarr;</div>
+                      <div className="text-gray-300 dark:text-gray-600 self-center">&rarr;</div>
                       <div className="flex-1">
-                        <p className="text-xs text-gray-500 uppercase tracking-wider mb-0.5">Destination</p>
-                        <p className="text-sm text-gray-900">{trip.destination.label}</p>
-                        <p className="text-xs text-gray-400">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-0.5">Destination</p>
+                        <p className="text-sm text-gray-900 dark:text-gray-100">{trip.destination.label}</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">
                           {trip.destination.lat.toFixed(4)}, {trip.destination.lng.toFixed(4)}
                         </p>
                       </div>

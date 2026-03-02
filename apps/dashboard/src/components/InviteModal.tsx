@@ -51,11 +51,11 @@ export default function InviteModal({ open, onClose, companyName }: InviteModalP
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-2">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
           Invite Driver
         </h2>
-        <p className="text-sm text-gray-500 mb-6">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
           Generate a tracking request link. Share it with a driver via
           WhatsApp, email, or any messenger. The link expires in 72 hours.
         </p>
@@ -70,11 +70,11 @@ export default function InviteModal({ open, onClose, companyName }: InviteModalP
           </button>
         ) : (
           <div className="space-y-3">
-            <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+            <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2">
               <input
                 readOnly
                 value={link}
-                className="flex-1 bg-transparent text-sm text-gray-700 outline-none truncate"
+                className="flex-1 bg-transparent text-sm text-gray-700 dark:text-gray-300 outline-none truncate"
               />
               <button
                 onClick={handleCopy}
@@ -86,7 +86,7 @@ export default function InviteModal({ open, onClose, companyName }: InviteModalP
             <button
               onClick={handleGenerate}
               disabled={loading}
-              className="w-full h-10 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-colors"
+              className="w-full h-10 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 transition-colors"
             >
               Generate New Link
             </button>
@@ -95,7 +95,7 @@ export default function InviteModal({ open, onClose, companyName }: InviteModalP
 
         <button
           onClick={handleClose}
-          className="w-full mt-3 h-10 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+          className="w-full mt-3 h-10 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           Close
         </button>

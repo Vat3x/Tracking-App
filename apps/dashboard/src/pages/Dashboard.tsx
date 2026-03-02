@@ -13,6 +13,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/services/firebase";
 import { toast } from "sonner";
 import { COLLECTIONS, type Invite, type User } from "@nexus/shared";
+import ThemeToggle from "@/components/ThemeToggle";
 
 function formatTime(ts: number): string {
   const d = new Date(ts);
@@ -22,12 +23,12 @@ function formatTime(ts: number): string {
 function InviteStatusBadge({ invite }: { invite: Invite }) {
   const now = Date.now();
   if (invite.status === "accepted") {
-    return <span className="text-xs font-medium text-green-700 bg-green-50 px-2 py-0.5 rounded-full">Accepted</span>;
+    return <span className="text-xs font-medium text-green-700 bg-green-50 dark:text-green-400 dark:bg-green-900/30 px-2 py-0.5 rounded-full">Accepted</span>;
   }
   if (invite.status === "expired" || invite.expiresAt < now) {
-    return <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Expired</span>;
+    return <span className="text-xs font-medium text-gray-500 bg-gray-100 dark:text-gray-400 dark:bg-gray-700 px-2 py-0.5 rounded-full">Expired</span>;
   }
-  return <span className="text-xs font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">Pending</span>;
+  return <span className="text-xs font-medium text-blue-700 bg-blue-50 dark:text-blue-400 dark:bg-blue-900/30 px-2 py-0.5 rounded-full">Pending</span>;
 }
 
 export default function Dashboard() {
@@ -111,21 +112,21 @@ export default function Dashboard() {
   return (
     <div className="h-screen flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-4 py-2.5 flex items-center justify-between shrink-0 z-10">
+      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center justify-between shrink-0 z-10">
         <div>
-          <h1 className="text-base font-semibold text-gray-900">Nexus Tracking</h1>
-          <p className="text-xs text-gray-500">{userDoc?.displayName}</p>
+          <h1 className="text-base font-semibold text-gray-900 dark:text-gray-100">Nexus Tracking</h1>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{userDoc?.displayName}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigate("/trips")}
-            className="h-8 px-3 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            className="h-8 px-3 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             Trips
           </button>
           <button
             onClick={() => setInvitesOpen(!invitesOpen)}
-            className="relative h-8 px-3 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            className="relative h-8 px-3 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             Invites
             {pendingInvites > 0 && (
@@ -136,10 +137,11 @@ export default function Dashboard() {
           </button>
           <button
             onClick={() => navigate("/settings")}
-            className="h-8 px-3 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            className="h-8 px-3 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             Settings
           </button>
+          <ThemeToggle />
           <button
             onClick={() => setInviteModalOpen(true)}
             className="h-8 px-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
@@ -148,7 +150,7 @@ export default function Dashboard() {
           </button>
           <button
             onClick={handleLogout}
-            className="text-sm text-gray-400 hover:text-gray-600 ml-1"
+            className="text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 ml-1"
           >
             Sign out
           </button>
@@ -182,14 +184,14 @@ export default function Dashboard() {
               className="absolute inset-0 bg-black/10 z-20"
               onClick={() => setInvitesOpen(false)}
             />
-            <div className="absolute left-0 top-0 bottom-0 w-96 bg-white border-r border-gray-200 shadow-xl z-30 flex flex-col">
-              <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-gray-900">
+            <div className="absolute left-0 top-0 bottom-0 w-96 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 shadow-xl z-30 flex flex-col">
+              <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                   Tracking Requests
                 </h2>
                 <button
                   onClick={() => setInvitesOpen(false)}
-                  className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg leading-none"
                 >
                   &times;
                 </button>
@@ -198,7 +200,7 @@ export default function Dashboard() {
               <div className="flex-1 overflow-y-auto">
                 {invites.length === 0 ? (
                   <div className="px-5 py-12 text-center">
-                    <p className="text-sm text-gray-500 mb-3">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
                       No invites yet. Generate a tracking request link.
                     </p>
                     <button
@@ -212,19 +214,19 @@ export default function Dashboard() {
                     </button>
                   </div>
                 ) : (
-                  <div className="divide-y divide-gray-50">
+                  <div className="divide-y divide-gray-50 dark:divide-gray-700">
                     {invites.map((invite) => {
                       const isActive =
                         invite.status === "pending" && invite.expiresAt > Date.now();
                       return (
                         <div key={invite.id} className="px-5 py-3">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm font-mono text-gray-600 truncate">
+                            <span className="text-sm font-mono text-gray-600 dark:text-gray-300 truncate">
                               {invite.id.slice(0, 8)}...
                             </span>
                             <InviteStatusBadge invite={invite} />
                           </div>
-                          <p className="text-xs text-gray-400">
+                          <p className="text-xs text-gray-400 dark:text-gray-500">
                             Created {formatTime(invite.createdAt)}
                             {invite.status === "accepted" && invite.acceptedBy && (
                               <> · Driver: {invite.acceptedBy.slice(0, 8)}...</>

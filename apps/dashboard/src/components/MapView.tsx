@@ -3,9 +3,11 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { DriverLocationEntry } from "@/services/locations";
 import { type User, STALE_THRESHOLD_MS, timeAgo } from "@nexus/shared";
+import { useThemeStore } from "@/stores/theme";
 
-// Free OpenStreetMap tile style — no API key needed
-const MAP_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
+// Free CARTO tile styles — no API key needed
+const MAP_STYLE_LIGHT = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
+const MAP_STYLE_DARK = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 
 function getMarkerColor(current: { isOnline: boolean; timestamp: number }): string {
   if (!current.isOnline) return "#9ca3af"; // gray — offline
@@ -30,6 +32,7 @@ export default function MapView({
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map());
   const popupRef = useRef<maplibregl.Popup | null>(null);
+  const theme = useThemeStore((s) => s.theme);
 
   // Initialize map
   useEffect(() => {
@@ -37,7 +40,7 @@ export default function MapView({
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: MAP_STYLE,
+      style: theme === "dark" ? MAP_STYLE_DARK : MAP_STYLE_LIGHT,
       center: [0, 20],
       zoom: 2,
     });
@@ -59,6 +62,13 @@ export default function MapView({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Switch map tiles when theme changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    map.setStyle(theme === "dark" ? MAP_STYLE_DARK : MAP_STYLE_LIGHT);
+  }, [theme]);
 
   const showPopup = useCallback(
     (driver: DriverLocationEntry) => {
