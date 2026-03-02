@@ -2,10 +2,16 @@ import { useRef, useEffect, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { DriverLocationEntry } from "@/services/locations";
-import type { User } from "@nexus/shared";
+import { type User, STALE_THRESHOLD_MS } from "@nexus/shared";
 
 // Free OpenStreetMap tile style — no API key needed
 const MAP_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
+
+function getMarkerColor(current: { isOnline: boolean; timestamp: number }): string {
+  if (!current.isOnline) return "#9ca3af"; // gray — offline
+  const isStale = Date.now() - current.timestamp > STALE_THRESHOLD_MS;
+  return isStale ? "#eab308" : "#22c55e"; // yellow — stale, green — fresh
+}
 
 interface Props {
   drivers: DriverLocationEntry[];
@@ -129,9 +135,7 @@ export default function MapView({
           showPopup(driver);
         });
 
-        if (!current.isOnline) {
-          el.style.background = "#9ca3af";
-        }
+        el.style.background = getMarkerColor(current);
 
         const marker = new maplibregl.Marker({ element: el })
           .setLngLat([current.lng, current.lat])
@@ -140,11 +144,11 @@ export default function MapView({
         markersRef.current.set(driverId, marker);
       }
 
-      // Update marker color based on online status
+      // Update marker color based on status (green/yellow/gray)
       const marker = markersRef.current.get(driverId);
       if (marker) {
         const el = marker.getElement();
-        el.style.background = current.isOnline ? "#3b82f6" : "#9ca3af";
+        el.style.background = getMarkerColor(current);
       }
     });
   }, [drivers, onSelectDriver, showPopup]);

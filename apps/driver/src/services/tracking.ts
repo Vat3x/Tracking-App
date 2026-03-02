@@ -4,10 +4,12 @@ import { RTDB } from "@nexus/shared";
 import type { LocationObject } from "expo-location";
 import { getBatteryInfo } from "./battery";
 import { useTrackingStore } from "../stores/tracking";
+import { enqueue } from "./offlineQueue";
 
 /**
  * Called by the background location task (and on-demand) to write
  * the driver's current location + battery info to Firebase RTDB.
+ * On failure, queues the update for later replay.
  */
 export async function updateDriverLocation(
   location: LocationObject
@@ -28,10 +30,6 @@ export async function updateDriverLocation(
     isOnline: true,
   };
 
-  // Write current location
-  await set(ref(rtdb, RTDB.driverCurrent(companyId, driverId)), currentData);
-
-  // Append to history
   const historyData = {
     lat: location.coords.latitude,
     lng: location.coords.longitude,
@@ -39,17 +37,27 @@ export async function updateDriverLocation(
     batteryLevel: battery.level,
     timestamp: Date.now(),
   };
-  await push(ref(rtdb, RTDB.driverHistory(companyId, driverId)), historyData);
 
-  // Update local store with last sync info
-  useTrackingStore.getState().setLastSync({
-    timestamp: Date.now(),
-    lat: location.coords.latitude,
-    lng: location.coords.longitude,
-    batteryLevel: battery.level,
-    isCharging: battery.isCharging,
-    speed: location.coords.speed ?? 0,
-  });
+  try {
+    // Write current location
+    await set(ref(rtdb, RTDB.driverCurrent(companyId, driverId)), currentData);
+
+    // Append to history
+    await push(ref(rtdb, RTDB.driverHistory(companyId, driverId)), historyData);
+
+    // Update local store with last sync info
+    useTrackingStore.getState().setLastSync({
+      timestamp: Date.now(),
+      lat: location.coords.latitude,
+      lng: location.coords.longitude,
+      batteryLevel: battery.level,
+      isCharging: battery.isCharging,
+      speed: location.coords.speed ?? 0,
+    });
+  } catch (error) {
+    console.warn("Location write failed, queuing for offline replay:", error);
+    await enqueue({ companyId, driverId, currentData, historyData, queuedAt: Date.now() });
+  }
 }
 
 /**

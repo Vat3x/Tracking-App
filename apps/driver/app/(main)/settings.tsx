@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { logout } from "../../src/services/auth";
 import { useAuthStore } from "../../src/stores/auth";
+import { clearFcmToken } from "../../src/services/notifications";
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -14,6 +15,9 @@ export default function SettingsScreen() {
         text: "Sign Out",
         style: "destructive",
         onPress: async () => {
+          if (userDoc?.id) {
+            await clearFcmToken(userDoc.id).catch(() => {});
+          }
           await logout();
           reset();
           router.replace("/(auth)/login");

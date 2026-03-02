@@ -33,6 +33,8 @@ export default function HomeScreen() {
     isOnline,
     lastSync,
     permissionStatus,
+    pendingSync,
+    isNetworkConnected,
     setOnline,
     setIdentity,
     setPermissionStatus,
@@ -197,6 +199,20 @@ export default function HomeScreen() {
               {lastSync.lat.toFixed(4)}, {lastSync.lng.toFixed(4)}
             </Text>
           </View>
+        </View>
+      )}
+
+      {/* Offline Sync Indicator */}
+      {pendingSync > 0 && (
+        <View style={styles.warningCard}>
+          <Text style={styles.warningTitle}>
+            {pendingSync} update{pendingSync > 1 ? "s" : ""} pending
+          </Text>
+          <Text style={styles.warningText}>
+            {isNetworkConnected
+              ? "Syncing queued location updates..."
+              : "No internet connection. Updates will sync when back online."}
+          </Text>
         </View>
       )}
 

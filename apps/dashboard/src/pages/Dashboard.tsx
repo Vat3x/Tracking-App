@@ -99,6 +99,12 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => navigate("/trips")}
+            className="h-8 px-3 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            Trips
+          </button>
+          <button
             onClick={() => setInvitesOpen(!invitesOpen)}
             className="relative h-8 px-3 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
           >

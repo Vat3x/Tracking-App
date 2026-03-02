@@ -5,6 +5,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Linking from "expo-linking";
 import { onAuthChange, getUserDoc } from "../src/services/auth";
 import { useAuthStore } from "../src/stores/auth";
+import {
+  registerForPushNotifications,
+  setupNotificationListeners,
+  checkInitialNotification,
+} from "../src/services/notifications";
+import { startNetworkListener } from "../src/services/offlineQueue";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +42,31 @@ function AuthGate() {
 
     return unsubscribe;
   }, [setFirebaseUser, setUserDoc, setLoading]);
+
+  // Initialize push notifications when authenticated
+  useEffect(() => {
+    if (!firebaseUser?.uid) return;
+
+    let cleanupListeners: (() => void) | undefined;
+
+    async function init() {
+      await registerForPushNotifications(firebaseUser!.uid);
+      cleanupListeners = setupNotificationListeners(firebaseUser!.uid);
+      // Check if app was launched by tapping a notification
+      await checkInitialNotification();
+    }
+
+    init();
+
+    return () => {
+      cleanupListeners?.();
+    };
+  }, [firebaseUser?.uid]);
+
+  // Monitor network connectivity for offline queue
+  useEffect(() => {
+    return startNetworkListener();
+  }, []);
 
   // Handle deep links
   useEffect(() => {
