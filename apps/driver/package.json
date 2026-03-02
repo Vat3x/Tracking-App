@@ -10,6 +10,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@nexus/shared": "workspace:^",
     "@tanstack/react-query": "^5.90.21",
     "expo": "~55.0.4",
     "expo-battery": "^55.0.8",
