@@ -24,12 +24,20 @@ export function subscribeToDriverTrips(
     orderBy("createdAt", "desc")
   );
 
-  return onSnapshot(q, (snapshot) => {
-    const trips = snapshot.docs.map(
-      (d) => ({ id: d.id, ...d.data() }) as Trip
-    );
-    callback(trips);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const trips = snapshot.docs.map(
+        (d) => ({ id: d.id, ...d.data() }) as Trip
+      );
+      callback(trips);
+    },
+    (error) => {
+      console.error("subscribeToDriverTrips error:", error);
+      // Still call callback with empty array so UI stops loading
+      callback([]);
+    }
+  );
 }
 
 /**
