@@ -23,6 +23,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleLogin() {
     if (!email || !password) {
@@ -98,7 +99,8 @@ export default function LoginScreen() {
         {isRegister && (
           <TextInput
             style={styles.input}
-            placeholder="Your name"
+            placeholder="Name"
+            placeholderTextColor="#999"
             value={displayName}
             onChangeText={setDisplayName}
             autoCapitalize="words"
@@ -108,6 +110,7 @@ export default function LoginScreen() {
         <TextInput
           style={styles.input}
           placeholder="Email"
+          placeholderTextColor="#999"
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
@@ -115,13 +118,22 @@ export default function LoginScreen() {
           autoCorrect={false}
         />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
+        <View style={styles.passwordContainer}>
+          <TextInput
+            style={styles.passwordInput}
+            placeholder="Password"
+            placeholderTextColor="#999"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+          />
+          <TouchableOpacity
+            style={styles.eyeButton}
+            onPress={() => setShowPassword(!showPassword)}
+          >
+            <Text style={styles.eyeIcon}>{showPassword ? "👁" : "👁‍🗨"}</Text>
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
@@ -182,6 +194,30 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginBottom: 12,
     backgroundColor: "#fafafa",
+  },
+  passwordContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    marginBottom: 12,
+    backgroundColor: "#fafafa",
+    height: 48,
+  },
+  passwordInput: {
+    flex: 1,
+    height: 48,
+    paddingHorizontal: 14,
+    fontSize: 15,
+  },
+  eyeButton: {
+    paddingHorizontal: 12,
+    height: 48,
+    justifyContent: "center",
+  },
+  eyeIcon: {
+    fontSize: 18,
   },
   button: {
     height: 48,
