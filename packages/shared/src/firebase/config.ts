@@ -1,7 +1,7 @@
 export const firebaseConfig = {
   apiKey: "AIzaSyDYWVFvd3X5vrSHiqfVnEqKkKFkATVPg7A",
   authDomain: "tracking-app-f6ad7.firebaseapp.com",
-  databaseURL: "https://tracking-app-f6ad7-default-rtdb.firebaseio.com",
+  databaseURL: "https://tracking-app-f6ad7-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "tracking-app-f6ad7",
   storageBucket: "tracking-app-f6ad7.firebasestorage.app",
   messagingSenderId: "463711773961",
