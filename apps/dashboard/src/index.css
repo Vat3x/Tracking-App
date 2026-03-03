@@ -32,3 +32,21 @@ html.dark {
 .dark .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
   filter: invert(1);
 }
+
+/* Driver popup styling */
+.driver-popup .maplibregl-popup-content {
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  border: 1px solid #e5e7eb;
+}
+.driver-popup .maplibregl-popup-tip {
+  border-top-color: #fff;
+}
+.dark .driver-popup .maplibregl-popup-content {
+  background: #1f2937;
+  border-color: #374151;
+}
+.dark .driver-popup .maplibregl-popup-tip {
+  border-top-color: #1f2937;
+}

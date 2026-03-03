@@ -78,17 +78,44 @@ export default function MapView({
       const profile = driverProfiles.get(driver.driverId);
       const name = profile?.displayName ?? driver.driverId.slice(0, 8);
       const c = driver.current;
+      const isDark = document.documentElement.classList.contains("dark");
 
       popupRef.current?.remove();
 
-      const popup = new maplibregl.Popup({ offset: 25, closeButton: false })
+      const isStale = Date.now() - c.timestamp > STALE_THRESHOLD_MS;
+      const statusColor = c.isOnline && !isStale ? "#22c55e" : isStale ? "#eab308" : "#9ca3af";
+      const statusLabel = c.isOnline ? (isStale ? "Stale" : "Online") : "Offline";
+      const battery = Math.round(c.batteryLevel * 100);
+      const speed = c.speed > 0 ? `${Math.round(c.speed * 3.6)} km/h` : "Stationary";
+
+      const nameColor = isDark ? "#f3f4f6" : "#111827";
+      const valueColor = isDark ? "#e5e7eb" : "#374151";
+      const cardBg = isDark ? "#374151" : "#f3f4f6";
+      const labelColor = isDark ? "#6b7280" : "#9ca3af";
+
+      const popup = new maplibregl.Popup({ offset: 25, closeButton: false, className: "driver-popup" })
         .setLngLat([c.lng, c.lat])
         .setHTML(
-          `<div style="font-family:system-ui;font-size:13px;line-height:1.5">
-            <strong>${name}</strong><br/>
-            <span style="color:#6b7280">${timeAgo(c.timestamp)}</span><br/>
-            ${Math.round(c.batteryLevel * 100)}% battery${c.isCharging ? " ⚡" : ""}<br/>
-            ${c.speed > 0 ? `${Math.round(c.speed * 3.6)} km/h` : "Stationary"}
+          `<div style="font-family:system-ui;padding:4px 2px;min-width:160px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <div style="width:32px;height:32px;border-radius:50%;background:${statusColor}20;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <div style="width:8px;height:8px;border-radius:50%;background:${statusColor}"></div>
+              </div>
+              <div>
+                <div style="font-weight:600;font-size:13px;color:${nameColor}">${name}</div>
+                <div style="font-size:11px;color:${statusColor};font-weight:500">${statusLabel} · ${timeAgo(c.timestamp)}</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+              <div style="background:${cardBg};border-radius:6px;padding:6px 8px">
+                <div style="font-size:10px;color:${labelColor};text-transform:uppercase;letter-spacing:0.5px">Battery</div>
+                <div style="font-size:13px;font-weight:600;color:${valueColor}">${battery}%${c.isCharging ? " ⚡" : ""}</div>
+              </div>
+              <div style="background:${cardBg};border-radius:6px;padding:6px 8px">
+                <div style="font-size:10px;color:${labelColor};text-transform:uppercase;letter-spacing:0.5px">Speed</div>
+                <div style="font-size:13px;font-weight:600;color:${valueColor}">${speed}</div>
+              </div>
+            </div>
           </div>`
         )
         .addTo(map);
