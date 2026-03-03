@@ -16,6 +16,7 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
   const { drivers } = useDriversStore();
 
   const [driverId, setDriverId] = useState("");
+  const [country, setCountry] = useState("us");
   const [originLabel, setOriginLabel] = useState("");
   const [originLat, setOriginLat] = useState("");
   const [originLng, setOriginLng] = useState("");
@@ -54,7 +55,7 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
     setZipLoading(which);
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(trimmed)}&format=json&limit=1`,
+        `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(trimmed)}&countrycodes=${country}&format=json&limit=1`,
         { headers: { "User-Agent": "NexusTracking/1.0" } }
       );
       if (!res.ok) {
@@ -148,6 +149,7 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
 
   function handleClose() {
     setDriverId("");
+    setCountry("us");
     setOriginLabel("");
     setOriginLat("");
     setOriginLng("");
@@ -196,6 +198,38 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
                 ))}
               </select>
             )}
+          </div>
+
+          {/* Country */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Country
+            </label>
+            <select
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="us">United States</option>
+              <option value="ca">Canada</option>
+              <option value="mx">Mexico</option>
+              <option value="gb">United Kingdom</option>
+              <option value="de">Germany</option>
+              <option value="fr">France</option>
+              <option value="es">Spain</option>
+              <option value="it">Italy</option>
+              <option value="pl">Poland</option>
+              <option value="nl">Netherlands</option>
+              <option value="ge">Georgia</option>
+              <option value="tr">Turkey</option>
+              <option value="ua">Ukraine</option>
+              <option value="au">Australia</option>
+              <option value="br">Brazil</option>
+              <option value="in">India</option>
+              <option value="jp">Japan</option>
+              <option value="kr">South Korea</option>
+              <option value="cn">China</option>
+            </select>
           </div>
 
           {/* Origin */}
