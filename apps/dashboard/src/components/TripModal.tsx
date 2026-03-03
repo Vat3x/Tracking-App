@@ -110,11 +110,11 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
       return;
     }
     if (!originLabel || !originLat || !originLng) {
-      setError("Fill in origin details");
+      setError("Enter an origin zip/postal code to auto-fill location");
       return;
     }
     if (!destLabel || !destLat || !destLng) {
-      setError("Fill in destination details");
+      setError("Enter a destination zip/postal code to auto-fill location");
       return;
     }
 
@@ -124,7 +124,7 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
     const lng2 = parseFloat(destLng);
 
     if ([lat1, lng1, lat2, lng2].some(isNaN)) {
-      setError("Coordinates must be valid numbers");
+      setError("Zip code lookup failed — coordinates missing");
       return;
     }
 
@@ -208,36 +208,20 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
               onChange={(e) => setOriginLabel(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <div className="flex gap-2">
-              <div className="relative w-28">
-                <input
-                  type="text"
-                  placeholder="Zip code"
-                  value={originZip}
-                  onChange={(e) => {
-                    setOriginZip(e.target.value);
-                    debouncedLookupZip(e.target.value, "origin", setOriginLabel, setOriginLat, setOriginLng);
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                {zipLoading === "origin" && (
-                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-500">...</span>
-                )}
-              </div>
+            <div className="relative">
               <input
                 type="text"
-                placeholder="Latitude"
-                value={originLat}
-                onChange={(e) => setOriginLat(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Zip / postal code"
+                value={originZip}
+                onChange={(e) => {
+                  setOriginZip(e.target.value);
+                  debouncedLookupZip(e.target.value, "origin", setOriginLabel, setOriginLat, setOriginLng);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <input
-                type="text"
-                placeholder="Longitude"
-                value={originLng}
-                onChange={(e) => setOriginLng(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              {zipLoading === "origin" && (
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-500">...</span>
+              )}
             </div>
           </fieldset>
 
@@ -251,36 +235,20 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
               onChange={(e) => setDestLabel(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <div className="flex gap-2">
-              <div className="relative w-28">
-                <input
-                  type="text"
-                  placeholder="Zip code"
-                  value={destZip}
-                  onChange={(e) => {
-                    setDestZip(e.target.value);
-                    debouncedLookupZip(e.target.value, "dest", setDestLabel, setDestLat, setDestLng);
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                {zipLoading === "dest" && (
-                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-500">...</span>
-                )}
-              </div>
+            <div className="relative">
               <input
                 type="text"
-                placeholder="Latitude"
-                value={destLat}
-                onChange={(e) => setDestLat(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Zip / postal code"
+                value={destZip}
+                onChange={(e) => {
+                  setDestZip(e.target.value);
+                  debouncedLookupZip(e.target.value, "dest", setDestLabel, setDestLat, setDestLng);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <input
-                type="text"
-                placeholder="Longitude"
-                value={destLng}
-                onChange={(e) => setDestLng(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              {zipLoading === "dest" && (
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-500">...</span>
+              )}
             </div>
           </fieldset>
 
