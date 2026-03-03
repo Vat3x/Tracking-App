@@ -39,10 +39,22 @@ html.dark {
   padding: 10px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   border: 1px solid #e5e7eb;
+  background: #fff;
 }
 .driver-popup .maplibregl-popup-tip {
   border-top-color: #fff;
 }
+.dp-root { font-family: system-ui; padding: 4px 2px; min-width: 160px; }
+.dp-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.dp-dot-ring { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.dp-dot { width: 8px; height: 8px; border-radius: 50%; }
+.dp-name { font-weight: 600; font-size: 13px; color: #111827; }
+.dp-status { font-size: 11px; font-weight: 500; }
+.dp-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.dp-card { background: #f3f4f6; border-radius: 6px; padding: 6px 8px; }
+.dp-label { font-size: 10px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; }
+.dp-value { font-size: 13px; font-weight: 600; color: #374151; }
+
 .dark .driver-popup .maplibregl-popup-content {
   background: #1f2937;
   border-color: #374151;
@@ -50,3 +62,7 @@ html.dark {
 .dark .driver-popup .maplibregl-popup-tip {
   border-top-color: #1f2937;
 }
+.dark .dp-name { color: #f3f4f6; }
+.dark .dp-card { background: #374151; }
+.dark .dp-label { color: #6b7280; }
+.dark .dp-value { color: #e5e7eb; }

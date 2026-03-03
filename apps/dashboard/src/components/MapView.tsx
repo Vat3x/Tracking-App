@@ -78,8 +78,6 @@ export default function MapView({
       const profile = driverProfiles.get(driver.driverId);
       const name = profile?.displayName ?? driver.driverId.slice(0, 8);
       const c = driver.current;
-      const isDark = document.documentElement.classList.contains("dark");
-
       popupRef.current?.remove();
 
       const isStale = Date.now() - c.timestamp > STALE_THRESHOLD_MS;
@@ -88,32 +86,27 @@ export default function MapView({
       const battery = Math.round(c.batteryLevel * 100);
       const speed = c.speed > 0 ? `${Math.round(c.speed * 3.6)} km/h` : "Stationary";
 
-      const nameColor = isDark ? "#f3f4f6" : "#111827";
-      const valueColor = isDark ? "#e5e7eb" : "#374151";
-      const cardBg = isDark ? "#374151" : "#f3f4f6";
-      const labelColor = isDark ? "#6b7280" : "#9ca3af";
-
       const popup = new maplibregl.Popup({ offset: 25, closeButton: false, className: "driver-popup" })
         .setLngLat([c.lng, c.lat])
         .setHTML(
-          `<div style="font-family:system-ui;padding:4px 2px;min-width:160px">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-              <div style="width:32px;height:32px;border-radius:50%;background:${statusColor}20;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-                <div style="width:8px;height:8px;border-radius:50%;background:${statusColor}"></div>
+          `<div class="dp-root">
+            <div class="dp-header">
+              <div class="dp-dot-ring" style="background:${statusColor}20">
+                <div class="dp-dot" style="background:${statusColor}"></div>
               </div>
               <div>
-                <div style="font-weight:600;font-size:13px;color:${nameColor}">${name}</div>
-                <div style="font-size:11px;color:${statusColor};font-weight:500">${statusLabel} · ${timeAgo(c.timestamp)}</div>
+                <div class="dp-name">${name}</div>
+                <div class="dp-status" style="color:${statusColor}">${statusLabel} · ${timeAgo(c.timestamp)}</div>
               </div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-              <div style="background:${cardBg};border-radius:6px;padding:6px 8px">
-                <div style="font-size:10px;color:${labelColor};text-transform:uppercase;letter-spacing:0.5px">Battery</div>
-                <div style="font-size:13px;font-weight:600;color:${valueColor}">${battery}%${c.isCharging ? " ⚡" : ""}</div>
+            <div class="dp-cards">
+              <div class="dp-card">
+                <div class="dp-label">Battery</div>
+                <div class="dp-value">${battery}%${c.isCharging ? " ⚡" : ""}</div>
               </div>
-              <div style="background:${cardBg};border-radius:6px;padding:6px 8px">
-                <div style="font-size:10px;color:${labelColor};text-transform:uppercase;letter-spacing:0.5px">Speed</div>
-                <div style="font-size:13px;font-weight:600;color:${valueColor}">${speed}</div>
+              <div class="dp-card">
+                <div class="dp-label">Speed</div>
+                <div class="dp-value">${speed}</div>
               </div>
             </div>
           </div>`
