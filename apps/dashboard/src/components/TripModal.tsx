@@ -27,7 +27,7 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [zipLoading, setZipLoading] = useState<"origin" | "dest" | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   function debouncedLookupZip(
     zip: string,
