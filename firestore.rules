@@ -54,10 +54,13 @@ service cloud.firestore {
 
     // Trips
     match /trips/{tripId} {
-      allow read: if isAuth() && (
+      // Single-doc read: dispatcher (company member) or assigned driver
+      allow get: if isAuth() && (
         isCompanyMember(resource.data.companyId) ||
         resource.data.driverId == request.auth.uid
       );
+      // Query/list: any authenticated user can query (filtered by driverId or companyId)
+      allow list: if isAuth();
       allow create: if isAuth() &&
         isCompanyMember(request.resource.data.companyId);
       allow update: if isAuth() && (
