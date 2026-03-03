@@ -48,6 +48,35 @@ function DriverCard({
         <span>{Math.round(c.batteryLevel * 100)}%{c.isCharging ? " ⚡" : ""}</span>
         <span>{c.speed > 0 ? `${Math.round(c.speed * 3.6)} km/h` : "Stationary"}</span>
       </div>
+
+      {isSelected && (
+        <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 space-y-1">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-gray-400 dark:text-gray-500">Coordinates</span>
+            <span className="text-gray-600 dark:text-gray-300 font-mono">
+              {c.lat.toFixed(5)}, {c.lng.toFixed(5)}
+            </span>
+          </div>
+          {c.heading !== undefined && c.heading > 0 && (
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-gray-400 dark:text-gray-500">Heading</span>
+              <span className="text-gray-600 dark:text-gray-300">{Math.round(c.heading)}°</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-gray-400 dark:text-gray-500">Last update</span>
+            <span className="text-gray-600 dark:text-gray-300">
+              {new Date(c.timestamp).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-gray-400 dark:text-gray-500">Battery</span>
+            <span className="text-gray-600 dark:text-gray-300">
+              {Math.round(c.batteryLevel * 100)}%{c.isCharging ? " (Charging)" : ""}
+            </span>
+          </div>
+        </div>
+      )}
     </button>
   );
 }
