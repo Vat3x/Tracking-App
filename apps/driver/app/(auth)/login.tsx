@@ -194,6 +194,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginBottom: 12,
     backgroundColor: "#fafafa",
+    color: "#000",
   },
   passwordContainer: {
     flexDirection: "row",
@@ -210,6 +211,7 @@ const styles = StyleSheet.create({
     height: 48,
     paddingHorizontal: 14,
     fontSize: 15,
+    color: "#000",
   },
   eyeButton: {
     paddingHorizontal: 12,
