@@ -123,6 +123,7 @@ export default function MapView({
       } else {
         const el = document.createElement("div");
         el.className = "driver-marker";
+        el.style.cssText = "width:36px;height:36px;overflow:visible;";
 
         const inner = document.createElement("div");
         inner.style.cssText =
