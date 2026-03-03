@@ -1,4 +1,4 @@
-import { useState, useCallback, type FormEvent } from "react";
+import { useState, useRef, type FormEvent } from "react";
 import { createTrip } from "@/services/trips";
 import { useAuthStore } from "@/stores/auth";
 import { useDriversStore } from "@/stores/drivers";
@@ -26,30 +26,58 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
   const [destZip, setDestZip] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [zipLoading, setZipLoading] = useState<"origin" | "dest" | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const lookupZip = useCallback(
-    async (
-      zip: string,
-      setLabel: (v: string) => void,
-      setLat: (v: string) => void,
-      setLng: (v: string) => void
-    ) => {
-      const trimmed = zip.trim();
-      if (trimmed.length !== 5 || !/^\d{5}$/.test(trimmed)) return;
-      try {
-        const res = await fetch(`https://api.zippopotam.us/us/${trimmed}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        const place = data.places?.[0];
-        if (place) {
-          setLabel(`${place["place name"]}, ${place["state abbreviation"]}`);
-          setLat(place.latitude);
-          setLng(place.longitude);
-        }
-      } catch { /* ignore network errors */ }
-    },
-    []
-  );
+  function debouncedLookupZip(
+    zip: string,
+    which: "origin" | "dest",
+    setLabel: (v: string) => void,
+    setLat: (v: string) => void,
+    setLng: (v: string) => void
+  ) {
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      lookupZip(zip, which, setLabel, setLat, setLng);
+    }, 600);
+  }
+
+  async function lookupZip(
+    zip: string,
+    which: "origin" | "dest",
+    setLabel: (v: string) => void,
+    setLat: (v: string) => void,
+    setLng: (v: string) => void
+  ) {
+    const trimmed = zip.trim();
+    if (trimmed.length < 3 || trimmed.length > 10) return;
+    setZipLoading(which);
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(trimmed)}&format=json&limit=1`,
+        { headers: { "User-Agent": "NexusTracking/1.0" } }
+      );
+      if (!res.ok) {
+        toast.error("Zip code not found");
+        return;
+      }
+      const data = await res.json();
+      if (data.length > 0) {
+        const place = data[0];
+        const parts = place.display_name.split(", ");
+        const label = parts.slice(1, 3).join(", ") || parts[0];
+        setLabel(label);
+        setLat(place.lat);
+        setLng(place.lon);
+      } else {
+        toast.error("Zip code not found");
+      }
+    } catch {
+      toast.error("Failed to lookup zip code");
+    } finally {
+      setZipLoading(null);
+    }
+  }
 
   if (!open) return null;
 
@@ -181,16 +209,21 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Zip code"
-                value={originZip}
-                onChange={(e) => {
-                  setOriginZip(e.target.value);
-                  lookupZip(e.target.value, setOriginLabel, setOriginLat, setOriginLng);
-                }}
-                className="w-28 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <div className="relative w-28">
+                <input
+                  type="text"
+                  placeholder="Zip code"
+                  value={originZip}
+                  onChange={(e) => {
+                    setOriginZip(e.target.value);
+                    debouncedLookupZip(e.target.value, "origin", setOriginLabel, setOriginLat, setOriginLng);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {zipLoading === "origin" && (
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-500">...</span>
+                )}
+              </div>
               <input
                 type="text"
                 placeholder="Latitude"
@@ -219,16 +252,21 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Zip code"
-                value={destZip}
-                onChange={(e) => {
-                  setDestZip(e.target.value);
-                  lookupZip(e.target.value, setDestLabel, setDestLat, setDestLng);
-                }}
-                className="w-28 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <div className="relative w-28">
+                <input
+                  type="text"
+                  placeholder="Zip code"
+                  value={destZip}
+                  onChange={(e) => {
+                    setDestZip(e.target.value);
+                    debouncedLookupZip(e.target.value, "dest", setDestLabel, setDestLat, setDestLng);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {zipLoading === "dest" && (
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-500">...</span>
+                )}
+              </div>
               <input
                 type="text"
                 placeholder="Latitude"
