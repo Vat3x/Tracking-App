@@ -61,7 +61,10 @@ function TripCard({
           <View style={[styles.dot, { backgroundColor: "#22c55e" }]} />
           <View style={styles.routeInfo}>
             <Text style={styles.routeLabel}>Pickup</Text>
-            <Text style={styles.routeName}>{trip.origin.label}</Text>
+            <Text style={styles.routeName}>
+              {trip.origin.label}
+              {trip.origin.zipCode ? ` (${trip.origin.zipCode})` : ""}
+            </Text>
           </View>
         </View>
         <View style={styles.routeLine} />
@@ -69,7 +72,10 @@ function TripCard({
           <View style={[styles.dot, { backgroundColor: "#ef4444" }]} />
           <View style={styles.routeInfo}>
             <Text style={styles.routeLabel}>Drop-off</Text>
-            <Text style={styles.routeName}>{trip.destination.label}</Text>
+            <Text style={styles.routeName}>
+              {trip.destination.label}
+              {trip.destination.zipCode ? ` (${trip.destination.zipCode})` : ""}
+            </Text>
           </View>
         </View>
       </View>

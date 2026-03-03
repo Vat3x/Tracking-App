@@ -10,7 +10,6 @@ const firestore = admin.firestore();
 
 /**
  * When a new trip is created, send FCM push to the assigned driver.
- * (FCM token registration is Phase 6 — for now, just log.)
  */
 export const onTripCreated = onDocumentCreated("trips/{tripId}", async (event) => {
   const data = event.data?.data();
@@ -23,7 +22,12 @@ export const onTripCreated = onDocumentCreated("trips/{tripId}", async (event) =
   const driverDoc = await firestore.doc(`users/${driverId}`).get();
   const fcmToken = driverDoc.data()?.fcmToken;
 
-  if (fcmToken) {
+  if (!fcmToken) {
+    console.log(`onTripCreated: No FCM token for driver ${driverId}, skipping notification`);
+    return;
+  }
+
+  try {
     await admin.messaging().send({
       token: fcmToken,
       notification: {
@@ -35,6 +39,9 @@ export const onTripCreated = onDocumentCreated("trips/{tripId}", async (event) =
         tripId: event.params.tripId,
       },
     });
+    console.log(`onTripCreated: Notification sent to driver ${driverId}`);
+  } catch (err) {
+    console.error(`onTripCreated: Failed to send notification to driver ${driverId}:`, err);
   }
 });
 
@@ -69,7 +76,12 @@ export const onTripStatusChanged = onDocumentUpdated("trips/{tripId}", async (ev
   const message = statusMessages[status];
   if (!message) return;
 
-  if (fcmToken) {
+  if (!fcmToken) {
+    console.log(`onTripStatusChanged: No FCM token for dispatcher ${assignedBy}, skipping notification`);
+    return;
+  }
+
+  try {
     await admin.messaging().send({
       token: fcmToken,
       notification: {
@@ -82,5 +94,8 @@ export const onTripStatusChanged = onDocumentUpdated("trips/{tripId}", async (ev
         status,
       },
     });
+    console.log(`onTripStatusChanged: Notification sent to dispatcher ${assignedBy}`);
+  } catch (err) {
+    console.error(`onTripStatusChanged: Failed to send notification to dispatcher ${assignedBy}:`, err);
   }
 });

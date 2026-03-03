@@ -3,10 +3,12 @@ import {
   View,
   Text,
   StyleSheet,
+  ScrollView,
   Switch,
   Alert,
   Platform,
   Linking,
+  TouchableOpacity,
 } from "react-native";
 import { useAuthStore } from "../../src/stores/auth";
 import { useTrackingStore } from "../../src/stores/tracking";
@@ -82,10 +84,10 @@ export default function HomeScreen() {
         const hasBg = await requestBackgroundPermission();
         if (!hasBg) {
           Alert.alert(
-            "Background Permission",
-            "Background location is needed so tracking works when the app is minimized. You can enable it in Settings.",
+            "Allow All the Time",
+            'To keep tracking active when the app is minimized, go to Settings and select "Allow all the time" for location access.',
             [
-              { text: "Continue Anyway" },
+              { text: "Later" },
               {
                 text: "Open Settings",
                 onPress: () => Linking.openSettings(),
@@ -125,6 +127,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
       <Text style={styles.greeting}>
         Hello, {userDoc?.displayName ?? "Driver"}
       </Text>
@@ -214,28 +217,20 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* Permission Warning */}
+      {/* Permission Warning — only foreground granted */}
       {isOnline && permissionStatus === "foreground" && (
         <View style={styles.warningCard}>
-          <Text style={styles.warningTitle}>Background tracking limited</Text>
+          <Text style={styles.warningTitle}>Action required</Text>
           <Text style={styles.warningText}>
-            Location updates may stop when the app is in the background.
-            {Platform.OS === "android"
-              ? " Also disable battery optimization for this app in your phone settings."
-              : ""}
+            Location tracking will stop when the app is minimized. Open Settings
+            and change location access to "Allow all the time".
           </Text>
+          <TouchableOpacity style={styles.fixButton} onPress={() => Linking.openSettings()}>
+            <Text style={styles.fixButtonText}>Open Settings</Text>
+          </TouchableOpacity>
         </View>
       )}
-
-      {/* Android Battery Optimization Warning */}
-      {isOnline && Platform.OS === "android" && (
-        <View style={styles.tipCard}>
-          <Text style={styles.tipText}>
-            Tip: Disable battery optimization for Nexus Tracking in your phone
-            settings to ensure reliable location updates.
-          </Text>
-        </View>
-      )}
+      </ScrollView>
     </View>
   );
 }
@@ -339,16 +334,17 @@ const styles = StyleSheet.create({
     color: "#a16207",
     lineHeight: 18,
   },
-  tipCard: {
-    backgroundColor: "#eff6ff",
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#bfdbfe",
+  fixButton: {
+    marginTop: 10,
+    backgroundColor: "#92400e",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignSelf: "flex-start",
   },
-  tipText: {
-    fontSize: 12,
-    color: "#1d4ed8",
-    lineHeight: 18,
+  fixButtonText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "600",
   },
 });

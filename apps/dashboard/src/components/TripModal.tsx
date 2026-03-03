@@ -19,9 +19,11 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
   const [originLabel, setOriginLabel] = useState("");
   const [originLat, setOriginLat] = useState("");
   const [originLng, setOriginLng] = useState("");
+  const [originZip, setOriginZip] = useState("");
   const [destLabel, setDestLabel] = useState("");
   const [destLat, setDestLat] = useState("");
   const [destLng, setDestLng] = useState("");
+  const [destZip, setDestZip] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -80,8 +82,8 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
         companyId: userDoc!.companyId!,
         driverId,
         assignedBy: firebaseUser!.uid,
-        origin: { label: originLabel, lat: lat1, lng: lng1 },
-        destination: { label: destLabel, lat: lat2, lng: lng2 },
+        origin: { label: originLabel, lat: lat1, lng: lng1, ...(originZip && { zipCode: originZip }) },
+        destination: { label: destLabel, lat: lat2, lng: lng2, ...(destZip && { zipCode: destZip }) },
       });
       toast.success("Trip created");
       handleClose();
@@ -97,9 +99,11 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
     setOriginLabel("");
     setOriginLat("");
     setOriginLng("");
+    setOriginZip("");
     setDestLabel("");
     setDestLat("");
     setDestLng("");
+    setDestZip("");
     setError("");
     onClose();
   }
@@ -155,6 +159,13 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
             <div className="flex gap-2">
               <input
                 type="text"
+                placeholder="Zip code"
+                value={originZip}
+                onChange={(e) => setOriginZip(e.target.value)}
+                className="w-28 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <input
+                type="text"
                 placeholder="Latitude"
                 value={originLat}
                 onChange={(e) => setOriginLat(e.target.value)}
@@ -181,6 +192,13 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Zip code"
+                value={destZip}
+                onChange={(e) => setDestZip(e.target.value)}
+                className="w-28 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
               <input
                 type="text"
                 placeholder="Latitude"

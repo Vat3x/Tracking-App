@@ -9,6 +9,7 @@ export interface GeoPoint {
   label: string;
   lat: number;
   lng: number;
+  zipCode?: string;
 }
 
 export interface Trip {

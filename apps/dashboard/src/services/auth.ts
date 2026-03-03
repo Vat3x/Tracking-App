@@ -11,7 +11,8 @@ import {
   getDoc,
   collection,
 } from "firebase/firestore";
-import { auth, db } from "./firebase";
+import { ref, set } from "firebase/database";
+import { auth, db, rtdb } from "./firebase";
 import { COLLECTIONS, type User, type Company, DEFAULT_COMPANY_SETTINGS } from "@nexus/shared";
 
 export async function registerDispatcher(
@@ -43,7 +44,10 @@ export async function registerDispatcher(
     joinedAt: Date.now(),
   });
 
-  // 4. Create user document
+  // 4. Mirror to RTDB for security rules (so dispatcher can read locations)
+  await set(ref(rtdb, `company_members/${companyId}/${uid}`), true);
+
+  // 5. Create user document
   const userData: Omit<User, "id"> = {
     email,
     displayName,
