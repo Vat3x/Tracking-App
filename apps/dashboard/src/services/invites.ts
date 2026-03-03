@@ -16,9 +16,7 @@ import {
 } from "@nexus/shared";
 
 export function generateInviteLink(inviteId: string): string {
-  // For now, use the custom scheme deep link
-  // Once Firebase Hosting is set up, this will be a https:// URL
-  return `https://tracking.nexus.app/invite/${inviteId}`;
+  return `https://tracking-app-f6ad7.web.app/invite/${inviteId}`;
 }
 
 export async function createInvite(

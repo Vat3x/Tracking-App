@@ -17,7 +17,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.nexus.tracking.driver",
       "associatedDomains": [
-        "applinks:tracking.nexus.app"
+        "applinks:tracking-app-f6ad7.web.app"
       ],
       "infoPlist": {
         "UIBackgroundModes": [
@@ -55,7 +55,7 @@
           "data": [
             {
               "scheme": "https",
-              "host": "tracking.nexus.app",
+              "host": "tracking-app-f6ad7.web.app",
               "pathPrefix": "/invite"
             }
           ],

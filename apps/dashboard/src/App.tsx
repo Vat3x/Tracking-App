@@ -8,6 +8,7 @@ import Register from "@/pages/Register";
 import Dashboard from "@/pages/Dashboard";
 import Trips from "@/pages/Trips";
 import Settings from "@/pages/Settings";
+import InviteLanding from "@/pages/InviteLanding";
 
 function App() {
   useAuthListener();
@@ -43,6 +44,7 @@ function App() {
           </ProtectedRoute>
         }
       />
+      <Route path="/invite/:inviteId" element={<InviteLanding />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </>

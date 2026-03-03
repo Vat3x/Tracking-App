@@ -15,7 +15,7 @@ import { startNetworkListener } from "../src/services/offlineQueue";
 const queryClient = new QueryClient();
 
 function extractInviteId(url: string): string | null {
-  // Handle both https://tracking.nexus.app/invite/{id} and nexustracking://invite/{id}
+  // Handle both https://tracking-app-f6ad7.web.app/invite/{id} and nexustracking://invite/{id}
   const match = url.match(/\/invite\/([a-zA-Z0-9]+)/);
   return match ? match[1] : null;
 }
