@@ -55,7 +55,17 @@ export async function registerForPushNotifications(
   const tokenData = await Notifications.getDevicePushTokenAsync();
   const token = tokenData.data as string;
 
-  await updateFcmToken(uid, token);
+  if (!token) {
+    console.warn("Push token was empty, skipping save");
+    return null;
+  }
+
+  try {
+    await updateFcmToken(uid, token);
+    console.log("FCM token saved to Firestore");
+  } catch (err) {
+    console.error("Failed to save FCM token to Firestore:", err);
+  }
 
   return token;
 }

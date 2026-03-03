@@ -50,7 +50,11 @@ function AuthGate() {
     let cleanupListeners: (() => void) | undefined;
 
     async function init() {
-      await registerForPushNotifications(firebaseUser!.uid);
+      try {
+        await registerForPushNotifications(firebaseUser!.uid);
+      } catch (err) {
+        console.error("Push notification registration failed:", err);
+      }
       cleanupListeners = setupNotificationListeners(firebaseUser!.uid);
       // Check if app was launched by tapping a notification
       await checkInitialNotification();
