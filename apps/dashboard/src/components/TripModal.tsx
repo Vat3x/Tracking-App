@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, useCallback, type FormEvent } from "react";
 import { createTrip } from "@/services/trips";
 import { useAuthStore } from "@/stores/auth";
 import { useDriversStore } from "@/stores/drivers";
@@ -26,6 +26,30 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
   const [destZip, setDestZip] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const lookupZip = useCallback(
+    async (
+      zip: string,
+      setLabel: (v: string) => void,
+      setLat: (v: string) => void,
+      setLng: (v: string) => void
+    ) => {
+      const trimmed = zip.trim();
+      if (trimmed.length !== 5 || !/^\d{5}$/.test(trimmed)) return;
+      try {
+        const res = await fetch(`https://api.zippopotam.us/us/${trimmed}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const place = data.places?.[0];
+        if (place) {
+          setLabel(`${place["place name"]}, ${place["state abbreviation"]}`);
+          setLat(place.latitude);
+          setLng(place.longitude);
+        }
+      } catch { /* ignore network errors */ }
+    },
+    []
+  );
 
   if (!open) return null;
 
@@ -161,7 +185,10 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
                 type="text"
                 placeholder="Zip code"
                 value={originZip}
-                onChange={(e) => setOriginZip(e.target.value)}
+                onChange={(e) => {
+                  setOriginZip(e.target.value);
+                  lookupZip(e.target.value, setOriginLabel, setOriginLat, setOriginLng);
+                }}
                 className="w-28 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <input
@@ -196,7 +223,10 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
                 type="text"
                 placeholder="Zip code"
                 value={destZip}
-                onChange={(e) => setDestZip(e.target.value)}
+                onChange={(e) => {
+                  setDestZip(e.target.value);
+                  lookupZip(e.target.value, setDestLabel, setDestLat, setDestLng);
+                }}
                 className="w-28 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <input
