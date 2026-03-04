@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuthStore } from "@/stores/auth";
 import { useDriversStore } from "@/stores/drivers";
 import { logout } from "@/services/auth";
 import { subscribeToInvites, generateInviteLink, expireInvite } from "@/services/invites";
 import { subscribeToCompanyLocations } from "@/services/locations";
+import { subscribeToCompanyTrips } from "@/services/trips";
 import { getCompanyDrivers } from "@/services/drivers";
 import InviteModal from "@/components/InviteModal";
 import MapView from "@/components/MapView";
@@ -12,7 +13,7 @@ import { useNavigate } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/services/firebase";
 import { toast } from "sonner";
-import { COLLECTIONS, type Invite, type User } from "@nexus/shared";
+import { COLLECTIONS, type Invite, type User, type Trip } from "@nexus/shared";
 import ThemeToggle from "@/components/ThemeToggle";
 
 function formatTime(ts: number): string {
@@ -41,6 +42,7 @@ export default function Dashboard() {
   const [invites, setInvites] = useState<Invite[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [driverProfiles, setDriverProfiles] = useState<Map<string, User>>(new Map());
+  const [trips, setTrips] = useState<Trip[]>([]);
   const [companyName, setCompanyName] = useState("My Company");
 
   // Fetch company name
@@ -62,6 +64,12 @@ export default function Dashboard() {
     if (!userDoc?.companyId) return;
     return subscribeToCompanyLocations(userDoc.companyId, setDrivers);
   }, [userDoc?.companyId, setDrivers]);
+
+  // Subscribe to trips (for active trip marker colors)
+  useEffect(() => {
+    if (!userDoc?.companyId) return;
+    return subscribeToCompanyTrips(userDoc.companyId, setTrips);
+  }, [userDoc?.companyId]);
 
   // Load driver profiles from Firestore
   useEffect(() => {
@@ -103,6 +111,16 @@ export default function Dashboard() {
   const handleSelectDriver = useCallback(
     (driverId: string | null) => selectDriver(driverId),
     [selectDriver]
+  );
+
+  const activeDriverIds = useMemo(
+    () => new Set(
+      trips
+        .filter((t) => t.status === "accepted" || t.status === "in_progress")
+        .map((t) => t.driverId)
+        .filter((id): id is string => id !== null)
+    ),
+    [trips]
   );
 
   const pendingInvites = invites.filter(
@@ -166,6 +184,7 @@ export default function Dashboard() {
             driverProfiles={driverProfiles}
             selectedDriverId={selectedDriverId}
             onSelectDriver={handleSelectDriver}
+            activeDriverIds={activeDriverIds}
           />
         </div>
 
@@ -175,6 +194,7 @@ export default function Dashboard() {
           driverProfiles={driverProfiles}
           selectedDriverId={selectedDriverId}
           onSelectDriver={selectDriver}
+          activeDriverIds={activeDriverIds}
         />
 
         {/* Invites slide-over panel */}

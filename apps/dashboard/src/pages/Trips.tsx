@@ -8,7 +8,7 @@ import TripModal from "@/components/TripModal";
 import { useNavigate } from "react-router-dom";
 import { logout } from "@/services/auth";
 import { toast } from "sonner";
-import type { Trip, TripStatus, User } from "@nexus/shared";
+import { type Trip, type TripStatus, type User, distanceMeters } from "@nexus/shared";
 import ThemeToggle from "@/components/ThemeToggle";
 
 const STATUS_CONFIG: Record<TripStatus, { label: string; bg: string; text: string }> = {
@@ -33,9 +33,13 @@ function formatTime(ts: number): string {
   return d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
+function formatDistance(meters: number): string {
+  return meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1)} km`;
+}
+
 export default function Trips() {
   const { userDoc } = useAuthStore();
-  const { setDrivers } = useDriversStore();
+  const { drivers, setDrivers } = useDriversStore();
   const navigate = useNavigate();
 
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -158,6 +162,18 @@ export default function Trips() {
                   (trip.driverId ? `Driver ${trip.driverId.slice(0, 6)}` : "Unassigned");
                 const isActive = ["pending", "accepted", "in_progress"].includes(trip.status);
 
+                let distanceLabel: string | null = null;
+                if (trip.status === "accepted" && trip.driverId) {
+                  const driverLoc = drivers.find((d) => d.driverId === trip.driverId);
+                  if (driverLoc) {
+                    const m = distanceMeters(driverLoc.current.lat, driverLoc.current.lng, trip.origin.lat, trip.origin.lng);
+                    distanceLabel = `${formatDistance(m)} to pickup`;
+                  }
+                } else if (trip.status === "in_progress") {
+                  const m = distanceMeters(trip.origin.lat, trip.origin.lng, trip.destination.lat, trip.destination.lng);
+                  distanceLabel = `${formatDistance(m)} trip distance`;
+                }
+
                 return (
                   <div
                     key={trip.id}
@@ -201,6 +217,13 @@ export default function Trips() {
                         </p>
                       </div>
                     </div>
+                    {distanceLabel && (
+                      <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                        <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                          {distanceLabel}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 );
               })}

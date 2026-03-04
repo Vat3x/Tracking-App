@@ -6,6 +6,7 @@ interface Props {
   driverProfiles: Map<string, User>;
   selectedDriverId: string | null;
   onSelectDriver: (driverId: string) => void;
+  activeDriverIds: Set<string>;
 }
 
 function DriverCard({
@@ -13,11 +14,13 @@ function DriverCard({
   profile,
   isSelected,
   onSelect,
+  hasActiveTrip,
 }: {
   driver: DriverLocationEntry;
   profile: User | undefined;
   isSelected: boolean;
   onSelect: () => void;
+  hasActiveTrip: boolean;
 }) {
   const c = driver.current;
   const name = profile?.displayName ?? `Driver ${driver.driverId.slice(0, 6)}`;
@@ -35,12 +38,12 @@ function DriverCard({
         <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{name}</span>
         <span
           className={`flex-shrink-0 w-2 h-2 rounded-full ${
-            !c.isOnline ? "bg-red-500" : c.speed > 0 ? "bg-yellow-500" : "bg-green-500"
+            !c.isOnline ? "bg-red-500" : hasActiveTrip ? "bg-yellow-500" : "bg-green-500"
           }`}
         />
       </div>
       <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
-        <span>{!c.isOnline ? "Inactive" : c.speed > 0 ? "In Transit" : "Active"}</span>
+        <span>{!c.isOnline ? "Inactive" : hasActiveTrip ? "In Transit" : "Active"}</span>
         <span>{timeAgo(c.timestamp)}</span>
       </div>
       <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-gray-500 mt-1">
@@ -85,6 +88,7 @@ export default function DriverList({
   driverProfiles,
   selectedDriverId,
   onSelectDriver,
+  activeDriverIds,
 }: Props) {
   const onlineDrivers = drivers.filter((d) => d.current.isOnline);
   const offlineDrivers = drivers.filter((d) => !d.current.isOnline);
@@ -125,6 +129,7 @@ export default function DriverList({
                       profile={driverProfiles.get(driver.driverId)}
                       isSelected={selectedDriverId === driver.driverId}
                       onSelect={() => onSelectDriver(driver.driverId)}
+                      hasActiveTrip={activeDriverIds.has(driver.driverId)}
                     />
                   ))}
                 </div>
@@ -145,6 +150,7 @@ export default function DriverList({
                       profile={driverProfiles.get(driver.driverId)}
                       isSelected={selectedDriverId === driver.driverId}
                       onSelect={() => onSelectDriver(driver.driverId)}
+                      hasActiveTrip={activeDriverIds.has(driver.driverId)}
                     />
                   ))}
                 </div>

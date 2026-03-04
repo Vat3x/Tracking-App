@@ -9,9 +9,9 @@ import { useThemeStore } from "@/stores/theme";
 const MAP_STYLE_LIGHT = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 const MAP_STYLE_DARK = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 
-function getMarkerColor(current: { isOnline: boolean; speed: number }): string {
+function getMarkerColor(current: { isOnline: boolean }, hasActiveTrip: boolean): string {
   if (!current.isOnline) return "#ef4444"; // red — inactive
-  return current.speed > 0 ? "#eab308" : "#22c55e"; // yellow — in transit, green — active
+  return hasActiveTrip ? "#eab308" : "#22c55e"; // yellow — in transit, green — active
 }
 
 interface Props {
@@ -19,6 +19,7 @@ interface Props {
   driverProfiles: Map<string, User>;
   selectedDriverId: string | null;
   onSelectDriver: (driverId: string | null) => void;
+  activeDriverIds: Set<string>;
 }
 
 export default function MapView({
@@ -26,6 +27,7 @@ export default function MapView({
   driverProfiles,
   selectedDriverId,
   onSelectDriver,
+  activeDriverIds,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -79,8 +81,9 @@ export default function MapView({
       const c = driver.current;
       popupRef.current?.remove();
 
-      const statusColor = !c.isOnline ? "#ef4444" : c.speed > 0 ? "#eab308" : "#22c55e";
-      const statusLabel = !c.isOnline ? "Inactive" : c.speed > 0 ? "In Transit" : "Active";
+      const hasActiveTrip = activeDriverIds.has(driver.driverId);
+      const statusColor = !c.isOnline ? "#ef4444" : hasActiveTrip ? "#eab308" : "#22c55e";
+      const statusLabel = !c.isOnline ? "Inactive" : hasActiveTrip ? "In Transit" : "Active";
       const battery = Math.round(c.batteryLevel * 100);
       const speed = c.speed > 0 ? `${Math.round(c.speed * 3.6)} km/h` : "Stationary";
 
@@ -113,7 +116,7 @@ export default function MapView({
 
       popupRef.current = popup;
     },
-    [driverProfiles]
+    [driverProfiles, activeDriverIds]
   );
 
   // Sync markers with driver data
@@ -161,7 +164,7 @@ export default function MapView({
           showPopup(driver);
         });
 
-        inner.style.background = getMarkerColor(current);
+        inner.style.background = getMarkerColor(current, activeDriverIds.has(driverId));
 
         const marker = new maplibregl.Marker({ element: el })
           .setLngLat([current.lng, current.lat])
@@ -174,10 +177,10 @@ export default function MapView({
       const marker = markersRef.current.get(driverId);
       if (marker) {
         const inner = marker.getElement().firstElementChild as HTMLElement;
-        if (inner) inner.style.background = getMarkerColor(current);
+        if (inner) inner.style.background = getMarkerColor(current, activeDriverIds.has(driverId));
       }
     });
-  }, [drivers, onSelectDriver, showPopup]);
+  }, [drivers, onSelectDriver, showPopup, activeDriverIds]);
 
   // Fly to selected driver
   useEffect(() => {
