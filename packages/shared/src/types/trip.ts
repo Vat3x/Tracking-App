@@ -20,6 +20,7 @@ export interface Trip {
   status: TripStatus;
   origin: GeoPoint;
   destination: GeoPoint;
+  country?: string;
   createdAt: number;
   updatedAt: number;
   respondedAt: number | null;

@@ -137,6 +137,7 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
         assignedBy: firebaseUser!.uid,
         origin: { label: originLabel, lat: lat1, lng: lng1, ...(originZip && { zipCode: originZip }) },
         destination: { label: destLabel, lat: lat2, lng: lng2, ...(destZip && { zipCode: destZip }) },
+        country,
       });
       toast.success("Trip created");
       handleClose();

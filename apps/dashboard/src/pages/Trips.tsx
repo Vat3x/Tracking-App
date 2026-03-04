@@ -33,7 +33,11 @@ function formatTime(ts: number): string {
   return d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function formatDistance(meters: number): string {
+function formatDistance(meters: number, useMiles: boolean): string {
+  if (useMiles) {
+    const miles = meters / 1609.344;
+    return miles < 0.1 ? `${Math.round(meters * 3.28084)} ft` : `${miles.toFixed(1)} mi`;
+  }
   return meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1)} km`;
 }
 
@@ -162,16 +166,17 @@ export default function Trips() {
                   (trip.driverId ? `Driver ${trip.driverId.slice(0, 6)}` : "Unassigned");
                 const isActive = ["pending", "accepted", "in_progress"].includes(trip.status);
 
+                const useMiles = trip.country === "us";
                 let distanceLabel: string | null = null;
                 if (trip.status === "accepted" && trip.driverId) {
                   const driverLoc = drivers.find((d) => d.driverId === trip.driverId);
                   if (driverLoc) {
                     const m = distanceMeters(driverLoc.current.lat, driverLoc.current.lng, trip.origin.lat, trip.origin.lng);
-                    distanceLabel = `${formatDistance(m)} to pickup`;
+                    distanceLabel = `${formatDistance(m, useMiles)} to pickup`;
                   }
                 } else if (trip.status === "in_progress") {
                   const m = distanceMeters(trip.origin.lat, trip.origin.lng, trip.destination.lat, trip.destination.lng);
-                  distanceLabel = `${formatDistance(m)} trip distance`;
+                  distanceLabel = `${formatDistance(m, useMiles)} trip distance`;
                 }
 
                 return (

@@ -18,6 +18,7 @@ export interface CreateTripInput {
   assignedBy: string;
   origin: GeoPoint;
   destination: GeoPoint;
+  country?: string;
 }
 
 export async function createTrip(input: CreateTripInput): Promise<string> {
@@ -30,6 +31,7 @@ export async function createTrip(input: CreateTripInput): Promise<string> {
     status: "pending",
     origin: input.origin,
     destination: input.destination,
+    ...(input.country && { country: input.country }),
     createdAt: Date.now(),
     updatedAt: Date.now(),
     respondedAt: null,
