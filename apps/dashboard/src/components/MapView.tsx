@@ -30,6 +30,13 @@ function createWaypointMarker(color: string, label: string): HTMLElement {
   return el;
 }
 
+interface RouteData {
+  pickupCoords: [number, number][] | null;
+  tripCoords: [number, number][] | null;
+  origin: { lng: number; lat: number; label: string };
+  dest: { lng: number; lat: number; label: string };
+}
+
 interface Props {
   drivers: DriverLocationEntry[];
   driverProfiles: Map<string, User>;
@@ -52,21 +59,98 @@ export default function MapView({
   const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map());
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const routeMarkersRef = useRef<maplibregl.Marker[]>([]);
-  const routeRequestRef = useRef(0); // for cancelling stale requests
+  const routeDataRef = useRef<RouteData | null>(null);
+  const driversRef = useRef(drivers);
+  driversRef.current = drivers;
   const theme = useThemeStore((s) => s.theme);
 
-  // Helper: remove route layers, sources, and markers
-  const clearRoute = useCallback(() => {
+  // Remove route layers, sources, and markers from map
+  const removeRouteLayers = useCallback(() => {
     const map = mapRef.current;
     if (map) {
-      if (map.getLayer(ROUTE_PICKUP_LAYER)) map.removeLayer(ROUTE_PICKUP_LAYER);
-      if (map.getSource(ROUTE_PICKUP_SOURCE)) map.removeSource(ROUTE_PICKUP_SOURCE);
-      if (map.getLayer(ROUTE_TRIP_LAYER)) map.removeLayer(ROUTE_TRIP_LAYER);
-      if (map.getSource(ROUTE_TRIP_SOURCE)) map.removeSource(ROUTE_TRIP_SOURCE);
+      try {
+        if (map.getLayer(ROUTE_PICKUP_LAYER)) map.removeLayer(ROUTE_PICKUP_LAYER);
+        if (map.getSource(ROUTE_PICKUP_SOURCE)) map.removeSource(ROUTE_PICKUP_SOURCE);
+        if (map.getLayer(ROUTE_TRIP_LAYER)) map.removeLayer(ROUTE_TRIP_LAYER);
+        if (map.getSource(ROUTE_TRIP_SOURCE)) map.removeSource(ROUTE_TRIP_SOURCE);
+      } catch {
+        // Style may have already removed sources/layers
+      }
     }
     routeMarkersRef.current.forEach((m) => m.remove());
     routeMarkersRef.current = [];
   }, []);
+
+  // Draw route from stored routeDataRef onto the map
+  const drawRouteFromData = useCallback(() => {
+    const map = mapRef.current;
+    const data = routeDataRef.current;
+    if (!map || !data) return;
+
+    // Must wait for style to be fully loaded
+    if (!map.isStyleLoaded()) return;
+
+    // Remove any existing route visuals first
+    removeRouteLayers();
+
+    const addRouteLayer = (
+      sourceId: string,
+      layerId: string,
+      coordinates: [number, number][],
+      color: string,
+      dasharray?: number[]
+    ) => {
+      map.addSource(sourceId, {
+        type: "geojson",
+        data: {
+          type: "Feature",
+          geometry: { type: "LineString", coordinates },
+          properties: {},
+        },
+      });
+      map.addLayer({
+        id: layerId,
+        type: "line",
+        source: sourceId,
+        paint: {
+          "line-color": color,
+          "line-width": 4,
+          "line-opacity": 0.8,
+          ...(dasharray ? { "line-dasharray": dasharray } : {}),
+        },
+        layout: {
+          "line-cap": "round",
+          "line-join": "round",
+        },
+      });
+    };
+
+    // Driver → Pickup: dashed blue
+    if (data.pickupCoords) {
+      addRouteLayer(ROUTE_PICKUP_SOURCE, ROUTE_PICKUP_LAYER, data.pickupCoords, "#3b82f6", [2, 2]);
+    }
+
+    // Pickup → Dropoff: solid blue
+    if (data.tripCoords) {
+      addRouteLayer(ROUTE_TRIP_SOURCE, ROUTE_TRIP_LAYER, data.tripCoords, "#3b82f6");
+    }
+
+    // Origin marker (green)
+    const originMarker = new maplibregl.Marker({
+      element: createWaypointMarker("#22c55e", data.origin.label),
+    })
+      .setLngLat([data.origin.lng, data.origin.lat])
+      .addTo(map);
+
+    // Destination marker (red)
+    const destMarker = new maplibregl.Marker({
+      element: createWaypointMarker("#ef4444", data.dest.label),
+    })
+      .setLngLat([data.dest.lng, data.dest.lat])
+      .addTo(map);
+
+    routeMarkersRef.current = [originMarker, destMarker];
+  }, [removeRouteLayers]);
 
   // Initialize map
   useEffect(() => {
@@ -99,12 +183,25 @@ export default function MapView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Switch map tiles when theme changes
+  // Switch map tiles when theme changes — re-draw route after new style loads
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
+
     map.setStyle(theme === "dark" ? MAP_STYLE_DARK : MAP_STYLE_LIGHT);
-  }, [theme]);
+
+    // setStyle removes all sources/layers; re-draw route once new style is ready
+    const onIdle = () => {
+      if (routeDataRef.current) {
+        drawRouteFromData();
+      }
+    };
+    map.once("idle", onIdle);
+
+    return () => {
+      map.off("idle", onIdle);
+    };
+  }, [theme, drawRouteFromData]);
 
   const showPopup = useCallback(
     (driver: DriverLocationEntry) => {
@@ -239,12 +336,10 @@ export default function MapView({
     const map = mapRef.current;
     if (!map) return;
 
-    // Increment request counter to cancel stale requests
-    const requestId = ++routeRequestRef.current;
-
     // No driver selected → clear route
     if (!selectedDriverId) {
-      clearRoute();
+      routeDataRef.current = null;
+      removeRouteLayers();
       return;
     }
 
@@ -256,14 +351,16 @@ export default function MapView({
     );
 
     if (!trip) {
-      clearRoute();
+      routeDataRef.current = null;
+      removeRouteLayers();
       return;
     }
 
-    // Get driver's current location
-    const driverLoc = drivers.find((d) => d.driverId === selectedDriverId);
+    // Get driver's current location from ref (avoid drivers in deps)
+    const driverLoc = driversRef.current.find((d) => d.driverId === selectedDriverId);
     if (!driverLoc) {
-      clearRoute();
+      routeDataRef.current = null;
+      removeRouteLayers();
       return;
     }
 
@@ -271,85 +368,31 @@ export default function MapView({
     const { lat: oLat, lng: oLng } = trip.origin;
     const { lat: destLat, lng: destLng } = trip.destination;
 
+    let cancelled = false;
+
     // Fetch both route segments in parallel
     Promise.all([
       fetchRoute([[dLng, dLat], [oLng, oLat]]),
       fetchRoute([[oLng, oLat], [destLng, destLat]]),
     ]).then(([pickupRoute, tripRoute]) => {
-      // Stale request — a newer one was triggered
-      if (requestId !== routeRequestRef.current) return;
-      if (!mapRef.current) return;
+      if (cancelled) return;
 
-      clearRoute();
-
-      const addRouteLayer = (
-        sourceId: string,
-        layerId: string,
-        coordinates: [number, number][],
-        color: string,
-        dasharray?: number[]
-      ) => {
-        map.addSource(sourceId, {
-          type: "geojson",
-          data: {
-            type: "Feature",
-            geometry: { type: "LineString", coordinates },
-            properties: {},
-          },
-        });
-        map.addLayer({
-          id: layerId,
-          type: "line",
-          source: sourceId,
-          paint: {
-            "line-color": color,
-            "line-width": 4,
-            "line-opacity": 0.8,
-            ...(dasharray ? { "line-dasharray": dasharray } : {}),
-          },
-          layout: {
-            "line-cap": "round",
-            "line-join": "round",
-          },
-        });
+      // Store route data for re-drawing after theme switch
+      routeDataRef.current = {
+        pickupCoords: pickupRoute?.coordinates ?? null,
+        tripCoords: tripRoute?.coordinates ?? null,
+        origin: { lng: oLng, lat: oLat, label: trip.origin.label },
+        dest: { lng: destLng, lat: destLat, label: trip.destination.label },
       };
 
-      // Driver → Pickup: dashed blue
-      if (pickupRoute) {
-        addRouteLayer(
-          ROUTE_PICKUP_SOURCE,
-          ROUTE_PICKUP_LAYER,
-          pickupRoute.coordinates,
-          "#3b82f6",
-          [2, 2]
-        );
+      // Wait for style to be loaded, then draw
+      if (map.isStyleLoaded()) {
+        drawRouteFromData();
+      } else {
+        map.once("idle", () => {
+          if (!cancelled) drawRouteFromData();
+        });
       }
-
-      // Pickup → Dropoff: solid blue
-      if (tripRoute) {
-        addRouteLayer(
-          ROUTE_TRIP_SOURCE,
-          ROUTE_TRIP_LAYER,
-          tripRoute.coordinates,
-          "#3b82f6"
-        );
-      }
-
-      // Add origin marker (green)
-      const originMarker = new maplibregl.Marker({
-        element: createWaypointMarker("#22c55e", trip.origin.label),
-      })
-        .setLngLat([oLng, oLat])
-        .addTo(map);
-
-      // Add destination marker (red)
-      const destMarker = new maplibregl.Marker({
-        element: createWaypointMarker("#ef4444", trip.destination.label),
-      })
-        .setLngLat([destLng, destLat])
-        .addTo(map);
-
-      routeMarkersRef.current = [originMarker, destMarker];
 
       // Fit map to show the full route
       const bounds = new maplibregl.LngLatBounds();
@@ -360,30 +403,9 @@ export default function MapView({
     });
 
     return () => {
-      routeRequestRef.current++;
+      cancelled = true;
     };
-  }, [selectedDriverId, trips, drivers, clearRoute]);
-
-  // Re-add route layers after theme switch (setStyle removes all sources/layers)
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-
-    const handleStyleData = () => {
-      // After style loads, trigger route re-render by bumping request counter
-      // The route useEffect will re-run on next selectedDriverId/trips/drivers change
-      // For immediate re-render, we force it by clearing and re-triggering
-      if (selectedDriverId) {
-        clearRoute();
-        routeRequestRef.current++;
-      }
-    };
-
-    map.on("styledata", handleStyleData);
-    return () => {
-      map.off("styledata", handleStyleData);
-    };
-  }, [selectedDriverId, clearRoute]);
+  }, [selectedDriverId, trips, removeRouteLayers, drawRouteFromData]);
 
   // Fit bounds when drivers first load
   const hasFittedRef = useRef(false);
