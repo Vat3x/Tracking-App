@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { COLLECTIONS, type Trip, type GeoPoint, type TripStatus } from "@nexus/shared";
+export type { GeoPoint };
 
 export interface CreateTripInput {
   companyId: string;
@@ -47,6 +48,17 @@ export async function updateTripStatus(
 ): Promise<void> {
   await updateDoc(doc(db, COLLECTIONS.TRIPS, tripId), {
     status,
+    updatedAt: Date.now(),
+  });
+}
+
+export async function updateTripLocation(
+  tripId: string,
+  field: "origin" | "destination",
+  location: GeoPoint
+): Promise<void> {
+  await updateDoc(doc(db, COLLECTIONS.TRIPS, tripId), {
+    [field]: location,
     updatedAt: Date.now(),
   });
 }

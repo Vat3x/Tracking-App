@@ -19,6 +19,7 @@ const STATUS_COLORS: Record<TripStatus, { bg: string; text: string }> = {
   rejected: { bg: "#fee2e2", text: "#991b1b" },
   in_progress: { bg: "#e0e7ff", text: "#3730a3" },
   completed: { bg: "#dcfce7", text: "#166534" },
+  cancelled: { bg: "#fee2e2", text: "#991b1b" },
 };
 
 const STATUS_LABELS: Record<TripStatus, string> = {
@@ -27,6 +28,7 @@ const STATUS_LABELS: Record<TripStatus, string> = {
   rejected: "Rejected",
   in_progress: "In Progress",
   completed: "Completed",
+  cancelled: "Cancelled",
 };
 
 function formatTime(ts: number): string {
@@ -173,7 +175,7 @@ export default function TripsScreen() {
     ["pending", "accepted", "in_progress"].includes(t.status)
   );
   const pastTrips = trips.filter((t) =>
-    ["completed", "rejected"].includes(t.status)
+    ["completed", "rejected", "cancelled"].includes(t.status)
   );
 
   const hasCompany = !!userDoc?.companyId;

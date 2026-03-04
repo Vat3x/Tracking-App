@@ -58,13 +58,40 @@ export const onTripStatusChanged = onDocumentUpdated("trips/{tripId}", async (ev
   const { assignedBy, driverId, status } = after;
   if (!assignedBy) return;
 
+  // Get driver doc (needed for both cancelled and status notifications)
+  const driverDoc = driverId ? await firestore.doc(`users/${driverId}`).get() : null;
+  const driverName = driverDoc?.data()?.displayName ?? "Driver";
+
+  // Cancelled by dispatcher → notify the driver instead
+  if (status === "cancelled" && driverId) {
+    const driverFcmToken = driverDoc?.data()?.fcmToken;
+    if (!driverFcmToken) {
+      console.log(`onTripStatusChanged: No FCM token for driver ${driverId}, skipping cancelled notification`);
+      return;
+    }
+    try {
+      await admin.messaging().send({
+        token: driverFcmToken,
+        notification: {
+          title: "Trip Cancelled",
+          body: "Your trip was cancelled by the dispatcher",
+        },
+        data: {
+          type: "trip_status_changed",
+          tripId: event.params.tripId,
+          status,
+        },
+      });
+      console.log(`onTripStatusChanged: Cancelled notification sent to driver ${driverId}`);
+    } catch (err) {
+      console.error(`onTripStatusChanged: Failed to send cancelled notification to driver ${driverId}:`, err);
+    }
+    return;
+  }
+
   // Get dispatcher's FCM token
   const dispatcherDoc = await firestore.doc(`users/${assignedBy}`).get();
   const fcmToken = dispatcherDoc.data()?.fcmToken;
-
-  // Get driver name for notification
-  const driverDoc = await firestore.doc(`users/${driverId}`).get();
-  const driverName = driverDoc.data()?.displayName ?? "Driver";
 
   const statusMessages: Record<string, string> = {
     accepted: `${driverName} accepted the trip`,
@@ -97,5 +124,36 @@ export const onTripStatusChanged = onDocumentUpdated("trips/{tripId}", async (ev
     console.log(`onTripStatusChanged: Notification sent to dispatcher ${assignedBy}`);
   } catch (err) {
     console.error(`onTripStatusChanged: Failed to send notification to dispatcher ${assignedBy}:`, err);
+  }
+
+  // Check if origin or destination was updated → notify driver about location change
+  const originChanged = JSON.stringify(before.origin) !== JSON.stringify(after.origin);
+  const destChanged = JSON.stringify(before.destination) !== JSON.stringify(after.destination);
+
+  if ((originChanged || destChanged) && driverId) {
+    const driverFcmToken = driverDoc?.data()?.fcmToken;
+    if (!driverFcmToken) {
+      console.log(`onTripStatusChanged: No FCM token for driver ${driverId}, skipping location update notification`);
+      return;
+    }
+    const changedField = originChanged ? "pickup" : "delivery";
+    const newLabel = originChanged ? after.origin?.label : after.destination?.label;
+    try {
+      await admin.messaging().send({
+        token: driverFcmToken,
+        notification: {
+          title: "Delivery Location Updated",
+          body: `${changedField === "pickup" ? "Pickup" : "Delivery"} location changed to ${newLabel ?? "new location"}`,
+        },
+        data: {
+          type: "trip_location_updated",
+          tripId: event.params.tripId,
+          field: changedField,
+        },
+      });
+      console.log(`onTripStatusChanged: Location update notification sent to driver ${driverId}`);
+    } catch (err) {
+      console.error(`onTripStatusChanged: Failed to send location update notification to driver ${driverId}:`, err);
+    }
   }
 });

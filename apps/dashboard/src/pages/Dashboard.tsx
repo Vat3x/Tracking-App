@@ -196,6 +196,7 @@ export default function Dashboard() {
           selectedDriverId={selectedDriverId}
           onSelectDriver={selectDriver}
           activeDriverIds={activeDriverIds}
+          trips={trips}
         />
 
         {/* Invites slide-over panel */}

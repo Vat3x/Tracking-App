@@ -5,10 +5,11 @@ import { subscribeToCompanyTrips, updateTripStatus } from "@/services/trips";
 import { getCompanyDrivers } from "@/services/drivers";
 import { subscribeToCompanyLocations } from "@/services/locations";
 import TripModal from "@/components/TripModal";
+import EditLocationModal from "@/components/EditLocationModal";
 import { useNavigate } from "react-router-dom";
 import { logout } from "@/services/auth";
 import { toast } from "sonner";
-import { type Trip, type TripStatus, type User, distanceMeters } from "@nexus/shared";
+import { type Trip, type TripStatus, type GeoPoint, type User, distanceMeters } from "@nexus/shared";
 import ThemeToggle from "@/components/ThemeToggle";
 
 const STATUS_CONFIG: Record<TripStatus, { label: string; bg: string; text: string }> = {
@@ -17,6 +18,7 @@ const STATUS_CONFIG: Record<TripStatus, { label: string; bg: string; text: strin
   rejected: { label: "Rejected", bg: "bg-red-50 dark:bg-red-900/30", text: "text-red-700 dark:text-red-400" },
   in_progress: { label: "In Progress", bg: "bg-indigo-50 dark:bg-indigo-900/30", text: "text-indigo-700 dark:text-indigo-400" },
   completed: { label: "Completed", bg: "bg-green-50 dark:bg-green-900/30", text: "text-green-700 dark:text-green-400" },
+  cancelled: { label: "Cancelled", bg: "bg-red-50 dark:bg-red-900/30", text: "text-red-700 dark:text-red-400" },
 };
 
 function StatusBadge({ status }: { status: TripStatus }) {
@@ -50,6 +52,12 @@ export default function Trips() {
   const [driverProfiles, setDriverProfiles] = useState<Map<string, User>>(new Map());
   const [tripModalOpen, setTripModalOpen] = useState(false);
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
+  const [editModal, setEditModal] = useState<{
+    tripId: string;
+    field: "origin" | "destination";
+    currentLocation: GeoPoint;
+    country: string;
+  } | null>(null);
 
   // Subscribe to trips
   useEffect(() => {
@@ -76,8 +84,9 @@ export default function Trips() {
   }
 
   async function handleCancel(tripId: string) {
+    if (!window.confirm("Are you sure you want to cancel this trip?")) return;
     try {
-      await updateTripStatus(tripId, "completed");
+      await updateTripStatus(tripId, "cancelled");
       toast.success("Trip cancelled");
     } catch {
       toast.error("Failed to cancel trip");
@@ -86,7 +95,7 @@ export default function Trips() {
 
   const filteredTrips = trips.filter((t) => {
     if (filter === "active") return ["pending", "accepted", "in_progress"].includes(t.status);
-    if (filter === "completed") return ["completed", "rejected"].includes(t.status);
+    if (filter === "completed") return ["completed", "rejected", "cancelled"].includes(t.status);
     return true;
   });
 
@@ -195,7 +204,7 @@ export default function Trips() {
                           {trip.respondedAt && <> · Responded {formatTime(trip.respondedAt)}</>}
                         </p>
                       </div>
-                      {isActive && trip.status === "pending" && (
+                      {isActive && (
                         <button
                           onClick={() => handleCancel(trip.id)}
                           className="text-xs text-gray-400 hover:text-red-500"
@@ -207,7 +216,22 @@ export default function Trips() {
 
                     <div className="flex gap-4">
                       <div className="flex-1">
-                        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-0.5">Origin</p>
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Origin</p>
+                          {isActive && (
+                            <button
+                              onClick={() => setEditModal({
+                                tripId: trip.id,
+                                field: "origin",
+                                currentLocation: trip.origin,
+                                country: trip.country ?? "us",
+                              })}
+                              className="text-[10px] text-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
+                            >
+                              Edit
+                            </button>
+                          )}
+                        </div>
                         <p className="text-sm text-gray-900 dark:text-gray-100">{trip.origin.label}</p>
                         <p className="text-xs text-gray-400 dark:text-gray-500">
                           {trip.origin.lat.toFixed(4)}, {trip.origin.lng.toFixed(4)}
@@ -215,7 +239,22 @@ export default function Trips() {
                       </div>
                       <div className="text-gray-300 dark:text-gray-600 self-center">&rarr;</div>
                       <div className="flex-1">
-                        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-0.5">Destination</p>
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Destination</p>
+                          {isActive && (
+                            <button
+                              onClick={() => setEditModal({
+                                tripId: trip.id,
+                                field: "destination",
+                                currentLocation: trip.destination,
+                                country: trip.country ?? "us",
+                              })}
+                              className="text-[10px] text-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
+                            >
+                              Edit
+                            </button>
+                          )}
+                        </div>
                         <p className="text-sm text-gray-900 dark:text-gray-100">{trip.destination.label}</p>
                         <p className="text-xs text-gray-400 dark:text-gray-500">
                           {trip.destination.lat.toFixed(4)}, {trip.destination.lng.toFixed(4)}
@@ -242,6 +281,17 @@ export default function Trips() {
         onClose={() => setTripModalOpen(false)}
         driverProfiles={driverProfiles}
       />
+
+      {editModal && (
+        <EditLocationModal
+          open={!!editModal}
+          onClose={() => setEditModal(null)}
+          tripId={editModal.tripId}
+          field={editModal.field}
+          currentLocation={editModal.currentLocation}
+          country={editModal.country}
+        />
+      )}
     </div>
   );
 }

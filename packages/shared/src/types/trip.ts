@@ -3,7 +3,8 @@ export type TripStatus =
   | "accepted"
   | "rejected"
   | "in_progress"
-  | "completed";
+  | "completed"
+  | "cancelled";
 
 export interface GeoPoint {
   label: string;
