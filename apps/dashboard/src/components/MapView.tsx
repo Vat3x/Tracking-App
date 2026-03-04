@@ -31,8 +31,8 @@ function createWaypointMarker(color: string, label: string): HTMLElement {
 }
 
 interface RouteData {
-  pickupCoords: [number, number][] | null;
-  tripCoords: [number, number][] | null;
+  status: "accepted" | "in_progress";
+  coords: [number, number][];
   origin: { lng: number; lat: number; label: string };
   dest: { lng: number; lat: number; label: string };
 }
@@ -125,31 +125,35 @@ export default function MapView({
       });
     };
 
-    // Driver → Pickup: dashed blue
-    if (data.pickupCoords) {
-      addRouteLayer(ROUTE_PICKUP_SOURCE, ROUTE_PICKUP_LAYER, data.pickupCoords, "#3b82f6", [2, 2]);
+    if (data.status === "accepted") {
+      // Accepted: yellow dashed line driver → pickup, green pickup marker
+      addRouteLayer(ROUTE_PICKUP_SOURCE, ROUTE_PICKUP_LAYER, data.coords, "#eab308", [2, 2]);
+
+      const pickupMarker = new maplibregl.Marker({
+        element: createWaypointMarker("#22c55e", data.origin.label),
+      })
+        .setLngLat([data.origin.lng, data.origin.lat])
+        .addTo(map);
+
+      routeMarkersRef.current = [pickupMarker];
+    } else {
+      // In progress: blue solid line pickup → dropoff, green origin + red destination markers
+      addRouteLayer(ROUTE_TRIP_SOURCE, ROUTE_TRIP_LAYER, data.coords, "#3b82f6");
+
+      const originMarker = new maplibregl.Marker({
+        element: createWaypointMarker("#22c55e", data.origin.label),
+      })
+        .setLngLat([data.origin.lng, data.origin.lat])
+        .addTo(map);
+
+      const destMarker = new maplibregl.Marker({
+        element: createWaypointMarker("#ef4444", data.dest.label),
+      })
+        .setLngLat([data.dest.lng, data.dest.lat])
+        .addTo(map);
+
+      routeMarkersRef.current = [originMarker, destMarker];
     }
-
-    // Pickup → Dropoff: solid blue
-    if (data.tripCoords) {
-      addRouteLayer(ROUTE_TRIP_SOURCE, ROUTE_TRIP_LAYER, data.tripCoords, "#3b82f6");
-    }
-
-    // Origin marker (green)
-    const originMarker = new maplibregl.Marker({
-      element: createWaypointMarker("#22c55e", data.origin.label),
-    })
-      .setLngLat([data.origin.lng, data.origin.lat])
-      .addTo(map);
-
-    // Destination marker (red)
-    const destMarker = new maplibregl.Marker({
-      element: createWaypointMarker("#ef4444", data.dest.label),
-    })
-      .setLngLat([data.dest.lng, data.dest.lat])
-      .addTo(map);
-
-    routeMarkersRef.current = [originMarker, destMarker];
   }, [removeRouteLayers]);
 
   // Initialize map
@@ -370,17 +374,18 @@ export default function MapView({
 
     let cancelled = false;
 
-    // Fetch both route segments in parallel
-    Promise.all([
-      fetchRoute([[dLng, dLat], [oLng, oLat]]),
-      fetchRoute([[oLng, oLat], [destLng, destLat]]),
-    ]).then(([pickupRoute, tripRoute]) => {
-      if (cancelled) return;
+    // Accepted: driver → pickup | In progress: pickup → dropoff
+    const waypoints: [number, number][] =
+      trip.status === "accepted"
+        ? [[dLng, dLat], [oLng, oLat]]
+        : [[oLng, oLat], [destLng, destLat]];
 
-      // Store route data for re-drawing after theme switch
+    fetchRoute(waypoints).then((route) => {
+      if (cancelled || !route) return;
+
       routeDataRef.current = {
-        pickupCoords: pickupRoute?.coordinates ?? null,
-        tripCoords: tripRoute?.coordinates ?? null,
+        status: trip.status as "accepted" | "in_progress",
+        coords: route.coordinates,
         origin: { lng: oLng, lat: oLat, label: trip.origin.label },
         dest: { lng: destLng, lat: destLat, label: trip.destination.label },
       };
@@ -394,11 +399,9 @@ export default function MapView({
         });
       }
 
-      // Fit map to show the full route
+      // Fit map to show the route segment
       const bounds = new maplibregl.LngLatBounds();
-      bounds.extend([dLng, dLat]);
-      bounds.extend([oLng, oLat]);
-      bounds.extend([destLng, destLat]);
+      waypoints.forEach((wp) => bounds.extend(wp));
       map.fitBounds(bounds, { padding: 80, duration: 1000 });
     });
 
