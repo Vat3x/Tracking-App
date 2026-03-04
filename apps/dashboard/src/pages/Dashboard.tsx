@@ -185,6 +185,7 @@ export default function Dashboard() {
             selectedDriverId={selectedDriverId}
             onSelectDriver={handleSelectDriver}
             activeDriverIds={activeDriverIds}
+            trips={trips}
           />
         </div>
 
