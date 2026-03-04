@@ -1,5 +1,5 @@
 import type { DriverLocationEntry } from "@/services/locations";
-import { type User, STALE_THRESHOLD_MS, timeAgo } from "@nexus/shared";
+import { type User, timeAgo } from "@nexus/shared";
 
 interface Props {
   drivers: DriverLocationEntry[];
@@ -21,7 +21,6 @@ function DriverCard({
 }) {
   const c = driver.current;
   const name = profile?.displayName ?? `Driver ${driver.driverId.slice(0, 6)}`;
-  const isStale = Date.now() - c.timestamp > STALE_THRESHOLD_MS;
 
   return (
     <button
@@ -36,12 +35,12 @@ function DriverCard({
         <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{name}</span>
         <span
           className={`flex-shrink-0 w-2 h-2 rounded-full ${
-            c.isOnline && !isStale ? "bg-green-500" : isStale ? "bg-yellow-500" : "bg-gray-400"
+            !c.isOnline ? "bg-red-500" : c.speed > 0 ? "bg-yellow-500" : "bg-green-500"
           }`}
         />
       </div>
       <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
-        <span>{c.isOnline ? (isStale ? "Stale" : "Online") : "Offline"}</span>
+        <span>{!c.isOnline ? "Inactive" : c.speed > 0 ? "In Transit" : "Active"}</span>
         <span>{timeAgo(c.timestamp)}</span>
       </div>
       <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-gray-500 mt-1">

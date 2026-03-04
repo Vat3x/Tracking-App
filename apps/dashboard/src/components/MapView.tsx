@@ -2,17 +2,16 @@ import { useRef, useEffect, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { DriverLocationEntry } from "@/services/locations";
-import { type User, STALE_THRESHOLD_MS, timeAgo } from "@nexus/shared";
+import { type User, timeAgo } from "@nexus/shared";
 import { useThemeStore } from "@/stores/theme";
 
 // Free CARTO tile styles — no API key needed
 const MAP_STYLE_LIGHT = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 const MAP_STYLE_DARK = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 
-function getMarkerColor(current: { isOnline: boolean; timestamp: number }): string {
-  if (!current.isOnline) return "#9ca3af"; // gray — offline
-  const isStale = Date.now() - current.timestamp > STALE_THRESHOLD_MS;
-  return isStale ? "#eab308" : "#22c55e"; // yellow — stale, green — fresh
+function getMarkerColor(current: { isOnline: boolean; speed: number }): string {
+  if (!current.isOnline) return "#ef4444"; // red — inactive
+  return current.speed > 0 ? "#eab308" : "#22c55e"; // yellow — in transit, green — active
 }
 
 interface Props {
@@ -80,9 +79,8 @@ export default function MapView({
       const c = driver.current;
       popupRef.current?.remove();
 
-      const isStale = Date.now() - c.timestamp > STALE_THRESHOLD_MS;
-      const statusColor = c.isOnline && !isStale ? "#22c55e" : isStale ? "#eab308" : "#9ca3af";
-      const statusLabel = c.isOnline ? (isStale ? "Stale" : "Online") : "Offline";
+      const statusColor = !c.isOnline ? "#ef4444" : c.speed > 0 ? "#eab308" : "#22c55e";
+      const statusLabel = !c.isOnline ? "Inactive" : c.speed > 0 ? "In Transit" : "Active";
       const battery = Math.round(c.batteryLevel * 100);
       const speed = c.speed > 0 ? `${Math.round(c.speed * 3.6)} km/h` : "Stationary";
 
