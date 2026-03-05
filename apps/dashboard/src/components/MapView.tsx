@@ -1,8 +1,8 @@
 import { useRef, useEffect, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import type { DriverLocationEntry } from "@/services/locations";
-import { type User, type Trip, timeAgo } from "@nexus/shared";
+import { type DriverLocationEntry, getDriverHistory } from "@/services/locations";
+import { type User, type Trip, type LocationHistory, timeAgo } from "@nexus/shared";
 import { useThemeStore } from "@/stores/theme";
 import { fetchRoute } from "@/services/routing";
 
@@ -14,6 +14,8 @@ const ROUTE_PICKUP_SOURCE = "route-pickup";
 const ROUTE_PICKUP_LAYER = "route-pickup-line";
 const ROUTE_TRIP_SOURCE = "route-trip";
 const ROUTE_TRIP_LAYER = "route-trip-line";
+const HISTORY_SOURCE = "history-points";
+const HISTORY_LAYER = "history-circles";
 
 function getMarkerColor(current: { isOnline: boolean }, hasActiveTrip: boolean): string {
   if (!current.isOnline) return "#ef4444"; // red — inactive
@@ -44,6 +46,7 @@ interface Props {
   onSelectDriver: (driverId: string | null) => void;
   activeDriverIds: Set<string>;
   trips: Trip[];
+  companyId: string | undefined;
 }
 
 export default function MapView({
@@ -53,6 +56,7 @@ export default function MapView({
   onSelectDriver,
   activeDriverIds,
   trips,
+  companyId,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -60,6 +64,8 @@ export default function MapView({
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const routeMarkersRef = useRef<maplibregl.Marker[]>([]);
   const routeDataRef = useRef<RouteData | null>(null);
+  const historyDataRef = useRef<LocationHistory[] | null>(null);
+  const historyPopupRef = useRef<maplibregl.Popup | null>(null);
   const driversRef = useRef(drivers);
   driversRef.current = drivers;
   const theme = useThemeStore((s) => s.theme);
@@ -80,6 +86,86 @@ export default function MapView({
     routeMarkersRef.current.forEach((m) => m.remove());
     routeMarkersRef.current = [];
   }, []);
+
+  // Remove history layer and source from map
+  const removeHistoryLayer = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    try {
+      if (map.getLayer(HISTORY_LAYER)) map.removeLayer(HISTORY_LAYER);
+      if (map.getSource(HISTORY_SOURCE)) map.removeSource(HISTORY_SOURCE);
+    } catch {
+      // Style may have already removed sources/layers
+    }
+    historyPopupRef.current?.remove();
+    historyPopupRef.current = null;
+  }, []);
+
+  // Draw history pins from stored historyDataRef onto the map
+  const drawHistoryFromData = useCallback(() => {
+    const map = mapRef.current;
+    const data = historyDataRef.current;
+    if (!map || !data || data.length === 0) return;
+    if (!map.isStyleLoaded()) return;
+
+    removeHistoryLayer();
+
+    const geojson: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: data.map((entry) => ({
+        type: "Feature" as const,
+        geometry: { type: "Point" as const, coordinates: [entry.lng, entry.lat] },
+        properties: {
+          timestamp: entry.timestamp,
+          speed: entry.speed,
+          battery: Math.round(entry.batteryLevel * 100),
+        },
+      })),
+    };
+
+    map.addSource(HISTORY_SOURCE, { type: "geojson", data: geojson });
+    map.addLayer({
+      id: HISTORY_LAYER,
+      type: "circle",
+      source: HISTORY_SOURCE,
+      paint: {
+        "circle-radius": 5,
+        "circle-color": "#6366f1",
+        "circle-opacity": 0.7,
+        "circle-stroke-width": 1.5,
+        "circle-stroke-color": "#fff",
+      },
+    });
+
+    // Hover popup for history points
+    map.on("mouseenter", HISTORY_LAYER, (e) => {
+      map.getCanvas().style.cursor = "pointer";
+      const feature = e.features?.[0];
+      if (!feature || feature.geometry.type !== "Point") return;
+      const props = feature.properties;
+      const ts = new Date(props.timestamp).toLocaleString([], {
+        month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+      });
+      const speed = props.speed > 0 ? `${Math.round(props.speed * 3.6)} km/h` : "Stationary";
+
+      historyPopupRef.current?.remove();
+      historyPopupRef.current = new maplibregl.Popup({ offset: 10, closeButton: false })
+        .setLngLat(feature.geometry.coordinates as [number, number])
+        .setHTML(
+          `<div style="font-size:12px;line-height:1.4">
+            <div style="font-weight:600">${ts}</div>
+            <div style="color:#6b7280">${speed} · ${props.battery}%</div>
+          </div>`
+        )
+        .addTo(map);
+    });
+
+    map.on("mouseleave", HISTORY_LAYER, () => {
+      map.getCanvas().style.cursor = "";
+      historyPopupRef.current?.remove();
+      historyPopupRef.current = null;
+    });
+  }, [removeHistoryLayer]);
 
   // Draw route from stored routeDataRef onto the map
   const drawRouteFromData = useCallback(() => {
@@ -194,18 +280,17 @@ export default function MapView({
 
     map.setStyle(theme === "dark" ? MAP_STYLE_DARK : MAP_STYLE_LIGHT);
 
-    // setStyle removes all sources/layers; re-draw route once new style is ready
+    // setStyle removes all sources/layers; re-draw route + history once new style is ready
     const onIdle = () => {
-      if (routeDataRef.current) {
-        drawRouteFromData();
-      }
+      if (routeDataRef.current) drawRouteFromData();
+      if (historyDataRef.current) drawHistoryFromData();
     };
     map.once("idle", onIdle);
 
     return () => {
       map.off("idle", onIdle);
     };
-  }, [theme, drawRouteFromData]);
+  }, [theme, drawRouteFromData, drawHistoryFromData]);
 
   const showPopup = useCallback(
     (driver: DriverLocationEntry) => {
@@ -409,6 +494,38 @@ export default function MapView({
       cancelled = true;
     };
   }, [selectedDriverId, trips, removeRouteLayers, drawRouteFromData]);
+
+  // Fetch and draw location history when a driver is selected
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !companyId) return;
+
+    if (!selectedDriverId) {
+      historyDataRef.current = null;
+      removeHistoryLayer();
+      return;
+    }
+
+    let cancelled = false;
+
+    getDriverHistory(companyId, selectedDriverId).then((history) => {
+      if (cancelled) return;
+      historyDataRef.current = history;
+
+      if (map.isStyleLoaded()) {
+        drawHistoryFromData();
+      } else {
+        map.once("idle", () => {
+          if (!cancelled) drawHistoryFromData();
+        });
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      removeHistoryLayer();
+    };
+  }, [selectedDriverId, companyId, removeHistoryLayer, drawHistoryFromData]);
 
   // Fit bounds when drivers first load
   const hasFittedRef = useRef(false);

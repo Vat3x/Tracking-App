@@ -57,7 +57,7 @@ export async function startBackgroundTracking(): Promise<boolean> {
       deferredUpdatesInterval: TRACKING_INTERVAL_MS,
       showsBackgroundLocationIndicator: true, // iOS blue bar
       foregroundService: {
-        notificationTitle: "Nexus Tracking",
+        notificationTitle: "LoadMind Tracker",
         notificationBody: "Sharing your location with your dispatcher",
         notificationColor: "#1a73e8",
       },

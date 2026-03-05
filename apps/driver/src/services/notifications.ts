@@ -1,18 +1,27 @@
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
-import { Platform } from "react-native";
+import { Platform, Alert } from "react-native";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "./firebase";
 import { COLLECTIONS } from "@nexus/shared";
 import { router } from "expo-router";
+import { respondToTrip } from "./trips";
 
 // Show notification banners when app is in foreground
+// For trip_created, we suppress the system banner and show an interactive Alert instead
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
+  handleNotification: async (notification) => {
+    const data = notification.request.content.data;
+    // Suppress system banner for trip_created — we show an interactive Alert
+    const show = data?.type !== "trip_created";
+    return {
+      shouldShowAlert: show,
+      shouldShowBanner: show,
+      shouldShowList: show,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    };
+  },
 });
 
 /**
@@ -100,7 +109,8 @@ export function setupNotificationListeners(uid: string): () => void {
       const data = response.notification.request.content.data;
       if (
         data?.type === "trip_created" ||
-        data?.type === "trip_status_changed"
+        data?.type === "trip_status_changed" ||
+        data?.type === "trip_location_updated"
       ) {
         router.push("/(main)/trips");
       }
@@ -113,9 +123,55 @@ export function setupNotificationListeners(uid: string): () => void {
     await updateFcmToken(uid, token);
   });
 
-  // Foreground notification received (already shown by handler above)
-  const fgSub = Notifications.addNotificationReceivedListener(() => {
-    // Could update badge or local state here
+  // Foreground notification received — show interactive alerts
+  const fgSub = Notifications.addNotificationReceivedListener((notification) => {
+    const { data } = notification.request.content;
+    const body = notification.request.content.body ?? "";
+
+    if (data?.type === "trip_created" && data?.tripId) {
+      // New trip assignment — show Accept/Decline/View buttons
+      Alert.alert(
+        "New Trip Assignment",
+        body,
+        [
+          {
+            text: "Decline",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                await respondToTrip(data.tripId as string, "rejected");
+              } catch {
+                Alert.alert("Error", "Failed to decline trip.");
+              }
+            },
+          },
+          {
+            text: "View",
+            onPress: () => router.push("/(main)/trips"),
+          },
+          {
+            text: "Accept",
+            onPress: async () => {
+              try {
+                await respondToTrip(data.tripId as string, "accepted");
+              } catch {
+                Alert.alert("Error", "Failed to accept trip.");
+              }
+            },
+          },
+        ]
+      );
+    } else if (data?.type === "trip_location_updated") {
+      Alert.alert("Location Updated", body, [
+        { text: "OK" },
+        { text: "View", onPress: () => router.push("/(main)/trips") },
+      ]);
+    } else if (data?.type === "trip_status_changed" && data?.status === "cancelled") {
+      Alert.alert("Trip Cancelled", body, [
+        { text: "OK" },
+        { text: "View", onPress: () => router.push("/(main)/trips") },
+      ]);
+    }
   });
 
   return () => {
@@ -133,7 +189,11 @@ export async function checkInitialNotification(): Promise<void> {
   if (!response) return;
 
   const data = response.notification.request.content.data;
-  if (data?.type === "trip_created" || data?.type === "trip_status_changed") {
+  if (
+    data?.type === "trip_created" ||
+    data?.type === "trip_status_changed" ||
+    data?.type === "trip_location_updated"
+  ) {
     router.push("/(main)/trips");
   }
 }

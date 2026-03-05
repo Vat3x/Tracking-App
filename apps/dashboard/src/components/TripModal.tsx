@@ -56,7 +56,7 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(trimmed)}&countrycodes=${country}&format=json&limit=1`,
-        { headers: { "User-Agent": "NexusTracking/1.0" } }
+        { headers: { "User-Agent": "LoadMindTracker/1.0" } }
       );
       if (!res.ok) {
         toast.error("Zip code not found");

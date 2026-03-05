@@ -31,7 +31,7 @@ export default function Settings() {
     <div className="h-screen flex flex-col">
       <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center justify-between shrink-0">
         <div>
-          <h1 className="text-base font-semibold text-gray-900 dark:text-gray-100">Nexus Tracking</h1>
+          <h1 className="text-base font-semibold text-gray-900 dark:text-gray-100">LoadMind Tracker</h1>
           <p className="text-xs text-gray-500 dark:text-gray-400">{userDoc?.displayName}</p>
         </div>
         <div className="flex items-center gap-2">

@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Linking,
   TouchableOpacity,
 } from "react-native";
+import * as Location from "expo-location";
 import { useAuthStore } from "../../src/stores/auth";
 import { useTrackingStore } from "../../src/stores/tracking";
 import {
@@ -36,12 +37,29 @@ export default function HomeScreen() {
     setPermissionStatus,
   } = useTrackingStore();
 
+  const [locationLabel, setLocationLabel] = useState<string | null>(null);
+
   // Sync identity to tracking store when user doc changes
   useEffect(() => {
     if (userDoc) {
       setIdentity(userDoc.companyId, userDoc.id);
     }
   }, [userDoc, setIdentity]);
+
+  // Reverse geocode last sync location to show city/state/zip
+  useEffect(() => {
+    if (!lastSync) return;
+    let cancelled = false;
+    Location.reverseGeocodeAsync({ latitude: lastSync.lat, longitude: lastSync.lng })
+      .then((results) => {
+        if (cancelled || !results[0]) return;
+        const r = results[0];
+        const parts = [r.city, r.region, r.postalCode].filter(Boolean);
+        setLocationLabel(parts.length > 0 ? parts.join(", ") : null);
+      })
+      .catch(() => setLocationLabel(null));
+    return () => { cancelled = true; };
+  }, [lastSync?.lat, lastSync?.lng]);
 
   // Check permissions on mount
   useEffect(() => {
@@ -196,8 +214,8 @@ export default function HomeScreen() {
 
           <View style={styles.infoCard}>
             <Text style={styles.infoLabel}>Location</Text>
-            <Text style={styles.infoValue}>
-              {lastSync.lat.toFixed(4)}, {lastSync.lng.toFixed(4)}
+            <Text style={styles.infoValue} numberOfLines={1}>
+              {locationLabel ?? `${lastSync.lat.toFixed(4)}, ${lastSync.lng.toFixed(4)}`}
             </Text>
           </View>
         </View>

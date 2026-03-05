@@ -1,6 +1,6 @@
-import { ref, onValue, type Unsubscribe } from "firebase/database";
+import { ref, onValue, get, type Unsubscribe } from "firebase/database";
 import { rtdb } from "./firebase";
-import { RTDB, type LocationUpdate } from "@nexus/shared";
+import { RTDB, type LocationUpdate, type LocationHistory } from "@nexus/shared";
 
 export interface DriverLocationEntry {
   driverId: string;
@@ -33,4 +33,27 @@ export function subscribeToCompanyLocations(
     }
     callback(drivers);
   });
+}
+
+/**
+ * Fetch location history for a specific driver.
+ * Returns entries sorted by timestamp ascending.
+ */
+export async function getDriverHistory(
+  companyId: string,
+  driverId: string
+): Promise<LocationHistory[]> {
+  const histRef = ref(rtdb, RTDB.driverHistory(companyId, driverId));
+  const snapshot = await get(histRef);
+  const data = snapshot.val();
+  if (!data) return [];
+
+  const entries: LocationHistory[] = [];
+  for (const value of Object.values(data)) {
+    const entry = value as LocationHistory;
+    if (entry.lat && entry.lng && entry.timestamp) {
+      entries.push(entry);
+    }
+  }
+  return entries.sort((a, b) => a.timestamp - b.timestamp);
 }

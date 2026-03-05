@@ -44,7 +44,7 @@ export default function EditLocationModal({ open, onClose, tripId, field, curren
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(trimmed)}&countrycodes=${country}&format=json&limit=1`,
-        { headers: { "User-Agent": "NexusTracking/1.0" } }
+        { headers: { "User-Agent": "LoadMindTracker/1.0" } }
       );
       if (!res.ok) {
         toast.error("Zip code not found");

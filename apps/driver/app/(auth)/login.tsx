@@ -91,7 +91,7 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <View style={styles.inner}>
-        <Text style={styles.title}>Nexus Tracking</Text>
+        <Text style={styles.title}>LoadMind Tracker</Text>
         <Text style={styles.subtitle}>
           {isRegister ? "Create your driver account" : "Sign in to continue"}
         </Text>

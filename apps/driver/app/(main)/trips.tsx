@@ -12,6 +12,7 @@ import {
 import { useAuthStore } from "../../src/stores/auth";
 import { subscribeToDriverTrips, respondToTrip } from "../../src/services/trips";
 import type { Trip, TripStatus } from "@nexus/shared";
+import TripMap from "../../src/components/TripMap";
 
 const STATUS_COLORS: Record<TripStatus, { bg: string; text: string }> = {
   pending: { bg: "#fef9c3", text: "#854d0e" },
@@ -81,6 +82,11 @@ function TripCard({
           </View>
         </View>
       </View>
+
+      {/* Inline Map with Route + ETA */}
+      {(trip.status === "accepted" || trip.status === "in_progress") && (
+        <TripMap trip={trip} />
+      )}
 
       {/* Actions */}
       {trip.status === "pending" && (

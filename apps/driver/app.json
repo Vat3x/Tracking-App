@@ -1,7 +1,7 @@
 {
   "expo": {
     "owner": "vat3x",
-    "name": "Nexus Tracking",
+    "name": "LoadMind Tracker",
     "slug": "nexus-tracking-driver",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -70,7 +70,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Nexus Tracking to access your location to share with your dispatcher.",
+          "locationAlwaysAndWhenInUsePermission": "Allow LoadMind Tracker to access your location to share with your dispatcher.",
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }

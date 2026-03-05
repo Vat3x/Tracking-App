@@ -17,7 +17,7 @@ export default function InviteLanding() {
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        <h1 style={styles.title}>Nexus Tracking</h1>
+        <h1 style={styles.title}>LoadMind Tracker</h1>
         <p style={styles.subtitle}>You've been invited to join a company</p>
 
         {opened && (

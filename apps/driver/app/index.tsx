@@ -3,7 +3,7 @@ import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
 export default function SplashScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Nexus Tracking</Text>
+      <Text style={styles.title}>LoadMind Tracker</Text>
       <ActivityIndicator size="large" color="#1a73e8" />
     </View>
   );

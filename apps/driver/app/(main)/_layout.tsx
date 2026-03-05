@@ -13,7 +13,7 @@ export default function MainLayout() {
         name="home"
         options={{
           title: "Home",
-          headerTitle: "Nexus Tracking",
+          headerTitle: "LoadMind Tracker",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home-outline" size={size} color={color} />
           ),

@@ -48,7 +48,7 @@ export default function Login() {
       <div className="w-full max-w-md">
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8">
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-1">
-            Nexus Tracking
+            LoadMind Tracker
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
             Dispatcher Dashboard
