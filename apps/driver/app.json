@@ -29,6 +29,11 @@
       }
     },
     "android": {
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyCNzAjZeOqR_1bzGHb7zZEWhiyTFKX_Ju0"
+        }
+      },
       "package": "com.nexus.tracking.driver",
       "adaptiveIcon": {
         "backgroundColor": "#1a73e8",
