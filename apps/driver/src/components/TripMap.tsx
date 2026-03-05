@@ -1,9 +1,28 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Component, type ReactNode } from "react";
 import { View, Text, StyleSheet, ActivityIndicator, Platform } from "react-native";
 import MapView, { Polyline, Marker, type Region } from "react-native-maps";
 import * as Location from "expo-location";
 import { fetchRoute, type RouteResult } from "../services/routing";
 import type { Trip } from "@nexus/shared";
+
+// Clean, modern map style — muted colors, no clutter
+const MAP_STYLE = [
+  { elementType: "geometry", stylers: [{ color: "#f5f5f5" }] },
+  { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#9e9e9e" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#f5f5f5" }] },
+  { featureType: "administrative.land_parcel", stylers: [{ visibility: "off" }] },
+  { featureType: "administrative.neighborhood", stylers: [{ visibility: "off" }] },
+  { featureType: "poi", stylers: [{ visibility: "off" }] },
+  { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
+  { featureType: "road", elementType: "labels", stylers: [{ visibility: "off" }] },
+  { featureType: "road.arterial", elementType: "geometry", stylers: [{ color: "#e8eaed" }] },
+  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#dadce0" }] },
+  { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#c8cace" }] },
+  { featureType: "transit", stylers: [{ visibility: "off" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#c9d6e3" }] },
+  { featureType: "water", elementType: "labels.text", stylers: [{ visibility: "off" }] },
+];
 
 function formatETA(seconds: number): string {
   if (seconds < 60) return "< 1 min";
@@ -14,25 +33,36 @@ function formatETA(seconds: number): string {
   return rem > 0 ? `~${hrs} hr ${rem} min` : `~${hrs} hr`;
 }
 
+// Error boundary — prevents MapView native crash from killing the whole screen
+class MapErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) return null;
+    return this.props.children;
+  }
+}
+
 interface Props {
   trip: Trip;
 }
 
-export default function TripMap({ trip }: Props) {
+function TripMapInner({ trip }: Props) {
   const mapRef = useRef<MapView>(null);
+  const mountedRef = useRef(true);
   const [route, setRoute] = useState<RouteResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [ready, setReady] = useState(false);
 
-  // Defer rendering to avoid crash when MapView mounts during FlatList re-render
   useEffect(() => {
-    const timer = setTimeout(() => setReady(true), 300);
-    return () => clearTimeout(timer);
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
   }, []);
 
   useEffect(() => {
-    if (!ready) return;
     let cancelled = false;
 
     async function loadRoute() {
@@ -43,15 +73,14 @@ export default function TripMap({ trip }: Props) {
         let waypoints: [number, number][];
 
         if (trip.status === "accepted") {
-          // Driver → pickup: need current location
           const { status } = await Location.getForegroundPermissionsAsync();
-          if (status !== "granted") {
-            if (!cancelled) setError(true);
-            if (!cancelled) setLoading(false);
+          if (status !== "granted" || cancelled) {
+            if (!cancelled) { setError(true); setLoading(false); }
             return;
           }
           const loc = await Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy.Balanced,
+            timeInterval: 10000,
           });
           if (cancelled) return;
           waypoints = [
@@ -59,7 +88,6 @@ export default function TripMap({ trip }: Props) {
             [trip.origin.lng, trip.origin.lat],
           ];
         } else {
-          // In progress: pickup → dropoff
           waypoints = [
             [trip.origin.lng, trip.origin.lat],
             [trip.destination.lng, trip.destination.lat],
@@ -83,9 +111,9 @@ export default function TripMap({ trip }: Props) {
 
     loadRoute();
     return () => { cancelled = true; };
-  }, [ready, trip.id, trip.status]);
+  }, [trip.id, trip.status]);
 
-  if (!ready || loading) {
+  if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="small" color="#3b82f6" />
@@ -95,7 +123,7 @@ export default function TripMap({ trip }: Props) {
   }
 
   if (error || !route) {
-    return null; // Silently skip if route can't be loaded
+    return null;
   }
 
   const routeCoords = route.coordinates.map(([lng, lat]) => ({
@@ -105,7 +133,6 @@ export default function TripMap({ trip }: Props) {
 
   const isAccepted = trip.status === "accepted";
 
-  // Initial region centered on route midpoint
   const midIdx = Math.floor(routeCoords.length / 2);
   const initialRegion: Region = {
     latitude: routeCoords[midIdx].latitude,
@@ -116,7 +143,7 @@ export default function TripMap({ trip }: Props) {
 
   const handleMapReady = () => {
     try {
-      if (mapRef.current && routeCoords.length > 1) {
+      if (mountedRef.current && mapRef.current && routeCoords.length > 1) {
         mapRef.current.fitToCoordinates(routeCoords, {
           edgePadding: { top: 40, right: 40, bottom: 40, left: 40 },
           animated: false,
@@ -139,8 +166,9 @@ export default function TripMap({ trip }: Props) {
         pitchEnabled={false}
         rotateEnabled={false}
         liteMode={Platform.OS === "android"}
+        loadingEnabled
+        customMapStyle={MAP_STYLE}
       >
-        {/* Route polyline */}
         <Polyline
           coordinates={routeCoords}
           strokeColor={isAccepted ? "#eab308" : "#3b82f6"}
@@ -148,7 +176,6 @@ export default function TripMap({ trip }: Props) {
           lineDashPattern={isAccepted ? [10, 5] : undefined}
         />
 
-        {/* Pickup marker (green) */}
         <Marker
           coordinate={{
             latitude: trip.origin.lat,
@@ -159,7 +186,6 @@ export default function TripMap({ trip }: Props) {
           description={trip.origin.label}
         />
 
-        {/* Destination marker (red) — only for in_progress */}
         {!isAccepted && (
           <Marker
             coordinate={{
@@ -173,7 +199,6 @@ export default function TripMap({ trip }: Props) {
         )}
       </MapView>
 
-      {/* ETA bar */}
       <View style={styles.etaBar}>
         <Text style={styles.etaLabel}>
           {isAccepted ? "ETA to pickup" : "ETA to drop-off"}
@@ -181,6 +206,15 @@ export default function TripMap({ trip }: Props) {
         <Text style={styles.etaValue}>{formatETA(route.duration)}</Text>
       </View>
     </View>
+  );
+}
+
+// Only render map for the FIRST active trip to avoid multiple MapView instances
+export default function TripMap({ trip }: Props) {
+  return (
+    <MapErrorBoundary>
+      <TripMapInner trip={trip} />
+    </MapErrorBoundary>
   );
 }
 

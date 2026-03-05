@@ -40,9 +40,11 @@ function formatTime(ts: number): string {
 function TripCard({
   trip,
   onRespond,
+  showMap,
 }: {
   trip: Trip;
   onRespond: (tripId: string, status: TripStatus) => void;
+  showMap: boolean;
 }) {
   const statusColor = STATUS_COLORS[trip.status];
 
@@ -83,8 +85,8 @@ function TripCard({
         </View>
       </View>
 
-      {/* Inline Map with Route + ETA */}
-      {(trip.status === "accepted" || trip.status === "in_progress") && (
+      {/* Inline Map with Route + ETA — only for the first active trip */}
+      {showMap && (trip.status === "accepted" || trip.status === "in_progress") && (
         <TripMap trip={trip} />
       )}
 
@@ -184,6 +186,11 @@ export default function TripsScreen() {
     ["completed", "rejected", "cancelled"].includes(t.status)
   );
 
+  // Only render map for the first trip that needs one (avoid multiple MapView instances)
+  const mapTripId = activeTrips.find(
+    (t) => t.status === "accepted" || t.status === "in_progress"
+  )?.id;
+
   const hasCompany = !!userDoc?.companyId;
 
   return (
@@ -210,7 +217,7 @@ export default function TripsScreen() {
           data={[...activeTrips, ...pastTrips]}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <TripCard trip={item} onRespond={handleRespond} />
+            <TripCard trip={item} onRespond={handleRespond} showMap={item.id === mapTripId} />
           )}
           contentContainerStyle={styles.list}
           removeClippedSubviews={false}
