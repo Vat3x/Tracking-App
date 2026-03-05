@@ -213,6 +213,7 @@ export default function TripsScreen() {
             <TripCard trip={item} onRespond={handleRespond} />
           )}
           contentContainerStyle={styles.list}
+          removeClippedSubviews={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }

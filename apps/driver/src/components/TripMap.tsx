@@ -23,8 +23,16 @@ export default function TripMap({ trip }: Props) {
   const [route, setRoute] = useState<RouteResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [ready, setReady] = useState(false);
+
+  // Defer rendering to avoid crash when MapView mounts during FlatList re-render
+  useEffect(() => {
+    const timer = setTimeout(() => setReady(true), 300);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
+    if (!ready) return;
     let cancelled = false;
 
     async function loadRoute() {
@@ -36,9 +44,16 @@ export default function TripMap({ trip }: Props) {
 
         if (trip.status === "accepted") {
           // Driver → pickup: need current location
+          const { status } = await Location.getForegroundPermissionsAsync();
+          if (status !== "granted") {
+            if (!cancelled) setError(true);
+            if (!cancelled) setLoading(false);
+            return;
+          }
           const loc = await Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy.Balanced,
           });
+          if (cancelled) return;
           waypoints = [
             [loc.coords.longitude, loc.coords.latitude],
             [trip.origin.lng, trip.origin.lat],
@@ -56,19 +71,6 @@ export default function TripMap({ trip }: Props) {
 
         if (result) {
           setRoute(result);
-          // Fit map to route bounds
-          setTimeout(() => {
-            if (mapRef.current && result.coordinates.length > 1) {
-              const coords = result.coordinates.map(([lng, lat]) => ({
-                latitude: lat,
-                longitude: lng,
-              }));
-              mapRef.current.fitToCoordinates(coords, {
-                edgePadding: { top: 40, right: 40, bottom: 40, left: 40 },
-                animated: false,
-              });
-            }
-          }, 100);
         } else {
           setError(true);
         }
@@ -81,9 +83,9 @@ export default function TripMap({ trip }: Props) {
 
     loadRoute();
     return () => { cancelled = true; };
-  }, [trip.id, trip.status]);
+  }, [ready, trip.id, trip.status]);
 
-  if (loading) {
+  if (!ready || loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="small" color="#3b82f6" />
@@ -112,12 +114,26 @@ export default function TripMap({ trip }: Props) {
     longitudeDelta: 0.1,
   };
 
+  const handleMapReady = () => {
+    try {
+      if (mapRef.current && routeCoords.length > 1) {
+        mapRef.current.fitToCoordinates(routeCoords, {
+          edgePadding: { top: 40, right: 40, bottom: 40, left: 40 },
+          animated: false,
+        });
+      }
+    } catch {
+      // Silently ignore fit errors
+    }
+  };
+
   return (
     <View style={styles.container}>
       <MapView
         ref={mapRef}
         style={styles.map}
         initialRegion={initialRegion}
+        onMapReady={handleMapReady}
         scrollEnabled={false}
         zoomEnabled={false}
         pitchEnabled={false}

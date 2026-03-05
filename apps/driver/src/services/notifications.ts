@@ -8,16 +8,12 @@ import { router } from "expo-router";
 import { respondToTrip } from "./trips";
 
 // Show notification banners when app is in foreground
-// For trip_created, we suppress the system banner and show an interactive Alert instead
 Notifications.setNotificationHandler({
-  handleNotification: async (notification) => {
-    const data = notification.request.content.data;
-    // Suppress system banner for trip_created — we show an interactive Alert
-    const show = data?.type !== "trip_created";
+  handleNotification: async () => {
     return {
-      shouldShowAlert: show,
-      shouldShowBanner: show,
-      shouldShowList: show,
+      shouldShowAlert: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
       shouldPlaySound: true,
       shouldSetBadge: false,
     };
