@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "463711773961",
+    "firebase_url": "https://tracking-app-f6ad7-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "tracking-app-f6ad7",
+    "storage_bucket": "tracking-app-f6ad7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:463711773961:android:e329959498367cc02c1fd8",
+        "android_client_info": {
+          "package_name": "com.nexus.tracking.driver"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "463711773961-n997dtfiuelrpgaa57op06u274ov7jrp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDN-ot12jzCVCwhOoVZXRR6kdaf4ms-boA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "463711773961-n997dtfiuelrpgaa57op06u274ov7jrp.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
