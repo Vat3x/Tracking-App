@@ -15,6 +15,7 @@
     },
     "ios": {
       "supportsTablet": false,
+      "googleServicesFile": "./GoogleService-Info.plist",
       "bundleIdentifier": "com.nexus.tracking.driver",
       "associatedDomains": [
         "applinks:tracking-app-f6ad7.web.app"
