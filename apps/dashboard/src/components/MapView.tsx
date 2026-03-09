@@ -345,18 +345,20 @@ export default function MapView({
     const map = mapRef.current;
     if (!map) return;
 
-    const currentIds = new Set(drivers.map((d) => d.driverId));
+    // Only show online drivers on the map
+    const onlineDrivers = drivers.filter((d) => d.current.isOnline);
+    const onlineIds = new Set(onlineDrivers.map((d) => d.driverId));
 
-    // Remove markers for drivers no longer in the list
+    // Remove markers for drivers no longer online
     markersRef.current.forEach((marker, id) => {
-      if (!currentIds.has(id)) {
+      if (!onlineIds.has(id)) {
         marker.remove();
         markersRef.current.delete(id);
       }
     });
 
     // Add or update markers
-    drivers.forEach((driver) => {
+    onlineDrivers.forEach((driver) => {
       const { driverId, current } = driver;
       const existing = markersRef.current.get(driverId);
 

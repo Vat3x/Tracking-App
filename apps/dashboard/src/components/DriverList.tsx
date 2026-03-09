@@ -149,7 +149,6 @@ export default function DriverList({
   trips,
 }: Props) {
   const onlineDrivers = drivers.filter((d) => d.current.isOnline);
-  const offlineDrivers = drivers.filter((d) => !d.current.isOnline);
 
   function getActiveTrip(driverId: string): Trip | null {
     return trips.find(
@@ -163,66 +162,33 @@ export default function DriverList({
       <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
         <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Drivers</h2>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-          {onlineDrivers.length} online · {offlineDrivers.length} offline
+          {onlineDrivers.length} online
         </p>
       </div>
 
       {/* Driver list */}
       <div className="flex-1 overflow-y-auto">
-        {drivers.length === 0 ? (
+        {onlineDrivers.length === 0 ? (
           <div className="px-4 py-12 text-center">
-            <p className="text-sm text-gray-400 dark:text-gray-500">No drivers yet</p>
+            <p className="text-sm text-gray-400 dark:text-gray-500">No drivers online</p>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-              Invite drivers to start tracking
+              Drivers will appear here when they go online
             </p>
           </div>
         ) : (
-          <>
-            {onlineDrivers.length > 0 && (
-              <div>
-                <div className="px-4 py-2 bg-gray-50 dark:bg-gray-800">
-                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Online ({onlineDrivers.length})
-                  </span>
-                </div>
-                <div className="divide-y divide-gray-50 dark:divide-gray-800">
-                  {onlineDrivers.map((driver) => (
-                    <DriverCard
-                      key={driver.driverId}
-                      driver={driver}
-                      profile={driverProfiles.get(driver.driverId)}
-                      isSelected={selectedDriverId === driver.driverId}
-                      onSelect={() => onSelectDriver(driver.driverId)}
-                      hasActiveTrip={activeDriverIds.has(driver.driverId)}
-                      activeTrip={getActiveTrip(driver.driverId)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-            {offlineDrivers.length > 0 && (
-              <div>
-                <div className="px-4 py-2 bg-gray-50 dark:bg-gray-800">
-                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Offline ({offlineDrivers.length})
-                  </span>
-                </div>
-                <div className="divide-y divide-gray-50 dark:divide-gray-800">
-                  {offlineDrivers.map((driver) => (
-                    <DriverCard
-                      key={driver.driverId}
-                      driver={driver}
-                      profile={driverProfiles.get(driver.driverId)}
-                      isSelected={selectedDriverId === driver.driverId}
-                      onSelect={() => onSelectDriver(driver.driverId)}
-                      hasActiveTrip={activeDriverIds.has(driver.driverId)}
-                      activeTrip={getActiveTrip(driver.driverId)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-          </>
+          <div className="divide-y divide-gray-50 dark:divide-gray-800">
+            {onlineDrivers.map((driver) => (
+              <DriverCard
+                key={driver.driverId}
+                driver={driver}
+                profile={driverProfiles.get(driver.driverId)}
+                isSelected={selectedDriverId === driver.driverId}
+                onSelect={() => onSelectDriver(driver.driverId)}
+                hasActiveTrip={activeDriverIds.has(driver.driverId)}
+                activeTrip={getActiveTrip(driver.driverId)}
+              />
+            ))}
+          </div>
         )}
       </div>
     </div>
