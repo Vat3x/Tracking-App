@@ -8,6 +8,7 @@ import { subscribeToCompanyTrips } from "@/services/trips";
 import { getCompanyDrivers } from "@/services/drivers";
 import InviteModal from "@/components/InviteModal";
 import TripModal from "@/components/TripModal";
+import EditTripModal from "@/components/EditTripModal";
 import MapView from "@/components/MapView";
 import DriverList from "@/components/DriverList";
 import { useNavigate } from "react-router-dom";
@@ -48,6 +49,7 @@ export default function Dashboard() {
   const [driverProfiles, setDriverProfiles] = useState<Map<string, User>>(new Map());
   const [trips, setTrips] = useState<Trip[]>([]);
   const [companyName, setCompanyName] = useState("My Company");
+  const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
 
   // Fetch company name
   useEffect(() => {
@@ -293,20 +295,28 @@ export default function Dashboard() {
                             )}
                           </div>
                           {isActive && (
-                            <button
-                              onClick={async () => {
-                                if (!window.confirm("Cancel this trip?")) return;
-                                try {
-                                  await updateTripStatus(trip.id, "cancelled");
-                                  toast.success("Trip cancelled");
-                                } catch {
-                                  toast.error("Failed to cancel trip");
-                                }
-                              }}
-                              className="text-[10px] text-gray-400 hover:text-red-500 mt-1"
-                            >
-                              Cancel
-                            </button>
+                            <div className="flex items-center gap-3 mt-1">
+                              <button
+                                onClick={() => setEditingTrip(trip)}
+                                className="text-[10px] text-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  if (!window.confirm("Cancel this trip?")) return;
+                                  try {
+                                    await updateTripStatus(trip.id, "cancelled");
+                                    toast.success("Trip cancelled");
+                                  } catch {
+                                    toast.error("Failed to cancel trip");
+                                  }
+                                }}
+                                className="text-[10px] text-gray-400 hover:text-red-500"
+                              >
+                                Cancel
+                              </button>
+                            </div>
                           )}
                         </div>
                       );
@@ -414,6 +424,14 @@ export default function Dashboard() {
         onClose={() => setInviteModalOpen(false)}
         companyName={companyName}
       />
+
+      {editingTrip && (
+        <EditTripModal
+          trip={editingTrip}
+          driverProfile={driverProfiles.get(editingTrip.driverId ?? "")}
+          onClose={() => setEditingTrip(null)}
+        />
+      )}
     </div>
   );
 }

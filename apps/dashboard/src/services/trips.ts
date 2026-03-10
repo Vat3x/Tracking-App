@@ -3,6 +3,7 @@ import {
   doc,
   setDoc,
   updateDoc,
+  deleteField,
   query,
   where,
   orderBy,
@@ -73,6 +74,29 @@ export async function updateTripStop(
     stops,
     updatedAt: Date.now(),
   });
+}
+
+export async function updateTripRoute(
+  tripId: string,
+  origin: GeoPoint,
+  stops: GeoPoint[],
+  destination: GeoPoint | null
+): Promise<void> {
+  const update: Record<string, unknown> = {
+    origin,
+    updatedAt: Date.now(),
+  };
+  if (stops.length > 0) {
+    update.stops = stops;
+  } else {
+    update.stops = deleteField();
+  }
+  if (destination) {
+    update.destination = destination;
+  } else {
+    update.destination = deleteField();
+  }
+  await updateDoc(doc(db, COLLECTIONS.TRIPS, tripId), update);
 }
 
 export function subscribeToCompanyTrips(

@@ -5,11 +5,11 @@ import { subscribeToCompanyTrips, updateTripStatus } from "@/services/trips";
 import { getCompanyDrivers } from "@/services/drivers";
 import { subscribeToCompanyLocations } from "@/services/locations";
 import TripModal from "@/components/TripModal";
-import EditLocationModal from "@/components/EditLocationModal";
+import EditTripModal from "@/components/EditTripModal";
 import { useNavigate } from "react-router-dom";
 import { logout } from "@/services/auth";
 import { toast } from "sonner";
-import { type Trip, type TripStatus, type GeoPoint, type User, distanceMeters } from "@nexus/shared";
+import { type Trip, type TripStatus, type User, distanceMeters } from "@nexus/shared";
 import ThemeToggle from "@/components/ThemeToggle";
 
 const STATUS_CONFIG: Record<TripStatus, { label: string; bg: string; text: string }> = {
@@ -52,12 +52,7 @@ export default function Trips() {
   const [driverProfiles, setDriverProfiles] = useState<Map<string, User>>(new Map());
   const [tripModalOpen, setTripModalOpen] = useState(false);
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
-  const [editModal, setEditModal] = useState<{
-    tripId: string;
-    field: "origin" | "destination";
-    currentLocation: GeoPoint;
-    country: string;
-  } | null>(null);
+  const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
 
   // Subscribe to trips
   useEffect(() => {
@@ -206,12 +201,20 @@ export default function Trips() {
                         </p>
                       </div>
                       {isActive && (
-                        <button
-                          onClick={() => handleCancel(trip.id)}
-                          className="text-xs text-gray-400 hover:text-red-500"
-                        >
-                          Cancel
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setEditingTrip(trip)}
+                            className="text-xs text-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleCancel(trip.id)}
+                            className="text-xs text-gray-400 hover:text-red-500"
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       )}
                     </div>
 
@@ -220,33 +223,14 @@ export default function Trips() {
                       {/* Origin */}
                       <div className="flex items-start gap-2">
                         <div className="w-2.5 h-2.5 rounded-full bg-green-500 mt-1.5 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-sm text-gray-900 dark:text-gray-100 truncate">{trip.origin.label}</p>
-                            {isActive && (
-                              <button
-                                onClick={() => setEditModal({
-                                  tripId: trip.id,
-                                  field: "origin",
-                                  currentLocation: trip.origin,
-                                  country: trip.country ?? "us",
-                                })}
-                                className="text-xs text-blue-500 hover:text-blue-700 dark:hover:text-blue-400 flex-shrink-0"
-                              >
-                                Edit
-                              </button>
-                            )}
-                          </div>
-                        </div>
+                        <p className="text-sm text-gray-900 dark:text-gray-100 truncate">{trip.origin.label}</p>
                       </div>
 
                       {/* Stops */}
                       {trip.stops?.map((stop, i) => (
                         <div key={i} className="flex items-start gap-2 pl-0.5">
                           <div className="w-1.5 h-1.5 rounded-full bg-orange-500 mt-2 flex-shrink-0 ml-0.5" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-gray-700 dark:text-gray-300 truncate">{stop.label}</p>
-                          </div>
+                          <p className="text-sm text-gray-700 dark:text-gray-300 truncate">{stop.label}</p>
                         </div>
                       ))}
 
@@ -254,24 +238,7 @@ export default function Trips() {
                       {trip.destination && (
                         <div className="flex items-start gap-2">
                           <div className="w-2.5 h-2.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <p className="text-sm text-gray-900 dark:text-gray-100 truncate">{trip.destination.label}</p>
-                              {isActive && (
-                                <button
-                                  onClick={() => setEditModal({
-                                    tripId: trip.id,
-                                    field: "destination",
-                                    currentLocation: trip.destination!,
-                                    country: trip.country ?? "us",
-                                  })}
-                                  className="text-xs text-blue-500 hover:text-blue-700 dark:hover:text-blue-400 flex-shrink-0"
-                                >
-                                  Edit
-                                </button>
-                              )}
-                            </div>
-                          </div>
+                          <p className="text-sm text-gray-900 dark:text-gray-100 truncate">{trip.destination.label}</p>
                         </div>
                       )}
 
@@ -306,14 +273,11 @@ export default function Trips() {
         />
       )}
 
-      {editModal && (
-        <EditLocationModal
-          open={!!editModal}
-          onClose={() => setEditModal(null)}
-          tripId={editModal.tripId}
-          field={editModal.field}
-          currentLocation={editModal.currentLocation}
-          country={editModal.country}
+      {editingTrip && (
+        <EditTripModal
+          trip={editingTrip}
+          driverProfile={driverProfiles.get(editingTrip.driverId ?? "")}
+          onClose={() => setEditingTrip(null)}
         />
       )}
       </div>
