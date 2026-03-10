@@ -257,6 +257,88 @@ function EditDriverModal({
   );
 }
 
+/* ─── Delete Driver Modal (two-step) ────────────────── */
+
+function DeleteDriverModal({
+  driverName,
+  driverId,
+  companyId,
+  onClose,
+  onDeleted,
+}: {
+  driverName: string;
+  driverId: string;
+  companyId: string;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const [confirmText, setConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const matches = confirmText.trim().toLowerCase() === driverName.trim().toLowerCase();
+
+  async function handleDelete() {
+    if (!matches) return;
+    setDeleting(true);
+    try {
+      await removeDriverFromCompany(driverId, companyId);
+      toast.success(`${driverName} removed`);
+      onDeleted();
+      onClose();
+    } catch {
+      toast.error("Failed to remove driver");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center" onClick={onClose}>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-96 max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
+        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-red-600 dark:text-red-400">Remove Driver</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg leading-none">&times;</button>
+        </div>
+        <div className="px-5 py-4 space-y-3">
+          <p className="text-sm text-gray-700 dark:text-gray-300">
+            This will remove <span className="font-semibold">{driverName}</span> from your company. They will lose access to all tracking data and trip assignments.
+          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            This action <span className="font-semibold text-red-600 dark:text-red-400">cannot be undone</span>.
+          </p>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+              Type <span className="font-semibold text-gray-900 dark:text-gray-100">"{driverName}"</span> to confirm
+            </label>
+            <input
+              type="text"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder={driverName}
+              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+              autoFocus
+            />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={onClose}
+              className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={!matches || deleting}
+              className="flex-1 px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              {deleting ? "Removing..." : "Remove Driver"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Driver Card ───────────────────────────────────── */
 
 function DriverCard({
@@ -280,6 +362,7 @@ function DriverCard({
   const [menuOpen, setMenuOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const c = driver.current;
   const name = profile?.displayName ?? `Driver ${driver.driverId.slice(0, 6)}`;
 
@@ -305,18 +388,9 @@ function DriverCard({
         setEditOpen(true);
         break;
 
-      case "delete": {
-        if (!userDoc?.companyId) return;
-        if (!window.confirm(`Remove ${name} from your company? This cannot be undone.`)) return;
-        try {
-          await removeDriverFromCompany(driver.driverId, userDoc.companyId);
-          toast.success(`${name} removed`);
-          onRefreshProfiles();
-        } catch {
-          toast.error("Failed to remove driver");
-        }
+      case "delete":
+        setDeleteOpen(true);
         break;
-      }
     }
   }
 
@@ -451,6 +525,15 @@ function DriverCard({
       )}
       {editOpen && (
         <EditDriverModal profile={profile} driverId={driver.driverId} onClose={() => setEditOpen(false)} onSaved={onRefreshProfiles} />
+      )}
+      {deleteOpen && userDoc?.companyId && (
+        <DeleteDriverModal
+          driverName={name}
+          driverId={driver.driverId}
+          companyId={userDoc.companyId}
+          onClose={() => setDeleteOpen(false)}
+          onDeleted={onRefreshProfiles}
+        />
       )}
     </>
   );

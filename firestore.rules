@@ -32,7 +32,9 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isAuth();
       allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
+      allow update: if isOwner(userId) ||
+        (isCompanyMember(resource.data.companyId) &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'phone']));
       allow delete: if false;
     }
 

@@ -1,6 +1,6 @@
-import { collection, query, where, getDocs, doc, updateDoc, writeBatch } from "firebase/firestore";
-import { ref, remove } from "firebase/database";
-import { db, rtdb } from "./firebase";
+import { collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
+import { db, functions } from "./firebase";
 import { COLLECTIONS, type User } from "@nexus/shared";
 
 /**
@@ -25,6 +25,7 @@ export async function getCompanyDrivers(
 
 /**
  * Update a driver's display name.
+ * Firestore rules allow company members to update displayName/phone on users in their company.
  */
 export async function updateDriverName(
   driverId: string,
@@ -34,26 +35,14 @@ export async function updateDriverName(
 }
 
 /**
- * Remove a driver from a company.
- * Clears their companyId, removes from company members, and removes RTDB entries.
+ * Remove a driver from a company via Cloud Function.
+ * The function validates permissions server-side, then clears companyId,
+ * removes from company members, and cleans up RTDB entries.
  */
 export async function removeDriverFromCompany(
   driverId: string,
   companyId: string
 ): Promise<void> {
-  const batch = writeBatch(db);
-
-  // 1. Clear companyId on user doc
-  batch.update(doc(db, COLLECTIONS.USERS, driverId), { companyId: null });
-
-  // 2. Remove from company members subcollection
-  batch.delete(doc(db, COLLECTIONS.members(companyId), driverId));
-
-  await batch.commit();
-
-  // 3. Remove from RTDB company_members
-  await remove(ref(rtdb, `company_members/${companyId}/${driverId}`));
-
-  // 4. Remove location data from RTDB
-  await remove(ref(rtdb, `locations/${companyId}/${driverId}`));
+  const fn = httpsCallable(functions, "removeDriver");
+  await fn({ driverId, companyId });
 }
