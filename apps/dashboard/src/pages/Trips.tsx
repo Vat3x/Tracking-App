@@ -183,7 +183,7 @@ export default function Trips() {
                     const m = distanceMeters(driverLoc.current.lat, driverLoc.current.lng, trip.origin.lat, trip.origin.lng);
                     distanceLabel = `${formatDistance(m, useMiles)} to pickup`;
                   }
-                } else if (trip.status === "in_progress") {
+                } else if (trip.status === "in_progress" && trip.destination) {
                   const m = distanceMeters(trip.origin.lat, trip.origin.lng, trip.destination.lat, trip.destination.lng);
                   distanceLabel = `${formatDistance(m, useMiles)} trip distance`;
                 }
@@ -214,52 +214,72 @@ export default function Trips() {
                       )}
                     </div>
 
-                    <div className="flex gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Origin</p>
-                          {isActive && (
-                            <button
-                              onClick={() => setEditModal({
-                                tripId: trip.id,
-                                field: "origin",
-                                currentLocation: trip.origin,
-                                country: trip.country ?? "us",
-                              })}
-                              className="text-xs text-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
-                            >
-                              Edit
-                            </button>
-                          )}
+                    {/* Route: Origin → Stops → Destination */}
+                    <div className="space-y-2">
+                      {/* Origin */}
+                      <div className="flex items-start gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full bg-green-500 mt-1.5 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm text-gray-900 dark:text-gray-100 truncate">{trip.origin.label}</p>
+                            {isActive && (
+                              <button
+                                onClick={() => setEditModal({
+                                  tripId: trip.id,
+                                  field: "origin",
+                                  currentLocation: trip.origin,
+                                  country: trip.country ?? "us",
+                                })}
+                                className="text-xs text-blue-500 hover:text-blue-700 dark:hover:text-blue-400 flex-shrink-0"
+                              >
+                                Edit
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <p className="text-sm text-gray-900 dark:text-gray-100">{trip.origin.label}</p>
-                        <p className="text-xs text-gray-400 dark:text-gray-500">
-                          {trip.origin.lat.toFixed(4)}, {trip.origin.lng.toFixed(4)}
-                        </p>
                       </div>
-                      <div className="text-gray-300 dark:text-gray-600 self-center">&rarr;</div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Destination</p>
-                          {isActive && (
-                            <button
-                              onClick={() => setEditModal({
-                                tripId: trip.id,
-                                field: "destination",
-                                currentLocation: trip.destination,
-                                country: trip.country ?? "us",
-                              })}
-                              className="text-xs text-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
-                            >
-                              Edit
-                            </button>
-                          )}
+
+                      {/* Stops */}
+                      {trip.stops?.map((stop, i) => (
+                        <div key={i} className="flex items-start gap-2 pl-0.5">
+                          <div className="w-1.5 h-1.5 rounded-full bg-orange-500 mt-2 flex-shrink-0 ml-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-gray-700 dark:text-gray-300 truncate">{stop.label}</p>
+                          </div>
                         </div>
-                        <p className="text-sm text-gray-900 dark:text-gray-100">{trip.destination.label}</p>
-                        <p className="text-xs text-gray-400 dark:text-gray-500">
-                          {trip.destination.lat.toFixed(4)}, {trip.destination.lng.toFixed(4)}
+                      ))}
+
+                      {/* Destination */}
+                      {trip.destination && (
+                        <div className="flex items-start gap-2">
+                          <div className="w-2.5 h-2.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm text-gray-900 dark:text-gray-100 truncate">{trip.destination.label}</p>
+                              {isActive && (
+                                <button
+                                  onClick={() => setEditModal({
+                                    tripId: trip.id,
+                                    field: "destination",
+                                    currentLocation: trip.destination!,
+                                    country: trip.country ?? "us",
+                                  })}
+                                  className="text-xs text-blue-500 hover:text-blue-700 dark:hover:text-blue-400 flex-shrink-0"
+                                >
+                                  Edit
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Stop count */}
+                      {trip.stops && trip.stops.length > 0 && (
+                        <p className="text-xs text-orange-500 dark:text-orange-400 pl-5">
+                          {trip.stops.length} stop{trip.stops.length > 1 ? "s" : ""}
                         </p>
-                      </div>
+                      )}
                     </div>
                     {distanceLabel && (
                       <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">

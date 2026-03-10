@@ -47,8 +47,18 @@ export const onTripCreated = onDocumentCreated("trips/{tripId}", async (event) =
   const data = event.data?.data();
   if (!data) return;
 
-  const { driverId, origin, destination } = data;
+  const { driverId, origin, destination, stops } = data;
   if (!driverId) return;
+
+  // Build route description with stops
+  const routeParts = [origin?.label ?? "Pickup"];
+  if (stops && Array.isArray(stops)) {
+    stops.forEach((s: { label?: string }) => routeParts.push(s.label ?? "Stop"));
+  }
+  if (destination?.label) {
+    routeParts.push(destination.label);
+  }
+  const routeDesc = routeParts.join(" → ");
 
   // Get driver's FCM token with retry (driver may have just logged in)
   const fcmToken = await getFcmToken(driverId);
@@ -63,7 +73,7 @@ export const onTripCreated = onDocumentCreated("trips/{tripId}", async (event) =
       token: fcmToken,
       notification: {
         title: "New Trip Assignment",
-        body: `${origin?.label ?? "Pickup"} → ${destination?.label ?? "Drop-off"}`,
+        body: routeDesc,
       },
       data: {
         type: "trip_created",
@@ -99,15 +109,16 @@ export const onTripStatusChanged = onDocumentUpdated("trips/{tripId}", async (ev
   const driverDoc = driverId ? await firestore.doc(`users/${driverId}`).get() : null;
   const driverName = driverDoc?.data()?.displayName ?? "Driver";
 
-  // Check if origin or destination was updated → notify driver about location change
+  // Check if origin, destination, or stops were updated → notify driver about location change
   const originChanged = JSON.stringify(before.origin) !== JSON.stringify(after.origin);
   const destChanged = JSON.stringify(before.destination) !== JSON.stringify(after.destination);
+  const stopsChanged = JSON.stringify(before.stops) !== JSON.stringify(after.stops);
 
-  if ((originChanged || destChanged) && driverId) {
+  if ((originChanged || destChanged || stopsChanged) && driverId) {
     const driverFcmToken = driverDoc?.data()?.fcmToken;
     if (driverFcmToken) {
-      const changedField = originChanged ? "pickup" : "delivery";
-      const newLabel = originChanged ? after.origin?.label : after.destination?.label;
+      const changedField = originChanged ? "pickup" : destChanged ? "delivery" : "stops";
+      const newLabel = originChanged ? after.origin?.label : destChanged ? after.destination?.label : "route stops";
       try {
         await admin.messaging().send({
           token: driverFcmToken,

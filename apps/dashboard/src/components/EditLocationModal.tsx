@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { updateTripLocation, type GeoPoint } from "@/services/trips";
 import { toast } from "sonner";
+import AddressSearch from "./AddressSearch";
 
 interface Props {
   open: boolean;
@@ -12,61 +13,25 @@ interface Props {
 }
 
 export default function EditLocationModal({ open, onClose, tripId, field, currentLocation, country }: Props) {
+  const [search, setSearch] = useState(currentLocation.label);
   const [label, setLabel] = useState(currentLocation.label);
-  const [lat, setLat] = useState(currentLocation.lat);
-  const [lng, setLng] = useState(currentLocation.lng);
-  const [zip, setZip] = useState(currentLocation.zipCode ?? "");
+  const [lat, setLat] = useState<number | null>(currentLocation.lat);
+  const [lng, setLng] = useState<number | null>(currentLocation.lng);
+  const [zipCode, setZipCode] = useState(currentLocation.zipCode);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [zipLoading, setZipLoading] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Reset state when modal opens with new data
   useEffect(() => {
     if (open) {
+      setSearch(currentLocation.label);
       setLabel(currentLocation.label);
       setLat(currentLocation.lat);
       setLng(currentLocation.lng);
-      setZip(currentLocation.zipCode ?? "");
+      setZipCode(currentLocation.zipCode);
       setError("");
     }
   }, [open, tripId, field, currentLocation]);
-
-  function debouncedLookupZip(zipValue: string) {
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => lookupZip(zipValue), 600);
-  }
-
-  async function lookupZip(zipValue: string) {
-    const trimmed = zipValue.trim();
-    if (trimmed.length < 3 || trimmed.length > 10) return;
-    setZipLoading(true);
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(trimmed)}&countrycodes=${country}&format=json&limit=1`,
-        { headers: { "User-Agent": "LoadMindTracker/1.0" } }
-      );
-      if (!res.ok) {
-        toast.error("Zip code not found");
-        return;
-      }
-      const data = await res.json();
-      if (data.length > 0) {
-        const place = data[0];
-        const parts = place.display_name.split(", ");
-        const newLabel = parts.slice(1, 3).join(", ") || parts[0];
-        setLabel(newLabel);
-        setLat(parseFloat(place.lat));
-        setLng(parseFloat(place.lon));
-      } else {
-        toast.error("Zip code not found");
-      }
-    } catch {
-      toast.error("Failed to lookup zip code");
-    } finally {
-      setZipLoading(false);
-    }
-  }
 
   if (!open) return null;
 
@@ -74,12 +39,8 @@ export default function EditLocationModal({ open, onClose, tripId, field, curren
     e.preventDefault();
     setError("");
 
-    if (!label) {
-      setError("Location name is required");
-      return;
-    }
-    if (!lat || !lng) {
-      setError("Enter a zip/postal code to auto-fill coordinates");
+    if (!label || lat == null || lng == null) {
+      setError("Search and select a location");
       return;
     }
 
@@ -89,7 +50,7 @@ export default function EditLocationModal({ open, onClose, tripId, field, curren
         label,
         lat,
         lng,
-        ...(zip && { zipCode: zip }),
+        ...(zipCode && { zipCode }),
       });
       toast.success(`${field === "origin" ? "Origin" : "Destination"} updated`);
       onClose();
@@ -99,6 +60,8 @@ export default function EditLocationModal({ open, onClose, tripId, field, curren
       setLoading(false);
     }
   }
+
+  const inputCls = "w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -117,40 +80,23 @@ export default function EditLocationModal({ open, onClose, tripId, field, curren
         <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Location name
+              Search location
             </label>
-            <input
-              type="text"
-              placeholder="e.g. Warehouse A"
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <AddressSearch
+              value={search}
+              country={country}
+              placeholder="Search address, street, city, or zip..."
+              onChange={setSearch}
+              onSelect={(r) => {
+                setLabel(search.trim() || r.label);
+                setLat(r.lat);
+                setLng(r.lng);
+                setZipCode(r.zipCode);
+              }}
+              className={inputCls}
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Zip / postal code
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Enter zip to auto-fill coordinates"
-                value={zip}
-                onChange={(e) => {
-                  setZip(e.target.value);
-                  debouncedLookupZip(e.target.value);
-                }}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              {zipLoading && (
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-500">...</span>
-              )}
-            </div>
-            {lat && lng && (
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                {lat.toFixed(4)}, {lng.toFixed(4)}
-              </p>
+            {lat != null && lng != null && (
+              <p className="text-xs text-green-600 dark:text-green-400 mt-1">{label}</p>
             )}
           </div>
 

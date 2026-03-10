@@ -36,7 +36,8 @@ interface RouteData {
   status: "accepted" | "in_progress";
   coords: [number, number][];
   origin: { lng: number; lat: number; label: string };
-  dest: { lng: number; lat: number; label: string };
+  dest?: { lng: number; lat: number; label: string };
+  stops?: { lng: number; lat: number; label: string }[];
 }
 
 interface Props {
@@ -211,8 +212,17 @@ export default function MapView({
       });
     };
 
+    // Create stop markers (orange)
+    const stopMarkers = (data.stops ?? []).map((stop) =>
+      new maplibregl.Marker({
+        element: createWaypointMarker("#f97316", stop.label),
+      })
+        .setLngLat([stop.lng, stop.lat])
+        .addTo(map)
+    );
+
     if (data.status === "accepted") {
-      // Accepted: yellow dashed line driver → pickup, green pickup marker
+      // Accepted: yellow dashed line driver → pickup → stops → dest, green pickup marker
       addRouteLayer(ROUTE_PICKUP_SOURCE, ROUTE_PICKUP_LAYER, data.coords, "#eab308", [2, 2]);
 
       const pickupMarker = new maplibregl.Marker({
@@ -221,9 +231,9 @@ export default function MapView({
         .setLngLat([data.origin.lng, data.origin.lat])
         .addTo(map);
 
-      routeMarkersRef.current = [pickupMarker];
+      routeMarkersRef.current = [pickupMarker, ...stopMarkers];
     } else {
-      // In progress: blue solid line pickup → dropoff, green origin + red destination markers
+      // In progress: blue solid line pickup → stops → dropoff
       addRouteLayer(ROUTE_TRIP_SOURCE, ROUTE_TRIP_LAYER, data.coords, "#3b82f6");
 
       const originMarker = new maplibregl.Marker({
@@ -232,13 +242,18 @@ export default function MapView({
         .setLngLat([data.origin.lng, data.origin.lat])
         .addTo(map);
 
-      const destMarker = new maplibregl.Marker({
-        element: createWaypointMarker("#ef4444", data.dest.label),
-      })
-        .setLngLat([data.dest.lng, data.dest.lat])
-        .addTo(map);
+      const markers = [originMarker, ...stopMarkers];
 
-      routeMarkersRef.current = [originMarker, destMarker];
+      if (data.dest) {
+        const destMarker = new maplibregl.Marker({
+          element: createWaypointMarker("#ef4444", data.dest.label),
+        })
+          .setLngLat([data.dest.lng, data.dest.lat])
+          .addTo(map);
+        markers.push(destMarker);
+      }
+
+      routeMarkersRef.current = markers;
     }
   }, [removeRouteLayers]);
 
@@ -457,15 +472,30 @@ export default function MapView({
 
     const { lat: dLat, lng: dLng } = driverLoc.current;
     const { lat: oLat, lng: oLng } = trip.origin;
-    const { lat: destLat, lng: destLng } = trip.destination;
 
     let cancelled = false;
 
-    // Accepted: driver → pickup | In progress: pickup → dropoff
+    // Build waypoints including intermediate stops
+    const stopWaypoints: [number, number][] = (trip.stops ?? []).map(
+      (s) => [s.lng, s.lat] as [number, number]
+    );
+
+    const destWaypoint: [number, number][] = trip.destination
+      ? [[trip.destination.lng, trip.destination.lat]]
+      : [];
+
+    // Accepted: driver → pickup → stops → dest | In progress: pickup → stops → dest
     const waypoints: [number, number][] =
       trip.status === "accepted"
-        ? [[dLng, dLat], [oLng, oLat]]
-        : [[oLng, oLat], [destLng, destLat]];
+        ? [[dLng, dLat], [oLng, oLat], ...stopWaypoints, ...destWaypoint]
+        : [[oLng, oLat], ...stopWaypoints, ...destWaypoint];
+
+    // Need at least 2 waypoints for routing
+    if (waypoints.length < 2) {
+      routeDataRef.current = null;
+      removeRouteLayers();
+      return;
+    }
 
     fetchRoute(waypoints).then((route) => {
       if (cancelled || !route) return;
@@ -474,7 +504,8 @@ export default function MapView({
         status: trip.status as "accepted" | "in_progress",
         coords: route.coordinates,
         origin: { lng: oLng, lat: oLat, label: trip.origin.label },
-        dest: { lng: destLng, lat: destLat, label: trip.destination.label },
+        ...(trip.destination && { dest: { lng: trip.destination.lng, lat: trip.destination.lat, label: trip.destination.label } }),
+        stops: (trip.stops ?? []).map((s) => ({ lng: s.lng, lat: s.lat, label: s.label })),
       };
 
       // Wait for style to be loaded, then draw

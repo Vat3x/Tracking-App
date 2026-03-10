@@ -18,7 +18,8 @@ export interface CreateTripInput {
   driverId: string;
   assignedBy: string;
   origin: GeoPoint;
-  destination: GeoPoint;
+  stops?: GeoPoint[];
+  destination?: GeoPoint;
   country?: string;
 }
 
@@ -31,7 +32,8 @@ export async function createTrip(input: CreateTripInput): Promise<string> {
     assignedBy: input.assignedBy,
     status: "pending",
     origin: input.origin,
-    destination: input.destination,
+    ...(input.stops && input.stops.length > 0 && { stops: input.stops }),
+    ...(input.destination && { destination: input.destination }),
     ...(input.country && { country: input.country }),
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -59,6 +61,16 @@ export async function updateTripLocation(
 ): Promise<void> {
   await updateDoc(doc(db, COLLECTIONS.TRIPS, tripId), {
     [field]: location,
+    updatedAt: Date.now(),
+  });
+}
+
+export async function updateTripStop(
+  tripId: string,
+  stops: GeoPoint[]
+): Promise<void> {
+  await updateDoc(doc(db, COLLECTIONS.TRIPS, tripId), {
+    stops,
     updatedAt: Date.now(),
   });
 }

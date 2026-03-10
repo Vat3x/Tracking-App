@@ -72,6 +72,10 @@ function TripMapInner({ trip }: Props) {
       try {
         let waypoints: [number, number][];
 
+        const stopWaypoints: [number, number][] = (trip.stops ?? []).map(
+          (s) => [s.lng, s.lat] as [number, number]
+        );
+
         if (trip.status === "accepted") {
           const { status } = await Location.getForegroundPermissionsAsync();
           if (status !== "granted" || cancelled) {
@@ -86,12 +90,21 @@ function TripMapInner({ trip }: Props) {
           waypoints = [
             [loc.coords.longitude, loc.coords.latitude],
             [trip.origin.lng, trip.origin.lat],
+            ...stopWaypoints,
+            ...(trip.destination ? [[trip.destination.lng, trip.destination.lat] as [number, number]] : []),
           ];
         } else {
           waypoints = [
             [trip.origin.lng, trip.origin.lat],
-            [trip.destination.lng, trip.destination.lat],
+            ...stopWaypoints,
+            ...(trip.destination ? [[trip.destination.lng, trip.destination.lat] as [number, number]] : []),
           ];
+        }
+
+        // Need at least 2 waypoints for routing
+        if (waypoints.length < 2) {
+          if (!cancelled) { setError(true); setLoading(false); }
+          return;
         }
 
         const result = await fetchRoute(waypoints);
@@ -186,7 +199,18 @@ function TripMapInner({ trip }: Props) {
           description={trip.origin.label}
         />
 
-        {!isAccepted && (
+        {/* Intermediate stop markers */}
+        {(trip.stops ?? []).map((stop, i) => (
+          <Marker
+            key={`stop-${i}`}
+            coordinate={{ latitude: stop.lat, longitude: stop.lng }}
+            pinColor="#f97316"
+            title={`Stop ${i + 1}`}
+            description={stop.label}
+          />
+        ))}
+
+        {!isAccepted && trip.destination && (
           <Marker
             coordinate={{
               latitude: trip.destination.lat,
@@ -201,7 +225,7 @@ function TripMapInner({ trip }: Props) {
 
       <View style={styles.etaBar}>
         <Text style={styles.etaLabel}>
-          {isAccepted ? "ETA to pickup" : "ETA to drop-off"}
+          {isAccepted ? "ETA to pickup" : trip.destination ? "ETA to drop-off" : "ETA"}
         </Text>
         <Text style={styles.etaValue}>{formatETA(route.duration)}</Text>
       </View>

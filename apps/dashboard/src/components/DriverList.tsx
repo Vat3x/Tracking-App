@@ -106,10 +106,12 @@ function DriverCard({
                 <span className="text-gray-400 dark:text-gray-500">Origin</span>
                 <span className="text-gray-600 dark:text-gray-300 truncate ml-2 max-w-[140px]">{activeTrip.origin.label}</span>
               </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-400 dark:text-gray-500">Destination</span>
-                <span className="text-gray-600 dark:text-gray-300 truncate ml-2 max-w-[140px]">{activeTrip.destination.label}</span>
-              </div>
+              {activeTrip.destination && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-400 dark:text-gray-500">Destination</span>
+                  <span className="text-gray-600 dark:text-gray-300 truncate ml-2 max-w-[140px]">{activeTrip.destination.label}</span>
+                </div>
+              )}
               {(() => {
                 const useMiles = activeTrip.country === "us";
                 if (activeTrip.status === "accepted") {
@@ -121,7 +123,7 @@ function DriverCard({
                     </div>
                   );
                 }
-                if (activeTrip.status === "in_progress") {
+                if (activeTrip.status === "in_progress" && activeTrip.destination) {
                   const m = distanceMeters(activeTrip.origin.lat, activeTrip.origin.lng, activeTrip.destination.lat, activeTrip.destination.lng);
                   return (
                     <div className="flex items-center justify-between text-xs">

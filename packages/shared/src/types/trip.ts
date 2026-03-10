@@ -20,7 +20,8 @@ export interface Trip {
   assignedBy: string;
   status: TripStatus;
   origin: GeoPoint;
-  destination: GeoPoint;
+  stops?: GeoPoint[];
+  destination?: GeoPoint;
   country?: string;
   createdAt: number;
   updatedAt: number;

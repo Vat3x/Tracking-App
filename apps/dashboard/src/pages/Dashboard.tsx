@@ -7,6 +7,7 @@ import { subscribeToCompanyLocations } from "@/services/locations";
 import { subscribeToCompanyTrips } from "@/services/trips";
 import { getCompanyDrivers } from "@/services/drivers";
 import InviteModal from "@/components/InviteModal";
+import TripModal from "@/components/TripModal";
 import MapView from "@/components/MapView";
 import DriverList from "@/components/DriverList";
 import { useNavigate } from "react-router-dom";
@@ -39,6 +40,7 @@ export default function Dashboard() {
 
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [invitesOpen, setInvitesOpen] = useState(false);
+  const [tripFormOpen, setTripFormOpen] = useState(false);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [driverProfiles, setDriverProfiles] = useState<Map<string, User>>(new Map());
@@ -143,7 +145,7 @@ export default function Dashboard() {
             Trips
           </button>
           <button
-            onClick={() => setInvitesOpen(!invitesOpen)}
+            onClick={() => { setInvitesOpen(!invitesOpen); setTripFormOpen(false); }}
             className="relative h-8 px-3 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             Invites
@@ -160,6 +162,12 @@ export default function Dashboard() {
             Settings
           </button>
           <ThemeToggle />
+          <button
+            onClick={() => { setTripFormOpen(true); setInvitesOpen(false); }}
+            className="h-8 px-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            New Trip
+          </button>
           <button
             onClick={() => setInviteModalOpen(true)}
             className="h-8 px-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
@@ -199,6 +207,16 @@ export default function Dashboard() {
           activeDriverIds={activeDriverIds}
           trips={trips}
         />
+
+        {/* New Trip slide-over panel */}
+        {tripFormOpen && (
+          <TripModal
+            open={tripFormOpen}
+            onClose={() => setTripFormOpen(false)}
+            driverProfiles={driverProfiles}
+            sidebar
+          />
+        )}
 
         {/* Invites slide-over panel */}
         {invitesOpen && (

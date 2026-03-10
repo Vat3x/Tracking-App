@@ -1,88 +1,74 @@
-import { useState, useRef, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { createTrip } from "@/services/trips";
 import { useAuthStore } from "@/stores/auth";
 import { useDriversStore } from "@/stores/drivers";
 import { toast } from "sonner";
 import type { User } from "@nexus/shared";
+import AddressSearch, { type AddressResult } from "./AddressSearch";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   driverProfiles: Map<string, User>;
+  sidebar?: boolean;
 }
 
-export default function TripModal({ open, onClose, driverProfiles }: Props) {
+interface LocationData {
+  search: string;
+  label: string;
+  lat: number | null;
+  lng: number | null;
+  zipCode?: string;
+}
+
+const emptyLocation = (): LocationData => ({ search: "", label: "", lat: null, lng: null });
+
+export default function TripModal({ open, onClose, driverProfiles, sidebar }: Props) {
   const { userDoc, firebaseUser } = useAuthStore();
   const { drivers } = useDriversStore();
 
   const [driverId, setDriverId] = useState("");
   const [country, setCountry] = useState("us");
-  const [originLabel, setOriginLabel] = useState("");
-  const [originLat, setOriginLat] = useState("");
-  const [originLng, setOriginLng] = useState("");
-  const [originZip, setOriginZip] = useState("");
-  const [destLabel, setDestLabel] = useState("");
-  const [destLat, setDestLat] = useState("");
-  const [destLng, setDestLng] = useState("");
-  const [destZip, setDestZip] = useState("");
+  const [origin, setOrigin] = useState<LocationData>(emptyLocation());
+  const [dest, setDest] = useState<LocationData>(emptyLocation());
+  const [stops, setStops] = useState<LocationData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [zipLoading, setZipLoading] = useState<"origin" | "dest" | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  function debouncedLookupZip(
-    zip: string,
-    which: "origin" | "dest",
-    setLabel: (v: string) => void,
-    setLat: (v: string) => void,
-    setLng: (v: string) => void
+  function handleLocationSelect(
+    setter: React.Dispatch<React.SetStateAction<LocationData>>,
+    result: AddressResult
   ) {
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      lookupZip(zip, which, setLabel, setLat, setLng);
-    }, 600);
+    // Keep user's typed text as search/label, only fill coordinates
+    setter((prev) => ({
+      ...prev,
+      label: prev.search.trim() || result.label,
+      lat: result.lat,
+      lng: result.lng,
+      zipCode: result.zipCode,
+    }));
   }
 
-  async function lookupZip(
-    zip: string,
-    which: "origin" | "dest",
-    setLabel: (v: string) => void,
-    setLat: (v: string) => void,
-    setLng: (v: string) => void
-  ) {
-    const trimmed = zip.trim();
-    if (trimmed.length < 3 || trimmed.length > 10) return;
-    setZipLoading(which);
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(trimmed)}&countrycodes=${country}&format=json&limit=1`,
-        { headers: { "User-Agent": "LoadMindTracker/1.0" } }
-      );
-      if (!res.ok) {
-        toast.error("Zip code not found");
-        return;
-      }
-      const data = await res.json();
-      if (data.length > 0) {
-        const place = data[0];
-        const parts = place.display_name.split(", ");
-        const label = parts.slice(1, 3).join(", ") || parts[0];
-        setLabel(label);
-        setLat(place.lat);
-        setLng(place.lon);
-      } else {
-        toast.error("Zip code not found");
-      }
-    } catch {
-      toast.error("Failed to lookup zip code");
-    } finally {
-      setZipLoading(null);
-    }
+  function handleStopSelect(index: number, result: AddressResult) {
+    setStops((prev) =>
+      prev.map((s, i) =>
+        i === index
+          ? { ...s, label: s.search.trim() || result.label, lat: result.lat, lng: result.lng, zipCode: result.zipCode }
+          : s
+      )
+    );
+  }
+
+  function addStop() {
+    setStops((prev) => [...prev, emptyLocation()]);
+  }
+
+  function removeStop(index: number) {
+    setStops((prev) => prev.filter((_, i) => i !== index));
   }
 
   if (!open) return null;
 
-  // Build driver options from RTDB drivers + Firestore profiles
   const driverOptions: { id: string; name: string }[] = [];
   const seenIds = new Set<string>();
 
@@ -95,7 +81,6 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
     });
   });
 
-  // Also include drivers from profiles that might not be online
   driverProfiles.forEach((profile, id) => {
     if (!seenIds.has(id)) {
       driverOptions.push({ id, name: profile.displayName });
@@ -110,24 +95,29 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
       setError("Select a driver");
       return;
     }
-    if (!originLabel || !originLat || !originLng) {
-      setError("Enter an origin zip/postal code to auto-fill location");
-      return;
-    }
-    if (!destLabel || !destLat || !destLng) {
-      setError("Enter a destination zip/postal code to auto-fill location");
+    if (!origin.label || origin.lat == null || origin.lng == null) {
+      setError("Search and select an origin location");
       return;
     }
 
-    const lat1 = parseFloat(originLat);
-    const lng1 = parseFloat(originLng);
-    const lat2 = parseFloat(destLat);
-    const lng2 = parseFloat(destLng);
-
-    if ([lat1, lng1, lat2, lng2].some(isNaN)) {
-      setError("Zip code lookup failed — coordinates missing");
-      return;
+    // Validate stops
+    for (let i = 0; i < stops.length; i++) {
+      const s = stops[i];
+      if (!s.label || s.lat == null || s.lng == null) {
+        setError(`Stop ${i + 1}: search and select a location`);
+        return;
+      }
     }
+
+    // Destination is optional
+    const hasDest = !!(dest.label && dest.lat != null && dest.lng != null);
+
+    const geoStops = stops.map((s) => ({
+      label: s.label,
+      lat: s.lat!,
+      lng: s.lng!,
+      ...(s.zipCode && { zipCode: s.zipCode }),
+    }));
 
     setLoading(true);
     try {
@@ -135,8 +125,9 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
         companyId: userDoc!.companyId!,
         driverId,
         assignedBy: firebaseUser!.uid,
-        origin: { label: originLabel, lat: lat1, lng: lng1, ...(originZip && { zipCode: originZip }) },
-        destination: { label: destLabel, lat: lat2, lng: lng2, ...(destZip && { zipCode: destZip }) },
+        origin: { label: origin.label, lat: origin.lat, lng: origin.lng, ...(origin.zipCode && { zipCode: origin.zipCode }) },
+        ...(geoStops.length > 0 && { stops: geoStops }),
+        ...(hasDest && { destination: { label: dest.label, lat: dest.lat!, lng: dest.lng!, ...(dest.zipCode && { zipCode: dest.zipCode }) } }),
         country,
       });
       toast.success("Trip created");
@@ -151,23 +142,18 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
   function handleClose() {
     setDriverId("");
     setCountry("us");
-    setOriginLabel("");
-    setOriginLat("");
-    setOriginLng("");
-    setOriginZip("");
-    setDestLabel("");
-    setDestLat("");
-    setDestLng("");
-    setDestZip("");
+    setOrigin(emptyLocation());
+    setDest(emptyLocation());
+    setStops([]);
     setError("");
     onClose();
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40" onClick={handleClose} />
-      <div className="relative bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">New Trip</h2>
+  const inputCls = "w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500";
+
+  const formContent = (
+    <>
+      <h2 className={`text-lg font-semibold text-gray-900 dark:text-gray-100 ${sidebar ? "mb-2" : "mb-4"}`}>New Trip</h2>
 
         {error && (
           <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-sm text-red-700 dark:text-red-400">
@@ -189,7 +175,7 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
               <select
                 value={driverId}
                 onChange={(e) => setDriverId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={inputCls}
               >
                 <option value="">Select a driver...</option>
                 {driverOptions.map((d) => (
@@ -209,7 +195,7 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
             <select
               value={country}
               onChange={(e) => setCountry(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={inputCls}
             >
               <option value="us">United States</option>
               <option value="ca">Canada</option>
@@ -234,57 +220,77 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
           </div>
 
           {/* Origin */}
-          <fieldset className="space-y-2">
+          <fieldset className="space-y-1">
             <legend className="text-sm font-medium text-gray-700 dark:text-gray-300">Origin</legend>
-            <input
-              type="text"
-              placeholder="Location name (e.g. Warehouse A)"
-              value={originLabel}
-              onChange={(e) => setOriginLabel(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <AddressSearch
+              value={origin.search}
+              country={country}
+              placeholder="Search address, street, city, or zip..."
+              onChange={(v) => setOrigin((prev) => ({ ...prev, search: v }))}
+              onSelect={(r) => handleLocationSelect(setOrigin, r)}
+              className={inputCls}
             />
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Zip / postal code"
-                value={originZip}
-                onChange={(e) => {
-                  setOriginZip(e.target.value);
-                  debouncedLookupZip(e.target.value, "origin", setOriginLabel, setOriginLat, setOriginLng);
-                }}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              {zipLoading === "origin" && (
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-500">...</span>
-              )}
-            </div>
+            {origin.lat != null && (
+              <p className="text-xs text-green-600 dark:text-green-400">{origin.label}</p>
+            )}
           </fieldset>
 
-          {/* Destination */}
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-medium text-gray-700 dark:text-gray-300">Destination</legend>
-            <input
-              type="text"
-              placeholder="Location name (e.g. Customer Site B)"
-              value={destLabel}
-              onChange={(e) => setDestLabel(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Zip / postal code"
-                value={destZip}
-                onChange={(e) => {
-                  setDestZip(e.target.value);
-                  debouncedLookupZip(e.target.value, "dest", setDestLabel, setDestLat, setDestLng);
-                }}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          {/* Stops */}
+          {stops.map((stop, i) => (
+            <fieldset key={i} className="space-y-1">
+              <div className="flex items-center justify-between">
+                <legend className="text-sm font-medium text-orange-600 dark:text-orange-400">
+                  Stop {i + 1}
+                </legend>
+                <button
+                  type="button"
+                  onClick={() => removeStop(i)}
+                  className="text-xs text-red-500 hover:text-red-700 dark:hover:text-red-400"
+                >
+                  Remove
+                </button>
+              </div>
+              <AddressSearch
+                value={stop.search}
+                country={country}
+                placeholder={`Search stop ${i + 1} location...`}
+                onChange={(v) =>
+                  setStops((prev) => prev.map((s, j) => (j === i ? { ...s, search: v } : s)))
+                }
+                onSelect={(r) => handleStopSelect(i, r)}
+                className={inputCls}
               />
-              {zipLoading === "dest" && (
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-500">...</span>
+              {stop.lat != null && (
+                <p className="text-xs text-green-600 dark:text-green-400">{stop.label}</p>
               )}
-            </div>
+            </fieldset>
+          ))}
+
+          {/* Add Stop button */}
+          <button
+            type="button"
+            onClick={addStop}
+            className="w-full py-2 px-4 border border-dashed border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-500 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300"
+          >
+            + Add Stop
+          </button>
+
+          {/* Destination (optional) */}
+          <fieldset className="space-y-1">
+            <legend className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Destination <span className="text-xs text-gray-400 dark:text-gray-500 font-normal">(optional)</span>
+            </legend>
+            <AddressSearch
+              value={dest.search}
+              country={country}
+              placeholder="Search address, street, city, or zip..."
+              onChange={(v) => setDest((prev) => ({ ...prev, search: v }))}
+              onSelect={(r) => handleLocationSelect(setDest, r)}
+              className={inputCls}
+            />
+            {dest.lat != null && (
+              <p className="text-xs text-green-600 dark:text-green-400">{dest.label}</p>
+            )}
           </fieldset>
 
           <div className="flex gap-3 pt-2">
@@ -304,6 +310,39 @@ export default function TripModal({ open, onClose, driverProfiles }: Props) {
             </button>
           </div>
         </form>
+    </>
+  );
+
+  if (sidebar) {
+    return (
+      <>
+        <div
+          className="absolute inset-0 bg-black/10 z-20"
+          onClick={handleClose}
+        />
+        <div className="absolute left-0 top-0 bottom-0 w-96 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 shadow-xl z-30 flex flex-col">
+          <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">New Trip</h2>
+            <button
+              onClick={handleClose}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg leading-none"
+            >
+              &times;
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto px-5 py-4">
+            {formContent}
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40" onClick={handleClose} />
+      <div className="relative bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto">
+        {formContent}
       </div>
     </div>
   );

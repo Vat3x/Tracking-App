@@ -72,17 +72,37 @@ function TripCard({
             </Text>
           </View>
         </View>
-        <View style={styles.routeLine} />
-        <View style={styles.routePoint}>
-          <View style={[styles.dot, { backgroundColor: "#ef4444" }]} />
-          <View style={styles.routeInfo}>
-            <Text style={styles.routeLabel}>Drop-off</Text>
-            <Text style={styles.routeName}>
-              {trip.destination.label}
-              {trip.destination.zipCode ? ` (${trip.destination.zipCode})` : ""}
-            </Text>
+        {/* Intermediate stops */}
+        {trip.stops?.map((stop, i) => (
+          <View key={i}>
+            <View style={styles.routeLine} />
+            <View style={styles.routePoint}>
+              <View style={[styles.dot, { backgroundColor: "#f97316", width: 8, height: 8, borderRadius: 4, marginHorizontal: 1 }]} />
+              <View style={styles.routeInfo}>
+                <Text style={styles.routeLabel}>Stop {i + 1}</Text>
+                <Text style={styles.routeName}>
+                  {stop.label}
+                  {stop.zipCode ? ` (${stop.zipCode})` : ""}
+                </Text>
+              </View>
+            </View>
           </View>
-        </View>
+        ))}
+        {trip.destination && (
+          <>
+            <View style={styles.routeLine} />
+            <View style={styles.routePoint}>
+              <View style={[styles.dot, { backgroundColor: "#ef4444" }]} />
+              <View style={styles.routeInfo}>
+                <Text style={styles.routeLabel}>Drop-off</Text>
+                <Text style={styles.routeName}>
+                  {trip.destination.label}
+                  {trip.destination.zipCode ? ` (${trip.destination.zipCode})` : ""}
+                </Text>
+              </View>
+            </View>
+          </>
+        )}
       </View>
 
       {/* Inline Map with Route + ETA — only for the first active trip */}
