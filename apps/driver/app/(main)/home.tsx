@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -6,10 +6,11 @@ import {
   ScrollView,
   Switch,
   Alert,
-  Platform,
   Linking,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
+import MapView, { Marker, type Region } from "react-native-maps";
 import * as Location from "expo-location";
 import { useAuthStore } from "../../src/stores/auth";
 import { useTrackingStore } from "../../src/stores/tracking";
@@ -22,6 +23,7 @@ import {
   getCurrentLocation,
 } from "../../src/services/location";
 import { updateDriverLocation, markDriverOffline } from "../../src/services/tracking";
+import { MAP_STYLE } from "../../src/constants/mapStyle";
 import { timeAgo } from "@nexus/shared";
 
 export default function HomeScreen() {
@@ -37,7 +39,9 @@ export default function HomeScreen() {
     setPermissionStatus,
   } = useTrackingStore();
 
+  const mapRef = useRef<MapView>(null);
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
+  const [initialRegion, setInitialRegion] = useState<Region | null>(null);
 
   // Sync identity to tracking store when user doc changes
   useEffect(() => {
@@ -45,6 +49,27 @@ export default function HomeScreen() {
       setIdentity(userDoc.companyId, userDoc.id);
     }
   }, [userDoc, setIdentity]);
+
+  // Set initial map region from current location
+  useEffect(() => {
+    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+      .then((loc) => {
+        setInitialRegion({
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+          latitudeDelta: 0.02,
+          longitudeDelta: 0.02,
+        });
+      })
+      .catch(() => {
+        setInitialRegion({
+          latitude: 39.8283,
+          longitude: -98.5795,
+          latitudeDelta: 30,
+          longitudeDelta: 30,
+        });
+      });
+  }, []);
 
   // Reverse geocode last sync location to show city/state/zip
   useEffect(() => {
@@ -59,6 +84,17 @@ export default function HomeScreen() {
       })
       .catch(() => setLocationLabel(null));
     return () => { cancelled = true; };
+  }, [lastSync?.lat, lastSync?.lng]);
+
+  // Animate map to driver location when it changes
+  useEffect(() => {
+    if (!lastSync || !mapRef.current) return;
+    mapRef.current.animateToRegion({
+      latitude: lastSync.lat,
+      longitude: lastSync.lng,
+      latitudeDelta: 0.02,
+      longitudeDelta: 0.02,
+    }, 1000);
   }, [lastSync?.lat, lastSync?.lng]);
 
   // Check permissions on mount
@@ -81,7 +117,6 @@ export default function HomeScreen() {
       }
 
       if (value) {
-        // Going online — request permissions
         const hasFg = await requestForegroundPermission();
         if (!hasFg) {
           Alert.alert(
@@ -89,10 +124,7 @@ export default function HomeScreen() {
             "Location permission is needed to share your position with your dispatcher.",
             [
               { text: "Cancel", style: "cancel" },
-              {
-                text: "Open Settings",
-                onPress: () => Linking.openSettings(),
-              },
+              { text: "Open Settings", onPress: () => Linking.openSettings() },
             ]
           );
           return;
@@ -106,33 +138,26 @@ export default function HomeScreen() {
             'To keep tracking active when the app is minimized, go to Settings and select "Allow all the time" for location access.',
             [
               { text: "Later" },
-              {
-                text: "Open Settings",
-                onPress: () => Linking.openSettings(),
-              },
+              { text: "Open Settings", onPress: () => Linking.openSettings() },
             ]
           );
-          // Still allow foreground-only tracking
         } else {
           setPermissionStatus("background");
         }
 
-        // Start tracking
         const started = await startBackgroundTracking();
         if (!started) {
           Alert.alert("Error", "Failed to start location tracking.");
           return;
         }
         setOnline(true);
-        // Send initial location immediately (non-critical — background task handles next update)
         try {
           const loc = await getCurrentLocation();
           if (loc) await updateDriverLocation(loc);
         } catch {
-          // Silently ignore — background task will send next update
+          // background task will handle next update
         }
       } else {
-        // Going offline
         setOnline(false);
         await stopBackgroundTracking();
         await markDriverOffline();
@@ -145,33 +170,59 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-      <Text style={styles.greeting}>
-        Hello, {userDoc?.displayName ?? "Driver"}
-      </Text>
+      {/* MAP — 70% of screen */}
+      <View style={styles.mapContainer}>
+        {initialRegion ? (
+          <MapView
+            ref={mapRef}
+            style={StyleSheet.absoluteFillObject}
+            initialRegion={initialRegion}
+            showsUserLocation
+            showsMyLocationButton
+            customMapStyle={MAP_STYLE}
+          >
+            {lastSync && (
+              <Marker
+                coordinate={{ latitude: lastSync.lat, longitude: lastSync.lng }}
+                title="Your Location"
+                description={locationLabel ?? undefined}
+              />
+            )}
+          </MapView>
+        ) : (
+          <View style={styles.mapLoading}>
+            <ActivityIndicator size="large" color="#1a73e8" />
+          </View>
+        )}
 
-      {hasCompany ? (
-        <Text style={styles.companyStatus}>Connected to company</Text>
-      ) : (
-        <Text style={styles.noCompany}>
-          No company linked yet. Ask your dispatcher to send you a tracking
-          request link.
-        </Text>
-      )}
+        {/* Greeting overlay */}
+        <View style={styles.greetingOverlay}>
+          <Text style={styles.greetingText}>
+            Hello, {userDoc?.displayName ?? "Driver"}
+          </Text>
+          {hasCompany && (
+            <Text style={styles.connectedText}>Connected</Text>
+          )}
+          {!hasCompany && (
+            <Text style={styles.notConnectedText}>No company linked</Text>
+          )}
+        </View>
+      </View>
 
-      {/* Online/Offline Toggle */}
-      <View style={[styles.statusCard, isOnline && styles.statusCardOnline]}>
-        <View style={styles.toggleRow}>
+      {/* BOTTOM PANEL — 30% of screen */}
+      <ScrollView style={styles.bottomPanel} contentContainerStyle={{ paddingBottom: 20 }}>
+        {/* Online/Offline Toggle */}
+        <View style={[styles.statusRow, isOnline && styles.statusRowOnline]}>
           <View>
-            <Text style={[styles.status, isOnline && styles.statusOnline]}>
+            <Text style={[styles.statusLabel, isOnline && { color: "#16a34a" }]}>
               {isOnline ? "Online" : "Offline"}
             </Text>
             <Text style={styles.statusHint}>
               {isOnline
-                ? "Sharing location with dispatcher"
+                ? "Sharing location"
                 : hasCompany
-                  ? "Tap to start sharing location"
-                  : "Link to a company first"}
+                  ? "Tap to go online"
+                  : "Link to company first"}
             </Text>
           </View>
           <Switch
@@ -183,71 +234,65 @@ export default function HomeScreen() {
             ios_backgroundColor="#e5e7eb"
           />
         </View>
-      </View>
 
-      {/* Status Info Cards */}
-      {isOnline && lastSync && (
-        <View style={styles.infoGrid}>
-          <View style={styles.infoCard}>
-            <Text style={styles.infoLabel}>Last Sync</Text>
-            <Text style={styles.infoValue}>
-              {timeAgo(lastSync.timestamp)}
+        {/* Compact info row */}
+        {isOnline && lastSync && (
+          <View style={styles.compactInfoRow}>
+            <View style={styles.compactInfoItem}>
+              <Text style={styles.compactLabel}>Sync</Text>
+              <Text style={styles.compactValue}>{timeAgo(lastSync.timestamp)}</Text>
+            </View>
+            <View style={styles.compactInfoItem}>
+              <Text style={styles.compactLabel}>Battery</Text>
+              <Text style={styles.compactValue}>
+                {Math.round(lastSync.batteryLevel * 100)}%
+                {lastSync.isCharging ? " \u26A1" : ""}
+              </Text>
+            </View>
+            <View style={styles.compactInfoItem}>
+              <Text style={styles.compactLabel}>Speed</Text>
+              <Text style={styles.compactValue}>
+                {lastSync.speed > 0 ? `${Math.round(lastSync.speed * 3.6)} km/h` : "Still"}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Offline Sync Indicator */}
+        {pendingSync > 0 && (
+          <View style={styles.warningCard}>
+            <Text style={styles.warningTitle}>
+              {pendingSync} update{pendingSync > 1 ? "s" : ""} pending
+            </Text>
+            <Text style={styles.warningText}>
+              {isNetworkConnected
+                ? "Syncing queued location updates..."
+                : "No internet. Will sync when back online."}
             </Text>
           </View>
+        )}
 
-          <View style={styles.infoCard}>
-            <Text style={styles.infoLabel}>Battery</Text>
-            <Text style={styles.infoValue}>
-              {Math.round(lastSync.batteryLevel * 100)}%
-              {lastSync.isCharging ? " ⚡" : ""}
+        {/* Permission Warning */}
+        {isOnline && permissionStatus === "foreground" && (
+          <View style={styles.warningCard}>
+            <Text style={styles.warningTitle}>Action required</Text>
+            <Text style={styles.warningText}>
+              Tracking stops when minimized. Enable "Allow all the time" in Settings.
+            </Text>
+            <TouchableOpacity style={styles.fixButton} onPress={() => Linking.openSettings()}>
+              <Text style={styles.fixButtonText}>Open Settings</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {!hasCompany && (
+          <View style={styles.warningCard}>
+            <Text style={styles.warningTitle}>No company linked</Text>
+            <Text style={styles.warningText}>
+              Ask your dispatcher to send you a tracking request link.
             </Text>
           </View>
-
-          <View style={styles.infoCard}>
-            <Text style={styles.infoLabel}>Speed</Text>
-            <Text style={styles.infoValue}>
-              {lastSync.speed > 0
-                ? `${Math.round(lastSync.speed * 3.6)} km/h`
-                : "Stationary"}
-            </Text>
-          </View>
-
-          <View style={styles.infoCard}>
-            <Text style={styles.infoLabel}>Location</Text>
-            <Text style={styles.infoValue} numberOfLines={1}>
-              {locationLabel ?? `${lastSync.lat.toFixed(4)}, ${lastSync.lng.toFixed(4)}`}
-            </Text>
-          </View>
-        </View>
-      )}
-
-      {/* Offline Sync Indicator */}
-      {pendingSync > 0 && (
-        <View style={styles.warningCard}>
-          <Text style={styles.warningTitle}>
-            {pendingSync} update{pendingSync > 1 ? "s" : ""} pending
-          </Text>
-          <Text style={styles.warningText}>
-            {isNetworkConnected
-              ? "Syncing queued location updates..."
-              : "No internet connection. Updates will sync when back online."}
-          </Text>
-        </View>
-      )}
-
-      {/* Permission Warning — only foreground granted */}
-      {isOnline && permissionStatus === "foreground" && (
-        <View style={styles.warningCard}>
-          <Text style={styles.warningTitle}>Action required</Text>
-          <Text style={styles.warningText}>
-            Location tracking will stop when the app is minimized. Open Settings
-            and change location access to "Allow all the time".
-          </Text>
-          <TouchableOpacity style={styles.fixButton} onPress={() => Linking.openSettings()}>
-            <Text style={styles.fixButtonText}>Open Settings</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+        )}
       </ScrollView>
     </View>
   );
@@ -257,89 +302,108 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
-    padding: 24,
   },
-  greeting: {
-    fontSize: 22,
-    fontWeight: "600",
-    color: "#1a1a1a",
-    marginBottom: 4,
+  mapContainer: {
+    flex: 7,
   },
-  companyStatus: {
-    fontSize: 14,
-    color: "#22c55e",
-    marginBottom: 24,
-  },
-  noCompany: {
-    fontSize: 14,
-    color: "#f59e0b",
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-  statusCard: {
-    backgroundColor: "#f9fafb",
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    marginBottom: 16,
-  },
-  statusCardOnline: {
-    backgroundColor: "#f0fdf4",
-    borderColor: "#bbf7d0",
-  },
-  toggleRow: {
-    flexDirection: "row",
+  mapLoading: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
-    justifyContent: "space-between",
+    backgroundColor: "#f5f5f5",
   },
-  status: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#999",
-    marginBottom: 2,
-  },
-  statusOnline: {
-    color: "#16a34a",
-  },
-  statusHint: {
-    fontSize: 13,
-    color: "#6b7280",
-  },
-  infoGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    marginBottom: 16,
-  },
-  infoCard: {
-    backgroundColor: "#f9fafb",
+  greetingOverlay: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    backgroundColor: "rgba(255,255,255,0.92)",
     borderRadius: 12,
-    padding: 14,
-    width: "48%",
-    flexGrow: 1,
-    borderWidth: 1,
-    borderColor: "#f0f0f0",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  infoLabel: {
-    fontSize: 11,
-    color: "#9ca3af",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  infoValue: {
+  greetingText: {
     fontSize: 16,
     fontWeight: "600",
     color: "#1a1a1a",
   },
-  warningCard: {
-    backgroundColor: "#fffbeb",
+  connectedText: {
+    fontSize: 12,
+    color: "#22c55e",
+    fontWeight: "500",
+  },
+  notConnectedText: {
+    fontSize: 12,
+    color: "#f59e0b",
+    fontWeight: "500",
+  },
+  bottomPanel: {
+    flex: 3,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  statusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#f9fafb",
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
+    borderColor: "#e5e7eb",
+    marginBottom: 10,
+  },
+  statusRowOnline: {
+    backgroundColor: "#f0fdf4",
+    borderColor: "#bbf7d0",
+  },
+  statusLabel: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#999",
+    marginBottom: 2,
+  },
+  statusHint: {
+    fontSize: 12,
+    color: "#6b7280",
+  },
+  compactInfoRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 10,
+  },
+  compactInfoItem: {
+    flex: 1,
+    backgroundColor: "#f9fafb",
+    borderRadius: 10,
+    padding: 10,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#f0f0f0",
+  },
+  compactLabel: {
+    fontSize: 10,
+    color: "#9ca3af",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  compactValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1a1a1a",
+    marginTop: 2,
+  },
+  warningCard: {
+    backgroundColor: "#fffbeb",
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
     borderColor: "#fde68a",
-    marginBottom: 12,
+    marginBottom: 10,
   },
   warningTitle: {
     fontSize: 13,
@@ -353,7 +417,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   fixButton: {
-    marginTop: 10,
+    marginTop: 8,
     backgroundColor: "#92400e",
     paddingVertical: 8,
     paddingHorizontal: 16,

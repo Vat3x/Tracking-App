@@ -23,9 +23,19 @@ export default function MainLayout() {
         name="trips"
         options={{
           title: "Trips",
-          headerTitle: "Trip Assignments",
+          headerTitle: "Active Trips",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="navigate-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: "History",
+          headerTitle: "Trip History",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="time-outline" size={size} color={color} />
           ),
         }}
       />

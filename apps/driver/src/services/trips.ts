@@ -45,11 +45,26 @@ export function subscribeToDriverTrips(
  */
 export async function respondToTrip(
   tripId: string,
-  status: TripStatus
+  status: TripStatus,
+  extraFields?: Record<string, unknown>
 ): Promise<void> {
   await updateDoc(doc(db, COLLECTIONS.TRIPS, tripId), {
     status,
     respondedAt: Date.now(),
+    updatedAt: Date.now(),
+    ...extraFields,
+  });
+}
+
+/**
+ * Advance to the next stop in a multi-stop trip.
+ */
+export async function advanceToNextStop(
+  tripId: string,
+  nextIndex: number
+): Promise<void> {
+  await updateDoc(doc(db, COLLECTIONS.TRIPS, tripId), {
+    currentStopIndex: nextIndex,
     updatedAt: Date.now(),
   });
 }

@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useAuthStore } from "../../src/stores/auth";
-import { subscribeToDriverTrips, respondToTrip } from "../../src/services/trips";
+import { subscribeToDriverTrips, respondToTrip, advanceToNextStop } from "../../src/services/trips";
 import type { Trip, TripStatus } from "@nexus/shared";
 import TripMap from "../../src/components/TripMap";
 
@@ -40,13 +40,20 @@ function formatTime(ts: number): string {
 function TripCard({
   trip,
   onRespond,
+  onAdvanceStop,
   showMap,
 }: {
   trip: Trip;
-  onRespond: (tripId: string, status: TripStatus) => void;
+  onRespond: (tripId: string, status: TripStatus, extraFields?: Record<string, unknown>) => void;
+  onAdvanceStop: (tripId: string, nextIndex: number) => void;
   showMap: boolean;
 }) {
   const statusColor = STATUS_COLORS[trip.status];
+  const stops = trip.stops ?? [];
+  const currentIdx = trip.currentStopIndex ?? 0;
+  const isInProgress = trip.status === "in_progress";
+  const hasStops = stops.length > 0;
+  const allStopsCompleted = currentIdx >= stops.length;
 
   return (
     <View style={styles.card}>
@@ -72,22 +79,31 @@ function TripCard({
             </Text>
           </View>
         </View>
-        {/* Intermediate stops */}
-        {trip.stops?.map((stop, i) => (
-          <View key={i}>
-            <View style={styles.routeLine} />
-            <View style={styles.routePoint}>
-              <View style={[styles.dot, { backgroundColor: "#f97316", width: 8, height: 8, borderRadius: 4, marginHorizontal: 1 }]} />
-              <View style={styles.routeInfo}>
-                <Text style={styles.routeLabel}>Stop {i + 1}</Text>
-                <Text style={styles.routeName}>
-                  {stop.label}
-                  {stop.zipCode ? ` (${stop.zipCode})` : ""}
-                </Text>
+        {/* Intermediate stops with progress indicators */}
+        {stops.map((stop, i) => {
+          const isCompleted = isInProgress && i < currentIdx;
+          const isCurrent = isInProgress && i === currentIdx;
+          return (
+            <View key={i}>
+              <View style={styles.routeLine} />
+              <View style={styles.routePoint}>
+                <View style={[styles.dot, {
+                  backgroundColor: isCompleted ? "#22c55e" : isCurrent ? "#3b82f6" : "#f97316",
+                  width: 8, height: 8, borderRadius: 4, marginHorizontal: 1,
+                }]} />
+                <View style={styles.routeInfo}>
+                  <Text style={styles.routeLabel}>
+                    Stop {i + 1}{isCompleted ? " (Done)" : isCurrent ? " (Next)" : ""}
+                  </Text>
+                  <Text style={[styles.routeName, isCompleted && styles.completedStopText]}>
+                    {stop.label}
+                    {stop.zipCode ? ` (${stop.zipCode})` : ""}
+                  </Text>
+                </View>
               </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
         {trip.destination && (
           <>
             <View style={styles.routeLine} />
@@ -132,21 +148,32 @@ function TripCard({
         <View style={styles.actions}>
           <TouchableOpacity
             style={[styles.actionBtn, styles.startBtn]}
-            onPress={() => onRespond(trip.id, "in_progress")}
+            onPress={() => onRespond(trip.id, "in_progress", { currentStopIndex: 0 })}
           >
             <Text style={styles.startBtnText}>Start Trip</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {trip.status === "in_progress" && (
+      {isInProgress && (
         <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.actionBtn, styles.completeBtn]}
-            onPress={() => onRespond(trip.id, "completed")}
-          >
-            <Text style={styles.completeBtnText}>Complete Trip</Text>
-          </TouchableOpacity>
+          {hasStops && !allStopsCompleted ? (
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.arrivedBtn]}
+              onPress={() => onAdvanceStop(trip.id, currentIdx + 1)}
+            >
+              <Text style={styles.arrivedBtnText}>
+                Arrived at Stop {currentIdx + 1}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.completeBtn]}
+              onPress={() => onRespond(trip.id, "completed")}
+            >
+              <Text style={styles.completeBtnText}>Complete Trip</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </View>
@@ -167,7 +194,12 @@ export default function TripsScreen() {
     });
   }, [firebaseUser?.uid]);
 
-  async function handleRespond(tripId: string, status: TripStatus) {
+  // Only show active trips — past trips are in the History tab
+  const activeTrips = trips.filter((t) =>
+    ["pending", "accepted", "in_progress"].includes(t.status)
+  );
+
+  async function handleRespond(tripId: string, status: TripStatus, extraFields?: Record<string, unknown>) {
     const labels: Record<string, string> = {
       accepted: "accept",
       rejected: "decline",
@@ -184,9 +216,29 @@ export default function TripsScreen() {
           text: "Yes",
           onPress: async () => {
             try {
-              await respondToTrip(tripId, status);
+              await respondToTrip(tripId, status, extraFields);
             } catch {
               Alert.alert("Error", "Failed to update trip. Try again.");
+            }
+          },
+        },
+      ]
+    );
+  }
+
+  async function handleAdvanceStop(tripId: string, nextIndex: number) {
+    Alert.alert(
+      "Confirm",
+      `Mark Stop ${nextIndex} as reached?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Yes",
+          onPress: async () => {
+            try {
+              await advanceToNextStop(tripId, nextIndex);
+            } catch {
+              Alert.alert("Error", "Failed to update stop progress. Try again.");
             }
           },
         },
@@ -198,13 +250,6 @@ export default function TripsScreen() {
     setRefreshing(true);
     setTimeout(() => setRefreshing(false), 500);
   }
-
-  const activeTrips = trips.filter((t) =>
-    ["pending", "accepted", "in_progress"].includes(t.status)
-  );
-  const pastTrips = trips.filter((t) =>
-    ["completed", "rejected", "cancelled"].includes(t.status)
-  );
 
   // Only render map for the first trip that needs one (avoid multiple MapView instances)
   const mapTripId = activeTrips.find(
@@ -225,19 +270,24 @@ export default function TripsScreen() {
             Link to a company first to receive trip assignments.
           </Text>
         </View>
-      ) : trips.length === 0 ? (
+      ) : activeTrips.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyTitle}>No trips yet</Text>
+          <Text style={styles.emptyTitle}>No active trips</Text>
           <Text style={styles.emptyText}>
             Your dispatcher will assign trips to you. They'll appear here.
           </Text>
         </View>
       ) : (
         <FlatList
-          data={[...activeTrips, ...pastTrips]}
+          data={activeTrips}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <TripCard trip={item} onRespond={handleRespond} showMap={item.id === mapTripId} />
+            <TripCard
+              trip={item}
+              onRespond={handleRespond}
+              onAdvanceStop={handleAdvanceStop}
+              showMap={item.id === mapTripId}
+            />
           )}
           contentContainerStyle={styles.list}
           removeClippedSubviews={false}
@@ -245,11 +295,9 @@ export default function TripsScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
           ListHeaderComponent={
-            activeTrips.length > 0 ? (
-              <Text style={styles.sectionTitle}>
-                Active ({activeTrips.length})
-              </Text>
-            ) : null
+            <Text style={styles.sectionTitle}>
+              Active ({activeTrips.length})
+            </Text>
           }
           ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         />
@@ -327,6 +375,10 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "#1a1a1a",
   },
+  completedStopText: {
+    color: "#9ca3af",
+    textDecorationLine: "line-through",
+  },
   routeLine: {
     width: 1,
     height: 16,
@@ -366,6 +418,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#3b82f6",
   },
   startBtnText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  arrivedBtn: {
+    backgroundColor: "#f97316",
+  },
+  arrivedBtnText: {
     color: "#fff",
     fontWeight: "600",
     fontSize: 14,

@@ -3,26 +3,8 @@ import { View, Text, StyleSheet, ActivityIndicator, Platform } from "react-nativ
 import MapView, { Polyline, Marker, type Region } from "react-native-maps";
 import * as Location from "expo-location";
 import { fetchRoute, type RouteResult } from "../services/routing";
+import { MAP_STYLE } from "../constants/mapStyle";
 import type { Trip } from "@nexus/shared";
-
-// Clean, modern map style — muted colors, no clutter
-const MAP_STYLE = [
-  { elementType: "geometry", stylers: [{ color: "#f5f5f5" }] },
-  { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#9e9e9e" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#f5f5f5" }] },
-  { featureType: "administrative.land_parcel", stylers: [{ visibility: "off" }] },
-  { featureType: "administrative.neighborhood", stylers: [{ visibility: "off" }] },
-  { featureType: "poi", stylers: [{ visibility: "off" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
-  { featureType: "road", elementType: "labels", stylers: [{ visibility: "off" }] },
-  { featureType: "road.arterial", elementType: "geometry", stylers: [{ color: "#e8eaed" }] },
-  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#dadce0" }] },
-  { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#c8cace" }] },
-  { featureType: "transit", stylers: [{ visibility: "off" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#c9d6e3" }] },
-  { featureType: "water", elementType: "labels.text", stylers: [{ visibility: "off" }] },
-];
 
 function formatETA(seconds: number): string {
   if (seconds < 60) return "< 1 min";
@@ -62,6 +44,11 @@ function TripMapInner({ trip }: Props) {
     return () => { mountedRef.current = false; };
   }, []);
 
+  const stops = trip.stops ?? [];
+  const currentIdx = trip.currentStopIndex ?? 0;
+  const isAccepted = trip.status === "accepted";
+  const isInProgress = trip.status === "in_progress";
+
   useEffect(() => {
     let cancelled = false;
 
@@ -72,11 +59,8 @@ function TripMapInner({ trip }: Props) {
       try {
         let waypoints: [number, number][];
 
-        const stopWaypoints: [number, number][] = (trip.stops ?? []).map(
-          (s) => [s.lng, s.lat] as [number, number]
-        );
-
-        if (trip.status === "accepted") {
+        if (isAccepted) {
+          // Accepted: driver → origin → all stops → destination
           const { status } = await Location.getForegroundPermissionsAsync();
           if (status !== "granted" || cancelled) {
             if (!cancelled) { setError(true); setLoading(false); }
@@ -87,21 +71,49 @@ function TripMapInner({ trip }: Props) {
             timeInterval: 10000,
           });
           if (cancelled) return;
+
+          const allStopWaypoints: [number, number][] = stops.map(
+            (s) => [s.lng, s.lat] as [number, number]
+          );
           waypoints = [
             [loc.coords.longitude, loc.coords.latitude],
             [trip.origin.lng, trip.origin.lat],
-            ...stopWaypoints,
+            ...allStopWaypoints,
+            ...(trip.destination ? [[trip.destination.lng, trip.destination.lat] as [number, number]] : []),
+          ];
+        } else if (isInProgress) {
+          // In progress: driver → remaining stops → destination
+          const { status } = await Location.getForegroundPermissionsAsync();
+          if (status !== "granted" || cancelled) {
+            if (!cancelled) { setError(true); setLoading(false); }
+            return;
+          }
+          const loc = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+            timeInterval: 10000,
+          });
+          if (cancelled) return;
+
+          const remainingStops: [number, number][] = stops.slice(currentIdx).map(
+            (s) => [s.lng, s.lat] as [number, number]
+          );
+          waypoints = [
+            [loc.coords.longitude, loc.coords.latitude],
+            ...remainingStops,
             ...(trip.destination ? [[trip.destination.lng, trip.destination.lat] as [number, number]] : []),
           ];
         } else {
+          // Fallback: origin → all stops → destination
+          const allStopWaypoints: [number, number][] = stops.map(
+            (s) => [s.lng, s.lat] as [number, number]
+          );
           waypoints = [
             [trip.origin.lng, trip.origin.lat],
-            ...stopWaypoints,
+            ...allStopWaypoints,
             ...(trip.destination ? [[trip.destination.lng, trip.destination.lat] as [number, number]] : []),
           ];
         }
 
-        // Need at least 2 waypoints for routing
         if (waypoints.length < 2) {
           if (!cancelled) { setError(true); setLoading(false); }
           return;
@@ -124,7 +136,7 @@ function TripMapInner({ trip }: Props) {
 
     loadRoute();
     return () => { cancelled = true; };
-  }, [trip.id, trip.status]);
+  }, [trip.id, trip.status, trip.currentStopIndex]);
 
   if (loading) {
     return (
@@ -143,8 +155,6 @@ function TripMapInner({ trip }: Props) {
     latitude: lat,
     longitude: lng,
   }));
-
-  const isAccepted = trip.status === "accepted";
 
   const midIdx = Math.floor(routeCoords.length / 2);
   const initialRegion: Region = {
@@ -165,6 +175,15 @@ function TripMapInner({ trip }: Props) {
     } catch {
       // Silently ignore fit errors
     }
+  };
+
+  // ETA label based on next target
+  const getEtaLabel = () => {
+    if (isAccepted) return "ETA to pickup";
+    if (isInProgress && stops.length > 0 && currentIdx < stops.length) {
+      return `ETA to Stop ${currentIdx + 1}`;
+    }
+    return trip.destination ? "ETA to drop-off" : "ETA";
   };
 
   return (
@@ -199,16 +218,20 @@ function TripMapInner({ trip }: Props) {
           description={trip.origin.label}
         />
 
-        {/* Intermediate stop markers */}
-        {(trip.stops ?? []).map((stop, i) => (
-          <Marker
-            key={`stop-${i}`}
-            coordinate={{ latitude: stop.lat, longitude: stop.lng }}
-            pinColor="#f97316"
-            title={`Stop ${i + 1}`}
-            description={stop.label}
-          />
-        ))}
+        {/* Intermediate stop markers — completed stops in green, remaining in orange */}
+        {stops.map((stop, i) => {
+          const isCompleted = isInProgress && i < currentIdx;
+          return (
+            <Marker
+              key={`stop-${i}`}
+              coordinate={{ latitude: stop.lat, longitude: stop.lng }}
+              pinColor={isCompleted ? "#22c55e" : "#f97316"}
+              title={`Stop ${i + 1}${isCompleted ? " (Done)" : ""}`}
+              description={stop.label}
+              opacity={isCompleted ? 0.5 : 1}
+            />
+          );
+        })}
 
         {!isAccepted && trip.destination && (
           <Marker
@@ -224,9 +247,7 @@ function TripMapInner({ trip }: Props) {
       </MapView>
 
       <View style={styles.etaBar}>
-        <Text style={styles.etaLabel}>
-          {isAccepted ? "ETA to pickup" : trip.destination ? "ETA to drop-off" : "ETA"}
-        </Text>
+        <Text style={styles.etaLabel}>{getEtaLabel()}</Text>
         <Text style={styles.etaValue}>{formatETA(route.duration)}</Text>
       </View>
     </View>

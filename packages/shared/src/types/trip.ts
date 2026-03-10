@@ -23,6 +23,7 @@ export interface Trip {
   stops?: GeoPoint[];
   destination?: GeoPoint;
   country?: string;
+  currentStopIndex?: number;
   createdAt: number;
   updatedAt: number;
   respondedAt: number | null;
