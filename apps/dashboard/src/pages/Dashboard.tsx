@@ -208,6 +208,7 @@ export default function Dashboard() {
           onSelectDriver={selectDriver}
           activeDriverIds={activeDriverIds}
           trips={trips}
+          onRefreshProfiles={() => userDoc?.companyId && getCompanyDrivers(userDoc.companyId).then(setDriverProfiles)}
         />
 
         {/* New Trip slide-over panel */}
