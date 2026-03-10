@@ -153,7 +153,7 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar }: Pr
 
   const formContent = (
     <>
-      <h2 className={`text-lg font-semibold text-gray-900 dark:text-gray-100 ${sidebar ? "mb-2" : "mb-4"}`}>New Trip</h2>
+      {!sidebar && <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">New Trip</h2>}
 
         {error && (
           <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-sm text-red-700 dark:text-red-400">
@@ -161,7 +161,7 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar }: Pr
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+        <form onSubmit={handleSubmit} className={sidebar ? "space-y-3" : "space-y-4"} autoComplete="off">
           {/* Driver select */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -320,8 +320,8 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar }: Pr
           className="absolute inset-0 bg-black/10 z-20"
           onClick={handleClose}
         />
-        <div className="absolute left-0 top-0 bottom-0 w-96 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 shadow-xl z-30 flex flex-col">
-          <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+        <div className="absolute left-0 top-0 bottom-0 w-80 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 shadow-xl z-30 flex flex-col">
+          <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">New Trip</h2>
             <button
               onClick={handleClose}
@@ -330,7 +330,7 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar }: Pr
               &times;
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto px-5 py-4">
+          <div className="flex-1 overflow-y-auto px-4 py-3">
             {formContent}
           </div>
         </div>

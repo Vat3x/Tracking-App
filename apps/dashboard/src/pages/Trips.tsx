@@ -132,7 +132,8 @@ export default function Trips() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950 p-6">
+      <div className="flex-1 overflow-hidden relative">
+      <main className="h-full overflow-y-auto bg-gray-50 dark:bg-gray-950 p-6">
         <div className="max-w-4xl mx-auto">
           {/* Filter tabs */}
           <div className="flex items-center gap-1 mb-4">
@@ -296,11 +297,14 @@ export default function Trips() {
         </div>
       </main>
 
-      <TripModal
-        open={tripModalOpen}
-        onClose={() => setTripModalOpen(false)}
-        driverProfiles={driverProfiles}
-      />
+      {tripModalOpen && (
+        <TripModal
+          open={tripModalOpen}
+          onClose={() => setTripModalOpen(false)}
+          driverProfiles={driverProfiles}
+          sidebar
+        />
+      )}
 
       {editModal && (
         <EditLocationModal
@@ -312,6 +316,7 @@ export default function Trips() {
           country={editModal.country}
         />
       )}
+      </div>
     </div>
   );
 }

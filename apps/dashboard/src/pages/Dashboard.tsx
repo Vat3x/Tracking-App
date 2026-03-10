@@ -14,7 +14,8 @@ import { useNavigate } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/services/firebase";
 import { toast } from "sonner";
-import { COLLECTIONS, type Invite, type User, type Trip } from "@nexus/shared";
+import { COLLECTIONS, type Invite, type User, type Trip, type TripStatus } from "@nexus/shared";
+import { updateTripStatus } from "@/services/trips";
 import ThemeToggle from "@/components/ThemeToggle";
 
 function formatTime(ts: number): string {
@@ -40,6 +41,7 @@ export default function Dashboard() {
 
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [invitesOpen, setInvitesOpen] = useState(false);
+  const [tripsOpen, setTripsOpen] = useState(false);
   const [tripFormOpen, setTripFormOpen] = useState(false);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -139,13 +141,13 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => navigate("/trips")}
+            onClick={() => { setTripsOpen(!tripsOpen); setInvitesOpen(false); setTripFormOpen(false); }}
             className="h-8 px-3 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             Trips
           </button>
           <button
-            onClick={() => { setInvitesOpen(!invitesOpen); setTripFormOpen(false); }}
+            onClick={() => { setInvitesOpen(!invitesOpen); setTripsOpen(false); setTripFormOpen(false); }}
             className="relative h-8 px-3 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             Invites
@@ -163,14 +165,14 @@ export default function Dashboard() {
           </button>
           <ThemeToggle />
           <button
-            onClick={() => { setTripFormOpen(true); setInvitesOpen(false); }}
+            onClick={() => { setTripFormOpen(true); setInvitesOpen(false); setTripsOpen(false); }}
             className="h-8 px-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
           >
             New Trip
           </button>
           <button
             onClick={() => setInviteModalOpen(true)}
-            className="h-8 px-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            className="h-8 px-3 border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
           >
             Invite Driver
           </button>
@@ -216,6 +218,112 @@ export default function Dashboard() {
             driverProfiles={driverProfiles}
             sidebar
           />
+        )}
+
+        {/* Trips slide-over panel */}
+        {tripsOpen && (
+          <>
+            <div
+              className="absolute inset-0 bg-black/10 z-20"
+              onClick={() => setTripsOpen(false)}
+            />
+            <div className="absolute left-0 top-0 bottom-0 w-80 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 shadow-xl z-30 flex flex-col">
+              <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Trips</h2>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => { setTripsOpen(false); setTripFormOpen(true); }}
+                    className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                  >
+                    + New
+                  </button>
+                  <button
+                    onClick={() => setTripsOpen(false)}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg leading-none"
+                  >
+                    &times;
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto">
+                {trips.length === 0 ? (
+                  <div className="px-4 py-12 text-center">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">No trips yet.</p>
+                    <button
+                      onClick={() => { setTripsOpen(false); setTripFormOpen(true); }}
+                      className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                    >
+                      Create first trip
+                    </button>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-50 dark:divide-gray-700">
+                    {trips.map((trip) => {
+                      const driverName =
+                        driverProfiles.get(trip.driverId ?? "")?.displayName ??
+                        (trip.driverId ? `Driver ${trip.driverId.slice(0, 6)}` : "Unassigned");
+                      const statusColors: Record<TripStatus, string> = {
+                        pending: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+                        accepted: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+                        rejected: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+                        in_progress: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
+                        completed: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+                        cancelled: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+                      };
+                      const isActive = ["pending", "accepted", "in_progress"].includes(trip.status);
+                      return (
+                        <div key={trip.id} className="px-4 py-3">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{driverName}</span>
+                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${statusColors[trip.status]}`}>
+                              {trip.status.replace("_", " ")}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 truncate">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
+                            <span className="truncate">{trip.origin.label}</span>
+                            {trip.destination && (
+                              <>
+                                <span className="mx-0.5">→</span>
+                                <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
+                                <span className="truncate">{trip.destination.label}</span>
+                              </>
+                            )}
+                          </div>
+                          {isActive && (
+                            <button
+                              onClick={async () => {
+                                if (!window.confirm("Cancel this trip?")) return;
+                                try {
+                                  await updateTripStatus(trip.id, "cancelled");
+                                  toast.success("Trip cancelled");
+                                } catch {
+                                  toast.error("Failed to cancel trip");
+                                }
+                              }}
+                              className="text-[10px] text-gray-400 hover:text-red-500 mt-1"
+                            >
+                              Cancel
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
+                <button
+                  onClick={() => navigate("/trips")}
+                  className="text-xs font-medium text-blue-600 hover:text-blue-700 w-full text-center"
+                >
+                  View all trips
+                </button>
+              </div>
+            </div>
+          </>
         )}
 
         {/* Invites slide-over panel */}
