@@ -150,7 +150,7 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar }: Pr
     onClose();
   }
 
-  const inputCls = "w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500";
+  const inputCls = "w-full px-3 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-sm bg-gray-50 dark:bg-gray-800/50 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 dark:focus:border-blue-400 transition-colors";
 
   const formContent = (
     <>
@@ -165,7 +165,7 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar }: Pr
         <form onSubmit={handleSubmit} className={sidebar ? "space-y-3" : "space-y-4"} autoComplete="off">
           {/* Driver select */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1.5">
               Assign to Driver
             </label>
             {driverOptions.length === 0 ? (
@@ -190,7 +190,7 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar }: Pr
 
           {/* Country */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1.5">
               Country
             </label>
             <select
@@ -222,7 +222,7 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar }: Pr
 
           {/* Origin */}
           <fieldset className="space-y-1">
-            <legend className="text-sm font-medium text-gray-700 dark:text-gray-300">Origin</legend>
+            <legend className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Origin</legend>
             <AddressSearch
               value={origin.search}
               country={country}
@@ -240,7 +240,7 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar }: Pr
           {stops.map((stop, i) => (
             <fieldset key={i} className="space-y-1">
               <div className="flex items-center justify-between">
-                <legend className="text-sm font-medium text-orange-600 dark:text-orange-400">
+                <legend className="text-xs font-semibold uppercase tracking-wide text-orange-500 dark:text-orange-400">
                   Stop {i + 1}
                 </legend>
                 <button
@@ -278,8 +278,8 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar }: Pr
 
           {/* Destination (optional) */}
           <fieldset className="space-y-1">
-            <legend className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Destination <span className="text-xs text-gray-400 dark:text-gray-500 font-normal">(optional)</span>
+            <legend className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              Destination <span className="text-[10px] font-normal normal-case tracking-normal text-gray-400 dark:text-gray-500">(optional)</span>
             </legend>
             <AddressSearch
               value={dest.search}
@@ -298,14 +298,14 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar }: Pr
             <button
               type="button"
               onClick={handleClose}
-              className="flex-1 py-2 px-4 border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+              className="flex-1 py-2.5 px-4 border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading || driverOptions.length === 0}
-              className="flex-1 py-2 px-4 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="flex-1 py-2.5 px-4 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
               {loading ? "Creating..." : "Create Trip"}
             </button>
