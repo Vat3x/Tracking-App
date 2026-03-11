@@ -50,6 +50,7 @@ export default function Dashboard() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [companyName, setCompanyName] = useState("My Company");
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
+  const [tripFilter, setTripFilter] = useState<"active" | "completed" | "cancelled">("active");
 
   // Fetch company name
   useEffect(() => {
@@ -249,116 +250,113 @@ export default function Dashboard() {
                 </div>
               </div>
 
+              {/* Filter tabs */}
+              <div className="flex items-center gap-1 px-4 py-2 border-b border-gray-100 dark:border-gray-700">
+                {(["active", "completed", "cancelled"] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setTripFilter(f)}
+                    className={`px-2.5 py-1 text-[11px] rounded-md transition-colors ${
+                      tripFilter === f
+                        ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-medium"
+                        : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                    }`}
+                  >
+                    {f.charAt(0).toUpperCase() + f.slice(1)}
+                  </button>
+                ))}
+              </div>
+
               <div className="flex-1 overflow-y-auto">
-                {trips.length === 0 ? (
-                  <div className="px-4 py-12 text-center">
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">No trips yet.</p>
-                    <button
-                      onClick={() => { setTripsOpen(false); setTripFormOpen(true); }}
-                      className="text-sm font-medium text-blue-600 hover:text-blue-700"
-                    >
-                      Create first trip
-                    </button>
-                  </div>
-                ) : (
-                  (() => {
-                    const activeTrips = trips.filter((t) => ["pending", "accepted", "in_progress"].includes(t.status));
-                    const completedTrips = trips.filter((t) => t.status === "completed");
-                    const cancelledTrips = trips.filter((t) => ["cancelled", "rejected"].includes(t.status));
-                    const statusColors: Record<TripStatus, string> = {
-                      pending: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-                      accepted: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-                      rejected: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-                      in_progress: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
-                      completed: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-                      cancelled: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-                    };
-                    const renderTrip = (trip: typeof trips[0], showActions: boolean) => {
-                      const driverName =
-                        driverProfiles.get(trip.driverId ?? "")?.displayName ??
-                        (trip.driverId ? `Driver ${trip.driverId.slice(0, 6)}` : "Unassigned");
-                      return (
-                        <div key={trip.id} className="px-4 py-3">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{driverName}</span>
-                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${statusColors[trip.status]}`}>
-                              {trip.status.replace("_", " ")}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 truncate">
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
-                            <span className="truncate">{trip.origin.label}</span>
-                            {trip.destination && (
-                              <>
-                                <span className="mx-0.5">→</span>
-                                <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
-                                <span className="truncate">{trip.destination.label}</span>
-                              </>
-                            )}
-                          </div>
-                          {showActions && (
-                            <div className="flex items-center gap-3 mt-1">
-                              <button
-                                onClick={() => setEditingTrip(trip)}
-                                className="text-[10px] text-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={async () => {
-                                  if (!window.confirm("Cancel this trip?")) return;
-                                  try {
-                                    await updateTripStatus(trip.id, "cancelled");
-                                    toast.success("Trip cancelled");
-                                  } catch {
-                                    toast.error("Failed to cancel trip");
-                                  }
-                                }}
-                                className="text-[10px] text-gray-400 hover:text-red-500"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    };
+                {(() => {
+                  const statusColors: Record<TripStatus, string> = {
+                    pending: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+                    accepted: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+                    rejected: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+                    in_progress: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
+                    completed: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+                    cancelled: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+                  };
+                  const filtered = trips.filter((t) => {
+                    if (tripFilter === "active") return ["pending", "accepted", "in_progress"].includes(t.status);
+                    if (tripFilter === "completed") return t.status === "completed";
+                    return ["cancelled", "rejected"].includes(t.status);
+                  });
+                  const isActive = tripFilter === "active";
+
+                  if (filtered.length === 0) {
                     return (
-                      <div>
-                        {activeTrips.length > 0 && (
-                          <div>
-                            <div className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-green-600 dark:text-green-400 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700">
-                              Active ({activeTrips.length})
-                            </div>
-                            <div className="divide-y divide-gray-50 dark:divide-gray-700">
-                              {activeTrips.map((t) => renderTrip(t, true))}
-                            </div>
-                          </div>
-                        )}
-                        {completedTrips.length > 0 && (
-                          <div>
-                            <div className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700">
-                              Completed ({completedTrips.length})
-                            </div>
-                            <div className="divide-y divide-gray-50 dark:divide-gray-700">
-                              {completedTrips.map((t) => renderTrip(t, false))}
-                            </div>
-                          </div>
-                        )}
-                        {cancelledTrips.length > 0 && (
-                          <div>
-                            <div className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-red-500 dark:text-red-400 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700">
-                              Cancelled ({cancelledTrips.length})
-                            </div>
-                            <div className="divide-y divide-gray-50 dark:divide-gray-700">
-                              {cancelledTrips.map((t) => renderTrip(t, false))}
-                            </div>
-                          </div>
+                      <div className="px-4 py-12 text-center">
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                          {trips.length === 0 ? "No trips yet." : `No ${tripFilter} trips.`}
+                        </p>
+                        {trips.length === 0 && (
+                          <button
+                            onClick={() => { setTripsOpen(false); setTripFormOpen(true); }}
+                            className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                          >
+                            Create first trip
+                          </button>
                         )}
                       </div>
                     );
-                  })()
-                )}
+                  }
+
+                  return (
+                    <div className="divide-y divide-gray-50 dark:divide-gray-700">
+                      {filtered.map((trip) => {
+                        const driverName =
+                          driverProfiles.get(trip.driverId ?? "")?.displayName ??
+                          (trip.driverId ? `Driver ${trip.driverId.slice(0, 6)}` : "Unassigned");
+                        return (
+                          <div key={trip.id} className="px-4 py-3">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{driverName}</span>
+                              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${statusColors[trip.status]}`}>
+                                {trip.status.replace("_", " ")}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 truncate">
+                              <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
+                              <span className="truncate">{trip.origin.label}</span>
+                              {trip.destination && (
+                                <>
+                                  <span className="mx-0.5">→</span>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
+                                  <span className="truncate">{trip.destination.label}</span>
+                                </>
+                              )}
+                            </div>
+                            {isActive && (
+                              <div className="flex items-center gap-3 mt-1">
+                                <button
+                                  onClick={() => setEditingTrip(trip)}
+                                  className="text-[10px] text-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if (!window.confirm("Cancel this trip?")) return;
+                                    try {
+                                      await updateTripStatus(trip.id, "cancelled");
+                                      toast.success("Trip cancelled");
+                                    } catch {
+                                      toast.error("Failed to cancel trip");
+                                    }
+                                  }}
+                                  className="text-[10px] text-gray-400 hover:text-red-500"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
