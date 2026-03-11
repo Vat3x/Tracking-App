@@ -52,6 +52,7 @@ export default function Dashboard() {
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
   const [tripFilter, setTripFilter] = useState<"active" | "completed" | "cancelled">("active");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [tripFormDriverId, setTripFormDriverId] = useState<string | undefined>();
 
   // Fetch company name
   useEffect(() => {
@@ -169,7 +170,7 @@ export default function Dashboard() {
           </button>
           <ThemeToggle />
           <button
-            onClick={() => { setTripFormOpen(true); setInvitesOpen(false); setTripsOpen(false); }}
+            onClick={() => { setTripFormDriverId(undefined); setTripFormOpen(true); setInvitesOpen(false); setTripsOpen(false); }}
             className="h-8 px-3 border border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 text-sm font-medium rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
           >
             New Trip
@@ -238,15 +239,17 @@ export default function Dashboard() {
           activeDriverIds={activeDriverIds}
           trips={trips}
           onRefreshProfiles={() => userDoc?.companyId && getCompanyDrivers(userDoc.companyId).then(setDriverProfiles)}
+          onCreateTrip={(driverId) => { setTripFormDriverId(driverId); setTripFormOpen(true); setInvitesOpen(false); setTripsOpen(false); }}
         />
 
         {/* New Trip slide-over panel */}
         {tripFormOpen && (
           <TripModal
             open={tripFormOpen}
-            onClose={() => setTripFormOpen(false)}
+            onClose={() => { setTripFormOpen(false); setTripFormDriverId(undefined); }}
             driverProfiles={driverProfiles}
             sidebar
+            defaultDriverId={tripFormDriverId}
           />
         )}
 
@@ -262,7 +265,7 @@ export default function Dashboard() {
                 <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Trips</h2>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => { setTripsOpen(false); setTripFormOpen(true); }}
+                    onClick={() => { setTripsOpen(false); setTripFormDriverId(undefined); setTripFormOpen(true); }}
                     className="text-xs font-medium text-blue-600 hover:text-blue-700"
                   >
                     + New

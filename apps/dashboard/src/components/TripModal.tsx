@@ -11,6 +11,7 @@ interface Props {
   onClose: () => void;
   driverProfiles: Map<string, User>;
   sidebar?: boolean;
+  defaultDriverId?: string;
 }
 
 interface LocationData {
@@ -23,11 +24,11 @@ interface LocationData {
 
 const emptyLocation = (): LocationData => ({ search: "", label: "", lat: null, lng: null });
 
-export default function TripModal({ open, onClose, driverProfiles, sidebar }: Props) {
+export default function TripModal({ open, onClose, driverProfiles, sidebar, defaultDriverId }: Props) {
   const { userDoc, firebaseUser } = useAuthStore();
   const { drivers } = useDriversStore();
 
-  const [driverId, setDriverId] = useState("");
+  const [driverId, setDriverId] = useState(defaultDriverId ?? "");
   const [country, setCountry] = useState("us");
   const [origin, setOrigin] = useState<LocationData>(emptyLocation());
   const [dest, setDest] = useState<LocationData>(emptyLocation());
@@ -141,7 +142,7 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar }: Pr
   }
 
   function handleClose() {
-    setDriverId("");
+    setDriverId(defaultDriverId ?? "");
     setCountry("us");
     setOrigin(emptyLocation());
     setDest(emptyLocation());

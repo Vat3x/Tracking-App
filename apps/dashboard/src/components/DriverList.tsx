@@ -14,6 +14,7 @@ interface Props {
   activeDriverIds: Set<string>;
   trips: Trip[];
   onRefreshProfiles?: () => void;
+  onCreateTrip?: (driverId: string) => void;
 }
 
 function formatDist(meters: number, useMiles: boolean): string {
@@ -44,6 +45,7 @@ function OptionsMenu({
   }, [onClose]);
 
   const items = [
+    { key: "assign", label: "Assign Trip" },
     { key: "info", label: "Driver Info" },
     { key: "share", label: "Share tracking link" },
     { key: "edit", label: "Edit" },
@@ -349,6 +351,7 @@ function DriverCard({
   hasActiveTrip,
   activeTrip,
   onRefreshProfiles,
+  onCreateTrip,
 }: {
   driver: DriverLocationEntry;
   profile: User | undefined;
@@ -357,6 +360,7 @@ function DriverCard({
   hasActiveTrip: boolean;
   activeTrip: Trip | null;
   onRefreshProfiles: () => void;
+  onCreateTrip: (driverId: string) => void;
 }) {
   const { userDoc } = useAuthStore();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -368,6 +372,10 @@ function DriverCard({
 
   async function handleAction(action: string) {
     switch (action) {
+      case "assign":
+        onCreateTrip(driver.driverId);
+        break;
+
       case "info":
         setInfoOpen(true);
         break;
@@ -523,6 +531,7 @@ export default function DriverList({
   activeDriverIds,
   trips,
   onRefreshProfiles,
+  onCreateTrip,
 }: Props) {
   const onlineDrivers = drivers.filter((d) => d.current.isOnline);
 
@@ -561,6 +570,7 @@ export default function DriverList({
                 hasActiveTrip={activeDriverIds.has(driver.driverId)}
                 activeTrip={getActiveTrip(driver.driverId)}
                 onRefreshProfiles={onRefreshProfiles ?? (() => {})}
+                onCreateTrip={onCreateTrip ?? (() => {})}
               />
             ))}
           </div>
