@@ -53,6 +53,7 @@ export default function Trips() {
   const [tripModalOpen, setTripModalOpen] = useState(false);
   const [filter, setFilter] = useState<"all" | "active" | "completed" | "cancelled">("all");
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   // Subscribe to trips
   useEffect(() => {
@@ -122,9 +123,37 @@ export default function Trips() {
           >
             New Trip
           </button>
-          <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 ml-1">
-            Sign out
-          </button>
+          <div className="relative ml-1">
+            <button
+              onClick={() => setUserMenuOpen(!userMenuOpen)}
+              className="w-8 h-8 rounded-full bg-blue-600 text-white text-sm font-medium flex items-center justify-center hover:bg-blue-700 transition-colors"
+            >
+              {userDoc?.displayName?.charAt(0).toUpperCase() ?? "U"}
+            </button>
+            {userMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
+                <div className="absolute right-0 top-10 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 py-1">
+                  <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-700">
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{userDoc?.displayName}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{userDoc?.email}</p>
+                  </div>
+                  <button
+                    onClick={() => { setUserMenuOpen(false); navigate("/settings"); }}
+                    className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  >
+                    Settings
+                  </button>
+                  <button
+                    onClick={() => { setUserMenuOpen(false); handleLogout(); }}
+                    className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  >
+                    Sign out
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
