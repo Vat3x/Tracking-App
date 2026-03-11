@@ -427,43 +427,19 @@ function DriverCard({
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
-          <span>{!c.isOnline ? "Inactive" : hasActiveTrip ? "In Transit" : "Active"}</span>
+        <div className="flex items-center gap-2 text-[11px] text-gray-400 dark:text-gray-500">
+          <span className={!c.isOnline ? "text-red-400" : hasActiveTrip ? "text-yellow-500" : "text-green-500"}>
+            {!c.isOnline ? "Offline" : hasActiveTrip ? "In Transit" : "Active"}
+          </span>
+          <span>·</span>
           <span>{timeAgo(c.timestamp)}</span>
-        </div>
-        <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-gray-500 mt-1">
+          <span>·</span>
           <span>{Math.round(c.batteryLevel * 100)}%{c.isCharging ? " ⚡" : ""}</span>
-          <span>{c.speed > 0 ? `${Math.round(c.speed * 3.6)} km/h` : "Stationary"}</span>
+          <span>·</span>
+          <span>{c.speed > 0 ? `${Math.round(c.speed * 3.6)} km/h` : "Still"}</span>
         </div>
 
-        {isSelected && (
-          <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 space-y-1">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-400 dark:text-gray-500">Coordinates</span>
-              <span className="text-gray-600 dark:text-gray-300 font-mono">
-                {c.lat.toFixed(5)}, {c.lng.toFixed(5)}
-              </span>
-            </div>
-            {c.heading !== undefined && c.heading > 0 && (
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-400 dark:text-gray-500">Heading</span>
-                <span className="text-gray-600 dark:text-gray-300">{Math.round(c.heading)}°</span>
-              </div>
-            )}
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-400 dark:text-gray-500">Last update</span>
-              <span className="text-gray-600 dark:text-gray-300">
-                {new Date(c.timestamp).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-400 dark:text-gray-500">Battery</span>
-              <span className="text-gray-600 dark:text-gray-300">
-                {Math.round(c.batteryLevel * 100)}%{c.isCharging ? " (Charging)" : ""}
-              </span>
-            </div>
-
-            {activeTrip && (
+        {isSelected && activeTrip && (
               <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 space-y-1">
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs font-medium text-gray-700 dark:text-gray-200">Active Trip</span>
@@ -508,8 +484,6 @@ function DriverCard({
                   return null;
                 })()}
               </div>
-            )}
-          </div>
         )}
 
         {menuOpen && (

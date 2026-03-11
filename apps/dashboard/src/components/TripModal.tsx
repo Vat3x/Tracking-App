@@ -132,7 +132,8 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar }: Pr
       });
       toast.success("Trip created");
       handleClose();
-    } catch {
+    } catch (err) {
+      console.error("Trip creation error:", err);
       setError("Failed to create trip. Try again.");
     } finally {
       setLoading(false);

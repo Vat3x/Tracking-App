@@ -8,7 +8,7 @@ import { fetchRoute } from "@/services/routing";
 
 // Free CARTO tile styles — no API key needed
 const MAP_STYLE_LIGHT = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
-const MAP_STYLE_DARK = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+const MAP_STYLE_DARK = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
 
 const ROUTE_PICKUP_SOURCE = "route-pickup";
 const ROUTE_PICKUP_LAYER = "route-pickup-line";
