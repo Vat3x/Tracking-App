@@ -222,8 +222,8 @@ export default function MapView({
     );
 
     if (data.status === "accepted") {
-      // Accepted: yellow dashed line driver → pickup → stops → dest, green pickup marker
-      addRouteLayer(ROUTE_PICKUP_SOURCE, ROUTE_PICKUP_LAYER, data.coords, "#eab308", [2, 2]);
+      // Accepted: blue dashed line driver → pickup → stops → dest, green pickup marker
+      addRouteLayer(ROUTE_PICKUP_SOURCE, ROUTE_PICKUP_LAYER, data.coords, "#3b82f6", [2, 2]);
 
       const pickupMarker = new maplibregl.Marker({
         element: createWaypointMarker("#22c55e", data.origin.label),
