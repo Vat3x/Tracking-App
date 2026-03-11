@@ -141,17 +141,17 @@ export default function AddressSearch({
       </div>
 
       {showDropdown && suggestions.length > 0 && (
-        <ul className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+        <ul className="absolute z-50 w-full mt-1.5 bg-white dark:bg-gray-800 rounded-xl shadow-lg ring-1 ring-gray-200 dark:ring-gray-700 max-h-48 overflow-y-auto">
           {suggestions.map((s, i) => (
             <li key={i}>
               <button
                 type="button"
                 onClick={() => handleSelect(s)}
-                className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
+                className="w-full text-left px-3.5 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors first:rounded-t-xl last:rounded-b-xl"
               >
                 <span className="block truncate">{formatSuggestion(s)}</span>
                 {s.address?.postcode && (
-                  <span className="block text-xs text-gray-400 dark:text-gray-500">{s.address.postcode}</span>
+                  <span className="block text-xs text-gray-400 dark:text-gray-500 mt-0.5">{s.address.postcode}</span>
                 )}
               </button>
             </li>
