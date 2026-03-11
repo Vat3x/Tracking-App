@@ -150,6 +150,7 @@ export function setupNotificationListeners(uid: string): () => void {
             onPress: async () => {
               try {
                 await respondToTrip(data.tripId as string, "accepted");
+                router.push("/(main)/trips");
               } catch {
                 Alert.alert("Error", "Failed to accept trip.");
               }

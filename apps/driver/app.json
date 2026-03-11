@@ -15,6 +15,9 @@
     },
     "ios": {
       "supportsTablet": false,
+      "config": {
+        "googleMapsApiKey": "AIzaSyCNzAjZeOqR_1bzGHb7zZEWhiyTFKX_Ju0"
+      },
       "googleServicesFile": "./GoogleService-Info.plist",
       "bundleIdentifier": "com.nexus.tracking.driver",
       "associatedDomains": [

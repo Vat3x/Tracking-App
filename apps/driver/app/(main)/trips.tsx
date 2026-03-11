@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, Component, type ReactNode } from "react";
 import {
   View,
   Text,
@@ -8,11 +8,44 @@ import {
   Alert,
   RefreshControl,
   ActivityIndicator,
+  Linking,
+  Platform,
+  ScrollView,
 } from "react-native";
+import MapView, { Marker, Polyline, type Region } from "react-native-maps";
+import * as Location from "expo-location";
+import { useRouter } from "expo-router";
 import { useAuthStore } from "../../src/stores/auth";
 import { subscribeToDriverTrips, respondToTrip, advanceToNextStop } from "../../src/services/trips";
+import { fetchRoute, type RouteResult } from "../../src/services/routing";
+import { MAP_STYLE } from "../../src/constants/mapStyle";
 import type { Trip, TripStatus } from "@nexus/shared";
-import TripMap from "../../src/components/TripMap";
+
+// Error boundary
+class TripsErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; errorMsg: string }
+> {
+  state = { hasError: false, errorMsg: "" };
+  static getDerivedStateFromError(err: Error) {
+    return { hasError: true, errorMsg: err?.message ?? "Unknown error" };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 32 }}>
+          <Text style={{ fontSize: 16, fontWeight: "600", color: "#ef4444", marginBottom: 8 }}>
+            Something went wrong
+          </Text>
+          <Text style={{ fontSize: 13, color: "#9ca3af", textAlign: "center" }}>
+            {this.state.errorMsg}
+          </Text>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const STATUS_COLORS: Record<TripStatus, { bg: string; text: string }> = {
   pending: { bg: "#fef9c3", text: "#854d0e" },
@@ -37,16 +70,355 @@ function formatTime(ts: number): string {
   return d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function TripCard({
+function formatETA(seconds: number): string {
+  if (seconds < 60) return "< 1 min";
+  const mins = Math.round(seconds / 60);
+  if (mins < 60) return `~${mins} min`;
+  const hrs = Math.floor(mins / 60);
+  const rem = mins % 60;
+  return rem > 0 ? `~${hrs} hr ${rem} min` : `~${hrs} hr`;
+}
+
+function formatDistance(meters: number, useMiles: boolean): string {
+  if (useMiles) {
+    const miles = meters / 1609.344;
+    return miles < 0.1 ? `${Math.round(meters * 3.28084)} ft` : `${miles.toFixed(1)} mi`;
+  }
+  return meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1)} km`;
+}
+
+function handleNavigateExternal(trip: Trip) {
+  const stops = trip.stops ?? [];
+  const currentIdx = trip.currentStopIndex ?? 0;
+  let target: { lat: number; lng: number } | undefined;
+  if (trip.status === "accepted") {
+    target = trip.origin;
+  } else if (stops.length > 0 && currentIdx < stops.length) {
+    target = stops[currentIdx];
+  } else {
+    target = trip.destination;
+  }
+  if (!target) return;
+  const { lat, lng } = target;
+  const googleUrl = Platform.OS === "android"
+    ? `google.navigation:q=${lat},${lng}`
+    : `comgooglemaps://?daddr=${lat},${lng}&directionsmode=driving`;
+  const fallback = Platform.OS === "ios"
+    ? `maps:?daddr=${lat},${lng}`
+    : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  Linking.openURL(googleUrl).catch(() => Linking.openURL(fallback));
+}
+
+// ── Full-screen navigation view for active trip ──
+function ActiveTripNavView({
   trip,
   onRespond,
   onAdvanceStop,
-  showMap,
+  onShowList,
 }: {
   trip: Trip;
   onRespond: (tripId: string, status: TripStatus, extraFields?: Record<string, unknown>) => void;
   onAdvanceStop: (tripId: string, nextIndex: number) => void;
-  showMap: boolean;
+  onShowList: () => void;
+}) {
+  const mapRef = useRef<MapView>(null);
+  const [route, setRoute] = useState<RouteResult | null>(null);
+  const [routeLoading, setRouteLoading] = useState(false);
+  const [initialRegion, setInitialRegion] = useState<Region | null>(null);
+
+  const isAccepted = trip.status === "accepted";
+  const isInProgress = trip.status === "in_progress";
+  const stops = trip.stops ?? [];
+  const currentIdx = trip.currentStopIndex ?? 0;
+  const allStopsCompleted = currentIdx >= stops.length;
+  const useMiles = trip.country === "us";
+
+  // Set initial region
+  useEffect(() => {
+    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+      .then((loc) => {
+        setInitialRegion({
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        });
+      })
+      .catch(() => {
+        setInitialRegion({
+          latitude: trip.origin.lat,
+          longitude: trip.origin.lng,
+          latitudeDelta: 0.1,
+          longitudeDelta: 0.1,
+        });
+      });
+  }, []);
+
+  // Fetch route
+  const [straightLineCoords, setStraightLineCoords] = useState<{ latitude: number; longitude: number }[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadRoute() {
+      setRouteLoading(true);
+      try {
+        // Build waypoints — try to include driver location, fall back to trip points only
+        let driverCoord: [number, number] | null = null;
+        try {
+          const { status } = await Location.getForegroundPermissionsAsync();
+          if (status === "granted" && !cancelled) {
+            const loc = await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Balanced,
+            });
+            if (!cancelled) {
+              driverCoord = [loc.coords.longitude, loc.coords.latitude];
+            }
+          }
+        } catch (e) {
+          console.log("Could not get driver location for route:", e);
+        }
+
+        if (cancelled) return;
+
+        let waypoints: [number, number][] = [];
+
+        if (isAccepted) {
+          if (driverCoord) waypoints.push(driverCoord);
+          waypoints.push([trip.origin.lng, trip.origin.lat]);
+          stops.forEach((s) => waypoints.push([s.lng, s.lat]));
+          if (trip.destination) waypoints.push([trip.destination.lng, trip.destination.lat]);
+        } else {
+          // in_progress: driver → remaining stops → destination
+          if (driverCoord) waypoints.push(driverCoord);
+          stops.slice(currentIdx).forEach((s) => waypoints.push([s.lng, s.lat]));
+          if (trip.destination) waypoints.push([trip.destination.lng, trip.destination.lat]);
+        }
+
+        // Always build straight-line fallback from waypoints
+        const straightLine = waypoints.map(([lng, lat]) => ({ latitude: lat, longitude: lng }));
+        if (!cancelled) setStraightLineCoords(straightLine);
+
+        if (waypoints.length < 2) {
+          if (!cancelled) setRouteLoading(false);
+          return;
+        }
+
+        // Try OSRM road route
+        const result = await fetchRoute(waypoints);
+        if (!cancelled) {
+          setRoute(result);
+          // Fit map to either OSRM route or straight line
+          const fitCoords = result
+            ? result.coordinates.map(([lng, lat]) => ({ latitude: lat, longitude: lng }))
+            : straightLine;
+          if (fitCoords.length >= 2 && mapRef.current) {
+            setTimeout(() => {
+              mapRef.current?.fitToCoordinates(fitCoords, {
+                edgePadding: { top: 80, right: 40, bottom: 250, left: 40 },
+                animated: true,
+              });
+            }, 500);
+          }
+        }
+      } catch (e) {
+        console.error("Route fetch failed:", e);
+      } finally {
+        if (!cancelled) setRouteLoading(false);
+      }
+    }
+
+    loadRoute();
+    return () => { cancelled = true; };
+  }, [trip.id, trip.status, trip.currentStopIndex]);
+
+  // Use OSRM road route if available, otherwise straight lines between waypoints
+  const routeCoords = route?.coordinates.map(([lng, lat]) => ({
+    latitude: lat,
+    longitude: lng,
+  })) ?? [];
+
+  function getNextTargetLabel(): string {
+    if (isAccepted) return trip.origin?.label ?? "Pickup";
+    if (isInProgress && stops.length > 0 && currentIdx < stops.length) {
+      return `Stop ${currentIdx + 1}: ${stops[currentIdx]?.label ?? "Unknown"}`;
+    }
+    return trip.destination?.label ?? "Destination";
+  }
+
+  function getNextTargetType(): string {
+    if (isAccepted) return "Next: Pickup";
+    if (isInProgress && stops.length > 0 && currentIdx < stops.length) return `Next: Stop ${currentIdx + 1}`;
+    return "Next: Drop-off";
+  }
+
+  return (
+    <View style={styles.container}>
+      {/* FULL-SCREEN MAP */}
+      {initialRegion ? (
+        <MapView
+          ref={mapRef}
+          style={StyleSheet.absoluteFillObject}
+          initialRegion={initialRegion}
+          showsUserLocation
+          showsMyLocationButton={false}
+          showsTraffic
+          customMapStyle={MAP_STYLE}
+        >
+          {/* OSRM road route */}
+          {routeCoords.length > 1 && (
+            <Polyline
+              coordinates={routeCoords}
+              strokeColor="#3b82f6"
+              strokeWidth={5}
+              lineDashPattern={isAccepted ? [10, 5] : undefined}
+            />
+          )}
+          {/* Straight-line fallback if OSRM failed */}
+          {routeCoords.length <= 1 && straightLineCoords.length > 1 && (
+            <Polyline
+              coordinates={straightLineCoords}
+              strokeColor="#3b82f6"
+              strokeWidth={4}
+              lineDashPattern={[10, 8]}
+            />
+          )}
+          <Marker
+            coordinate={{ latitude: trip.origin.lat, longitude: trip.origin.lng }}
+            pinColor="#22c55e"
+            title="Pickup"
+            description={trip.origin.label}
+          />
+          {stops.map((stop, i) => {
+            const completed = isInProgress && i < currentIdx;
+            return (
+              <Marker
+                key={`stop-${i}`}
+                coordinate={{ latitude: stop.lat, longitude: stop.lng }}
+                pinColor={completed ? "#22c55e" : "#f97316"}
+                title={`Stop ${i + 1}${completed ? " (Done)" : ""}`}
+                description={stop.label}
+                opacity={completed ? 0.5 : 1}
+              />
+            );
+          })}
+          {trip.destination && (
+            <Marker
+              coordinate={{ latitude: trip.destination.lat, longitude: trip.destination.lng }}
+              pinColor="#ef4444"
+              title="Drop-off"
+              description={trip.destination.label}
+            />
+          )}
+        </MapView>
+      ) : (
+        <View style={styles.mapLoading}>
+          <ActivityIndicator size="large" color="#1a73e8" />
+        </View>
+      )}
+
+      {/* TOP OVERLAY: status + back button */}
+      <View style={styles.topOverlay}>
+        <View style={styles.navStatusOverlay}>
+          <View style={[styles.navBadge, isAccepted ? styles.badgeAccepted : styles.badgeInProgress]}>
+            <Text style={styles.navBadgeText}>
+              {isAccepted ? "ACCEPTED" : "IN PROGRESS"}
+            </Text>
+          </View>
+          <Text style={styles.navStatusTarget} numberOfLines={1}>
+            {getNextTargetLabel()}
+          </Text>
+        </View>
+        <TouchableOpacity style={styles.backToListBtn} onPress={onShowList}>
+          <Text style={styles.backToListText}>All Trips</Text>
+        </TouchableOpacity>
+      </View>
+
+      {routeLoading && (
+        <View style={styles.routeLoadingOverlay}>
+          <ActivityIndicator size="small" color="#3b82f6" />
+          <Text style={styles.routeLoadingText}>Loading route...</Text>
+        </View>
+      )}
+
+      {/* BOTTOM OVERLAY: info + actions */}
+      <View style={styles.bottomOverlay}>
+        {/* ETA / Distance row */}
+        {route && (
+          <View style={styles.navInfoCard}>
+            <View style={styles.navInfoItem}>
+              <Text style={styles.navInfoValue}>{formatETA(route.duration)}</Text>
+              <Text style={styles.navInfoLabel}>ETA</Text>
+            </View>
+            <View style={styles.navInfoDivider} />
+            <View style={styles.navInfoItem}>
+              <Text style={styles.navInfoValue}>{formatDistance(route.distance, useMiles)}</Text>
+              <Text style={styles.navInfoLabel}>Distance</Text>
+            </View>
+            {stops.length > 0 && (
+              <>
+                <View style={styles.navInfoDivider} />
+                <View style={styles.navInfoItem}>
+                  <Text style={styles.navInfoValue}>{Math.min(currentIdx, stops.length)}/{stops.length}</Text>
+                  <Text style={styles.navInfoLabel}>Stops</Text>
+                </View>
+              </>
+            )}
+          </View>
+        )}
+
+        {/* Next target label */}
+        <View style={styles.nextTargetRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.navTargetType}>{getNextTargetType()}</Text>
+            <Text style={styles.navTargetName} numberOfLines={1}>{getNextTargetLabel()}</Text>
+          </View>
+          <TouchableOpacity style={styles.gmapsBtn} onPress={() => handleNavigateExternal(trip)}>
+            <Text style={styles.gmapsBtnText}>Google Maps</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Action button */}
+        {isAccepted && (
+          <TouchableOpacity
+            style={[styles.navActionBtn, { backgroundColor: "#3b82f6" }]}
+            onPress={() => onRespond(trip.id, "in_progress", { currentStopIndex: 0 })}
+          >
+            <Text style={styles.navActionBtnText}>Start Trip</Text>
+          </TouchableOpacity>
+        )}
+        {isInProgress && !allStopsCompleted && stops.length > 0 && (
+          <TouchableOpacity
+            style={[styles.navActionBtn, { backgroundColor: "#f97316" }]}
+            onPress={() => onAdvanceStop(trip.id, currentIdx + 1)}
+          >
+            <Text style={styles.navActionBtnText}>Arrived at Stop {currentIdx + 1}</Text>
+          </TouchableOpacity>
+        )}
+        {isInProgress && (allStopsCompleted || stops.length === 0) && (
+          <TouchableOpacity
+            style={[styles.navActionBtn, { backgroundColor: "#16a34a" }]}
+            onPress={() => onRespond(trip.id, "completed")}
+          >
+            <Text style={styles.navActionBtnText}>Complete Trip</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+}
+
+// ── Trip card for list view ──
+function TripCard({
+  trip,
+  onRespond,
+  onAdvanceStop,
+  onShowDirections,
+}: {
+  trip: Trip;
+  onRespond: (tripId: string, status: TripStatus, extraFields?: Record<string, unknown>) => void;
+  onAdvanceStop: (tripId: string, nextIndex: number) => void;
+  onShowDirections?: () => void;
 }) {
   const statusColor = STATUS_COLORS[trip.status];
   const stops = trip.stops ?? [];
@@ -57,7 +429,6 @@ function TripCard({
 
   return (
     <View style={styles.card}>
-      {/* Header */}
       <View style={styles.cardHeader}>
         <View style={[styles.badge, { backgroundColor: statusColor.bg }]}>
           <Text style={[styles.badgeText, { color: statusColor.text }]}>
@@ -67,19 +438,17 @@ function TripCard({
         <Text style={styles.time}>{formatTime(trip.createdAt)}</Text>
       </View>
 
-      {/* Route */}
       <View style={styles.route}>
         <View style={styles.routePoint}>
           <View style={[styles.dot, { backgroundColor: "#22c55e" }]} />
           <View style={styles.routeInfo}>
             <Text style={styles.routeLabel}>Pickup</Text>
             <Text style={styles.routeName}>
-              {trip.origin.label}
-              {trip.origin.zipCode ? ` (${trip.origin.zipCode})` : ""}
+              {trip.origin?.label ?? "Unknown"}
+              {trip.origin?.zipCode ? ` (${trip.origin.zipCode})` : ""}
             </Text>
           </View>
         </View>
-        {/* Intermediate stops with progress indicators */}
         {stops.map((stop, i) => {
           const isCompleted = isInProgress && i < currentIdx;
           const isCurrent = isInProgress && i === currentIdx;
@@ -96,8 +465,8 @@ function TripCard({
                     Stop {i + 1}{isCompleted ? " (Done)" : isCurrent ? " (Next)" : ""}
                   </Text>
                   <Text style={[styles.routeName, isCompleted && styles.completedStopText]}>
-                    {stop.label}
-                    {stop.zipCode ? ` (${stop.zipCode})` : ""}
+                    {stop?.label ?? "Unknown"}
+                    {stop?.zipCode ? ` (${stop.zipCode})` : ""}
                   </Text>
                 </View>
               </View>
@@ -121,9 +490,11 @@ function TripCard({
         )}
       </View>
 
-      {/* Inline Map with Route + ETA — only for the first active trip */}
-      {showMap && (trip.status === "accepted" || trip.status === "in_progress") && (
-        <TripMap trip={trip} />
+      {/* Directions button for active trips */}
+      {(trip.status === "accepted" || trip.status === "in_progress") && onShowDirections && (
+        <TouchableOpacity style={styles.directionsBtn} onPress={onShowDirections}>
+          <Text style={styles.directionsBtnText}>Directions</Text>
+        </TouchableOpacity>
       )}
 
       {/* Actions */}
@@ -180,24 +551,48 @@ function TripCard({
   );
 }
 
-export default function TripsScreen() {
+export default function TripsScreenWrapper() {
+  return (
+    <TripsErrorBoundary>
+      <TripsScreen />
+    </TripsErrorBoundary>
+  );
+}
+
+function TripsScreen() {
+  const router = useRouter();
   const { userDoc, firebaseUser } = useAuthStore();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [showList, setShowList] = useState(false);
 
   useEffect(() => {
     if (!firebaseUser?.uid) return;
-    return subscribeToDriverTrips(firebaseUser.uid, (newTrips) => {
-      setTrips(newTrips);
+    try {
+      return subscribeToDriverTrips(firebaseUser.uid, (newTrips) => {
+        try {
+          setTrips(newTrips);
+          setInitialLoading(false);
+        } catch (err) {
+          console.error("Trips setState error:", err);
+          setInitialLoading(false);
+        }
+      });
+    } catch (err) {
+      console.error("Trips subscription error:", err);
       setInitialLoading(false);
-    });
+      return undefined;
+    }
   }, [firebaseUser?.uid]);
 
-  // Only show active trips — past trips are in the History tab
   const activeTrips = trips.filter((t) =>
     ["pending", "accepted", "in_progress"].includes(t.status)
   );
+
+  const activeTrip = activeTrips.find(
+    (t) => t.status === "accepted" || t.status === "in_progress"
+  ) ?? null;
 
   async function handleRespond(tripId: string, status: TripStatus, extraFields?: Record<string, unknown>) {
     const labels: Record<string, string> = {
@@ -217,6 +612,9 @@ export default function TripsScreen() {
           onPress: async () => {
             try {
               await respondToTrip(tripId, status, extraFields);
+              if (status === "accepted") {
+                setShowList(false); // switch to nav view
+              }
             } catch {
               Alert.alert("Error", "Failed to update trip. Try again.");
             }
@@ -251,12 +649,19 @@ export default function TripsScreen() {
     setTimeout(() => setRefreshing(false), 500);
   }
 
-  // Only render map for the first trip that needs one (avoid multiple MapView instances)
-  const mapTripId = activeTrips.find(
-    (t) => t.status === "accepted" || t.status === "in_progress"
-  )?.id;
-
   const hasCompany = !!userDoc?.companyId;
+
+  // Show full-screen nav view if there's an active trip and user hasn't chosen to see list
+  if (!initialLoading && activeTrip && !showList) {
+    return (
+      <ActiveTripNavView
+        trip={activeTrip}
+        onRespond={handleRespond}
+        onAdvanceStop={handleAdvanceStop}
+        onShowList={() => setShowList(true)}
+      />
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -286,7 +691,11 @@ export default function TripsScreen() {
               trip={item}
               onRespond={handleRespond}
               onAdvanceStop={handleAdvanceStop}
-              showMap={item.id === mapTripId}
+              onShowDirections={
+                item.status === "accepted" || item.status === "in_progress"
+                  ? () => setShowList(false)
+                  : undefined
+              }
             />
           )}
           contentContainerStyle={styles.list}
@@ -295,9 +704,16 @@ export default function TripsScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
           ListHeaderComponent={
-            <Text style={styles.sectionTitle}>
-              Active ({activeTrips.length})
-            </Text>
+            <View style={styles.listHeader}>
+              <Text style={styles.sectionTitle}>
+                Active ({activeTrips.length})
+              </Text>
+              {activeTrip && (
+                <TouchableOpacity onPress={() => setShowList(false)}>
+                  <Text style={styles.viewMapLink}>View Map</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           }
           ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         />
@@ -314,13 +730,23 @@ const styles = StyleSheet.create({
   list: {
     padding: 16,
   },
+  listHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
   sectionTitle: {
     fontSize: 13,
     fontWeight: "600",
     color: "#6b7280",
     textTransform: "uppercase",
     letterSpacing: 0.5,
-    marginBottom: 10,
+  },
+  viewMapLink: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#3b82f6",
   },
   card: {
     backgroundColor: "#f9fafb",
@@ -396,64 +822,212 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
   },
-  acceptBtn: {
-    backgroundColor: "#22c55e",
-  },
-  acceptBtnText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  rejectBtn: {
-    backgroundColor: "#f3f4f6",
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-  },
-  rejectBtnText: {
-    color: "#6b7280",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  startBtn: {
-    backgroundColor: "#3b82f6",
-  },
-  startBtnText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  arrivedBtn: {
-    backgroundColor: "#f97316",
-  },
-  arrivedBtnText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  completeBtn: {
-    backgroundColor: "#16a34a",
-  },
-  completeBtnText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 14,
-  },
+  acceptBtn: { backgroundColor: "#22c55e" },
+  acceptBtnText: { color: "#fff", fontWeight: "600", fontSize: 14 },
+  rejectBtn: { backgroundColor: "#f3f4f6", borderWidth: 1, borderColor: "#e5e7eb" },
+  rejectBtnText: { color: "#6b7280", fontWeight: "600", fontSize: 14 },
+  startBtn: { backgroundColor: "#3b82f6" },
+  startBtnText: { color: "#fff", fontWeight: "600", fontSize: 14 },
+  arrivedBtn: { backgroundColor: "#f97316" },
+  arrivedBtnText: { color: "#fff", fontWeight: "600", fontSize: 14 },
+  completeBtn: { backgroundColor: "#16a34a" },
+  completeBtnText: { color: "#fff", fontWeight: "600", fontSize: 14 },
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 32,
   },
-  emptyTitle: {
-    fontSize: 16,
+  emptyTitle: { fontSize: 16, fontWeight: "600", color: "#1a1a1a", marginBottom: 8 },
+  emptyText: { fontSize: 14, color: "#9ca3af", textAlign: "center", lineHeight: 20 },
+
+  // ── Nav view styles (full-screen map + overlays) ──
+  mapLoading: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f5f5f5",
+  },
+  topOverlay: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    right: 16,
+    flexDirection: "row",
+    gap: 8,
+  },
+  navStatusOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  navBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  badgeAccepted: { backgroundColor: "#dbeafe" },
+  badgeInProgress: { backgroundColor: "#e0e7ff" },
+  navBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    color: "#3730a3",
+  },
+  navStatusTarget: {
+    flex: 1,
+    fontSize: 14,
     fontWeight: "600",
     color: "#1a1a1a",
+  },
+  backToListBtn: {
+    backgroundColor: "rgba(255,255,255,0.95)",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  backToListText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#3b82f6",
+  },
+  routeLoadingOverlay: {
+    position: "absolute",
+    top: 70,
+    alignSelf: "center",
+    backgroundColor: "rgba(255,255,255,0.9)",
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  routeLoadingText: {
+    fontSize: 12,
+    color: "#6b7280",
+  },
+  bottomOverlay: {
+    position: "absolute",
+    bottom: 24,
+    left: 16,
+    right: 16,
+    gap: 8,
+  },
+  navInfoCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.95)",
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  navInfoItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  navInfoValue: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1a1a1a",
+  },
+  navInfoLabel: {
+    fontSize: 10,
+    color: "#6b7280",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginTop: 1,
+  },
+  navInfoDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: "#e5e7eb",
+  },
+  nextTargetRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.95)",
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    gap: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  navTargetType: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#6b7280",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  navTargetName: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1a1a1a",
+  },
+  gmapsBtn: {
+    backgroundColor: "#fff",
+    borderWidth: 1.5,
+    borderColor: "#3b82f6",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  gmapsBtnText: {
+    color: "#3b82f6",
+    fontWeight: "700",
+    fontSize: 12,
+  },
+  navActionBtn: {
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  navActionBtnText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  directionsBtn: {
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: "center",
+    backgroundColor: "#3b82f6",
     marginBottom: 8,
   },
-  emptyText: {
+  directionsBtnText: {
+    color: "#fff",
+    fontWeight: "600",
     fontSize: 14,
-    color: "#9ca3af",
-    textAlign: "center",
-    lineHeight: 20,
   },
 });

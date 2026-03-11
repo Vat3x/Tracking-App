@@ -23,11 +23,13 @@ import {
   getCurrentLocation,
 } from "../../src/services/location";
 import { updateDriverLocation, markDriverOffline } from "../../src/services/tracking";
+import { subscribeToDriverTrips } from "../../src/services/trips";
 import { MAP_STYLE } from "../../src/constants/mapStyle";
 import { timeAgo } from "@nexus/shared";
+import type { Trip } from "@nexus/shared";
 
 export default function HomeScreen() {
-  const { userDoc } = useAuthStore();
+  const { userDoc, firebaseUser } = useAuthStore();
   const {
     isOnline,
     lastSync,
@@ -42,6 +44,7 @@ export default function HomeScreen() {
   const mapRef = useRef<MapView>(null);
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
   const [initialRegion, setInitialRegion] = useState<Region | null>(null);
+  const [trips, setTrips] = useState<Trip[]>([]);
 
   // Sync identity to tracking store when user doc changes
   useEffect(() => {
@@ -49,6 +52,12 @@ export default function HomeScreen() {
       setIdentity(userDoc.companyId, userDoc.id);
     }
   }, [userDoc, setIdentity]);
+
+  // Subscribe to driver trips (for stats)
+  useEffect(() => {
+    if (!firebaseUser?.uid) return;
+    return subscribeToDriverTrips(firebaseUser.uid, setTrips);
+  }, [firebaseUser?.uid]);
 
   // Set initial map region from current location
   useEffect(() => {
@@ -168,9 +177,14 @@ export default function HomeScreen() {
 
   const hasCompany = !!userDoc?.companyId;
 
+  // Trip stats
+  const completedTrips = trips.filter((t) => t.status === "completed").length;
+  const activeTrip = trips.find((t) => t.status === "accepted" || t.status === "in_progress") ?? null;
+  const pendingTrips = trips.filter((t) => t.status === "pending").length;
+
   return (
     <View style={styles.container}>
-      {/* MAP — 70% of screen */}
+      {/* MAP (~40%) */}
       <View style={styles.mapContainer}>
         {initialRegion ? (
           <MapView
@@ -210,7 +224,7 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* BOTTOM PANEL — 30% of screen */}
+      {/* BOTTOM PANEL (~60%) */}
       <ScrollView style={styles.bottomPanel} contentContainerStyle={{ paddingBottom: 20 }}>
         {/* Online/Offline Toggle */}
         <View style={[styles.statusRow, isOnline && styles.statusRowOnline]}>
@@ -256,6 +270,56 @@ export default function HomeScreen() {
                 {lastSync.speed > 0 ? `${Math.round(lastSync.speed * 3.6)} km/h` : "Still"}
               </Text>
             </View>
+          </View>
+        )}
+
+        {/* Location */}
+        {isOnline && locationLabel && (
+          <View style={styles.locationCard}>
+            <Text style={styles.locationIcon}>📍</Text>
+            <Text style={styles.locationText}>{locationLabel}</Text>
+          </View>
+        )}
+
+        {/* Trip Stats */}
+        {hasCompany && (
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{completedTrips}</Text>
+              <Text style={styles.statLabel}>Completed</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, activeTrip ? { color: "#3b82f6" } : {}]}>
+                {activeTrip ? "1" : "0"}
+              </Text>
+              <Text style={styles.statLabel}>Active</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, pendingTrips > 0 ? { color: "#f59e0b" } : {}]}>
+                {pendingTrips}
+              </Text>
+              <Text style={styles.statLabel}>Pending</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Active trip indicator */}
+        {activeTrip && (
+          <View style={styles.activeTripCard}>
+            <View style={styles.activeTripHeader}>
+              <View style={[styles.activeTripBadge, activeTrip.status === "accepted" ? styles.badgeAccepted : styles.badgeInProgress]}>
+                <Text style={styles.activeTripBadgeText}>
+                  {activeTrip.status === "accepted" ? "ACCEPTED" : "IN PROGRESS"}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.activeTripLabel}>
+              {activeTrip.origin?.label ?? "Pickup"}
+              {activeTrip.destination ? ` → ${activeTrip.destination.label ?? "Drop-off"}` : ""}
+            </Text>
+            <Text style={styles.activeTripHint}>Open Trips tab to manage</Text>
           </View>
         )}
 
@@ -305,7 +369,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   mapContainer: {
-    flex: 7,
+    flex: 1.5,
   },
   mapLoading: {
     flex: 1,
@@ -342,8 +406,10 @@ const styles = StyleSheet.create({
     color: "#f59e0b",
     fontWeight: "500",
   },
+
+  // Bottom panel
   bottomPanel: {
-    flex: 3,
+    flex: 8.5,
     paddingHorizontal: 16,
     paddingTop: 12,
   },
@@ -398,6 +464,105 @@ const styles = StyleSheet.create({
     color: "#1a1a1a",
     marginTop: 2,
   },
+
+  // Location card
+  locationCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f9fafb",
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#f0f0f0",
+    marginBottom: 10,
+    gap: 8,
+  },
+  locationIcon: {
+    fontSize: 14,
+  },
+  locationText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#374151",
+    flex: 1,
+  },
+
+  // Trip stats
+  statsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f9fafb",
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#f0f0f0",
+    marginBottom: 10,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1a1a1a",
+  },
+  statLabel: {
+    fontSize: 10,
+    color: "#9ca3af",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
+  statDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: "#e5e7eb",
+  },
+
+  // Active trip card
+  activeTripCard: {
+    backgroundColor: "#eff6ff",
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+    marginBottom: 10,
+  },
+  activeTripHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  activeTripBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  badgeAccepted: {
+    backgroundColor: "#dbeafe",
+  },
+  badgeInProgress: {
+    backgroundColor: "#e0e7ff",
+  },
+  activeTripBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    color: "#3730a3",
+  },
+  activeTripLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1e40af",
+    marginBottom: 4,
+  },
+  activeTripHint: {
+    fontSize: 11,
+    color: "#6b7280",
+  },
+
+  // Warning cards
   warningCard: {
     backgroundColor: "#fffbeb",
     borderRadius: 12,

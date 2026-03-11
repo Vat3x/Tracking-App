@@ -6,6 +6,7 @@ import { getCompanyDrivers } from "@/services/drivers";
 import { subscribeToCompanyLocations } from "@/services/locations";
 import TripModal from "@/components/TripModal";
 import EditTripModal from "@/components/EditTripModal";
+import { useTripNotifications } from "@/hooks/useTripNotifications";
 import { useNavigate } from "react-router-dom";
 import { logout } from "@/services/auth";
 import { toast } from "sonner";
@@ -54,6 +55,9 @@ export default function Trips() {
   const [filter, setFilter] = useState<"all" | "active" | "completed" | "cancelled">("all");
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  // Toast notifications for trip status changes
+  useTripNotifications(trips, driverProfiles);
 
   // Subscribe to trips
   useEffect(() => {

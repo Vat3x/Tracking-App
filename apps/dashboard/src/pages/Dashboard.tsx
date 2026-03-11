@@ -11,6 +11,7 @@ import TripModal from "@/components/TripModal";
 import EditTripModal from "@/components/EditTripModal";
 import MapView from "@/components/MapView";
 import DriverList from "@/components/DriverList";
+import { useTripNotifications } from "@/hooks/useTripNotifications";
 import { useNavigate } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/services/firebase";
@@ -53,6 +54,9 @@ export default function Dashboard() {
   const [tripFilter, setTripFilter] = useState<"active" | "completed" | "cancelled">("active");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [tripFormDriverId, setTripFormDriverId] = useState<string | undefined>();
+
+  // Toast notifications for trip status changes
+  useTripNotifications(trips, driverProfiles);
 
   // Fetch company name
   useEffect(() => {
