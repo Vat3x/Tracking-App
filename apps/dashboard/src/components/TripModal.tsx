@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { createTrip } from "@/services/trips";
 import { useAuthStore } from "@/stores/auth";
 import { useDriversStore } from "@/stores/drivers";
@@ -35,6 +35,29 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar, defa
   const [stops, setStops] = useState<LocationData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Auto-detect country from driver's GPS location
+  useEffect(() => {
+    if (!driverId) return;
+    const driverLoc = drivers.find((d) => d.driverId === driverId);
+    if (!driverLoc) return;
+
+    const { lat, lng } = driverLoc.current;
+    let cancelled = false;
+
+    fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=3`,
+      { headers: { "User-Agent": "LoadMindTracker/1.0" } }
+    )
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (cancelled || !data?.address?.country_code) return;
+        setCountry(data.address.country_code);
+      })
+      .catch(() => {});
+
+    return () => { cancelled = true; };
+  }, [driverId, drivers]);
 
   function handleLocationSelect(
     setter: React.Dispatch<React.SetStateAction<LocationData>>,
