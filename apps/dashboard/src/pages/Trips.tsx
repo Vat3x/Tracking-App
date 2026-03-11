@@ -51,7 +51,7 @@ export default function Trips() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [driverProfiles, setDriverProfiles] = useState<Map<string, User>>(new Map());
   const [tripModalOpen, setTripModalOpen] = useState(false);
-  const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
+  const [filter, setFilter] = useState<"all" | "active" | "completed" | "cancelled">("all");
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
 
   // Subscribe to trips
@@ -90,7 +90,8 @@ export default function Trips() {
 
   const filteredTrips = trips.filter((t) => {
     if (filter === "active") return ["pending", "accepted", "in_progress"].includes(t.status);
-    if (filter === "completed") return ["completed", "rejected", "cancelled"].includes(t.status);
+    if (filter === "completed") return t.status === "completed";
+    if (filter === "cancelled") return ["cancelled", "rejected"].includes(t.status);
     return true;
   });
 
@@ -132,7 +133,7 @@ export default function Trips() {
         <div className="max-w-4xl mx-auto">
           {/* Filter tabs */}
           <div className="flex items-center gap-1 mb-4">
-            {(["all", "active", "completed"] as const).map((f) => (
+            {(["all", "active", "completed", "cancelled"] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}

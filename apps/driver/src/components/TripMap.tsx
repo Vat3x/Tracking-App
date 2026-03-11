@@ -199,6 +199,7 @@ function TripMapInner({ trip }: Props) {
         rotateEnabled={false}
         liteMode={Platform.OS === "android"}
         loadingEnabled
+        showsTraffic
         customMapStyle={MAP_STYLE}
       >
         <Polyline

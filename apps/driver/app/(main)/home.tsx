@@ -179,6 +179,7 @@ export default function HomeScreen() {
             initialRegion={initialRegion}
             showsUserLocation
             showsMyLocationButton
+            showsTraffic
             customMapStyle={MAP_STYLE}
           >
             {lastSync && (

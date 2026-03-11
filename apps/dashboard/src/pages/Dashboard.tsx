@@ -261,20 +261,22 @@ export default function Dashboard() {
                     </button>
                   </div>
                 ) : (
-                  <div className="divide-y divide-gray-50 dark:divide-gray-700">
-                    {trips.map((trip) => {
+                  (() => {
+                    const activeTrips = trips.filter((t) => ["pending", "accepted", "in_progress"].includes(t.status));
+                    const completedTrips = trips.filter((t) => t.status === "completed");
+                    const cancelledTrips = trips.filter((t) => ["cancelled", "rejected"].includes(t.status));
+                    const statusColors: Record<TripStatus, string> = {
+                      pending: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+                      accepted: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+                      rejected: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+                      in_progress: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
+                      completed: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+                      cancelled: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+                    };
+                    const renderTrip = (trip: typeof trips[0], showActions: boolean) => {
                       const driverName =
                         driverProfiles.get(trip.driverId ?? "")?.displayName ??
                         (trip.driverId ? `Driver ${trip.driverId.slice(0, 6)}` : "Unassigned");
-                      const statusColors: Record<TripStatus, string> = {
-                        pending: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-                        accepted: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-                        rejected: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-                        in_progress: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
-                        completed: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-                        cancelled: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-                      };
-                      const isActive = ["pending", "accepted", "in_progress"].includes(trip.status);
                       return (
                         <div key={trip.id} className="px-4 py-3">
                           <div className="flex items-center gap-2 mb-1">
@@ -294,7 +296,7 @@ export default function Dashboard() {
                               </>
                             )}
                           </div>
-                          {isActive && (
+                          {showActions && (
                             <div className="flex items-center gap-3 mt-1">
                               <button
                                 onClick={() => setEditingTrip(trip)}
@@ -320,8 +322,42 @@ export default function Dashboard() {
                           )}
                         </div>
                       );
-                    })}
-                  </div>
+                    };
+                    return (
+                      <div>
+                        {activeTrips.length > 0 && (
+                          <div>
+                            <div className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-green-600 dark:text-green-400 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700">
+                              Active ({activeTrips.length})
+                            </div>
+                            <div className="divide-y divide-gray-50 dark:divide-gray-700">
+                              {activeTrips.map((t) => renderTrip(t, true))}
+                            </div>
+                          </div>
+                        )}
+                        {completedTrips.length > 0 && (
+                          <div>
+                            <div className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700">
+                              Completed ({completedTrips.length})
+                            </div>
+                            <div className="divide-y divide-gray-50 dark:divide-gray-700">
+                              {completedTrips.map((t) => renderTrip(t, false))}
+                            </div>
+                          </div>
+                        )}
+                        {cancelledTrips.length > 0 && (
+                          <div>
+                            <div className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-red-500 dark:text-red-400 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700">
+                              Cancelled ({cancelledTrips.length})
+                            </div>
+                            <div className="divide-y divide-gray-50 dark:divide-gray-700">
+                              {cancelledTrips.map((t) => renderTrip(t, false))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()
                 )}
               </div>
 
