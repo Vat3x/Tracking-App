@@ -227,12 +227,12 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar }: Pr
           <fieldset className="space-y-1.5 border-l-2 border-green-400 pl-3">
             <legend className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-green-600 dark:text-green-400">
               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 0 0-8 8c0 5.4 7.05 11.5 7.35 11.76a1 1 0 0 0 1.3 0C13 21.5 20 15.4 20 10a8 8 0 0 0-8-8z"/></svg>
-              Origin
+              Pickup
             </legend>
             <AddressSearch
               value={origin.search}
               country={country}
-              placeholder="Search address, street, city, or zip..."
+              placeholder="Where should the driver pick up?"
               onChange={(v) => setOrigin((prev) => ({ ...prev, search: v }))}
               onSelect={(r) => handleLocationSelect(setOrigin, r)}
               className={inputCls}
@@ -264,7 +264,7 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar }: Pr
               <AddressSearch
                 value={stop.search}
                 country={country}
-                placeholder={`Search stop ${i + 1} location...`}
+                placeholder={`Stop ${i + 1} address...`}
                 onChange={(v) =>
                   setStops((prev) => prev.map((s, j) => (j === i ? { ...s, search: v } : s)))
                 }
@@ -293,12 +293,12 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar }: Pr
           <fieldset className="space-y-1.5 border-l-2 border-red-400 pl-3">
             <legend className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-red-500 dark:text-red-400">
               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-              Destination <span className="text-[10px] font-normal normal-case tracking-normal text-gray-400 dark:text-gray-500">(optional)</span>
+              Drop-off <span className="text-[10px] font-normal normal-case tracking-normal text-gray-400 dark:text-gray-500">(optional)</span>
             </legend>
             <AddressSearch
               value={dest.search}
               country={country}
-              placeholder="Search address, street, city, or zip..."
+              placeholder="Where should the driver deliver?"
               onChange={(v) => setDest((prev) => ({ ...prev, search: v }))}
               onSelect={(r) => handleLocationSelect(setDest, r)}
               className={inputCls}
