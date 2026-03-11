@@ -119,7 +119,7 @@ export default function Trips() {
           <ThemeToggle />
           <button
             onClick={() => setTripModalOpen(true)}
-            className="h-8 px-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            className="h-8 px-3 border border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 text-sm font-medium rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
           >
             New Trip
           </button>
