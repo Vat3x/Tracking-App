@@ -245,6 +245,7 @@ export default function Dashboard() {
         {/* New Trip slide-over panel */}
         {tripFormOpen && (
           <TripModal
+            key={tripFormDriverId ?? "new"}
             open={tripFormOpen}
             onClose={() => { setTripFormOpen(false); setTripFormDriverId(undefined); }}
             driverProfiles={driverProfiles}
