@@ -27,6 +27,7 @@ import { subscribeToDriverTrips } from "../../src/services/trips";
 import { MAP_STYLE } from "../../src/constants/mapStyle";
 import { timeAgo } from "@nexus/shared";
 import type { Trip } from "@nexus/shared";
+import { Logo } from "../../src/components/Logo";
 
 export default function HomeScreen() {
   const { userDoc, firebaseUser } = useAuthStore();
@@ -212,9 +213,12 @@ export default function HomeScreen() {
 
         {/* Greeting overlay */}
         <View style={styles.greetingOverlay}>
-          <Text style={styles.greetingText}>
-            Hello, {userDoc?.displayName ?? "Driver"}
-          </Text>
+          <View style={styles.greetingRow}>
+            <Logo size={28} />
+            <Text style={styles.greetingText}>
+              Hello, {userDoc?.displayName ?? "Driver"}
+            </Text>
+          </View>
           {hasCompany && (
             <Text style={styles.connectedText}>Connected</Text>
           )}
@@ -390,6 +394,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  greetingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   greetingText: {
     fontSize: 16,

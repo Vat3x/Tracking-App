@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -11,6 +11,7 @@ import {
   checkInitialNotification,
 } from "../src/services/notifications";
 import { startNetworkListener } from "../src/services/offlineQueue";
+import { SplashScreen } from "../src/components/SplashScreen";
 
 const queryClient = new QueryClient();
 
@@ -113,10 +114,13 @@ function AuthGate() {
 }
 
 export default function RootLayout() {
+  const [showSplash, setShowSplash] = useState(true);
+
   return (
     <QueryClientProvider client={queryClient}>
       <StatusBar style="auto" />
       <AuthGate />
+      {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
     </QueryClientProvider>
   );
 }

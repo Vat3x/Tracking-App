@@ -108,7 +108,7 @@ function DriverInfoModal({
             </div>
             <div>
               <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{name}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{profile?.email ?? "—"}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{profile?.email ?? profile?.phone ?? "—"}</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2">

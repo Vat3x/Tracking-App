@@ -52,8 +52,8 @@ export default function SettingsScreen() {
         </View>
         <View style={styles.divider} />
         <View style={styles.row}>
-          <Text style={styles.label}>Email</Text>
-          <Text style={styles.value}>{userDoc?.email ?? "—"}</Text>
+          <Text style={styles.label}>{userDoc?.email ? "Email" : "Phone"}</Text>
+          <Text style={styles.value}>{userDoc?.email ?? userDoc?.phone ?? "—"}</Text>
         </View>
       </View>
 
