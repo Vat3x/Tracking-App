@@ -61,7 +61,8 @@ export default function EditTripModal({ trip, driverProfile, onClose }: Props) {
   ) {
     setter((prev) => ({
       ...prev,
-      label: prev.search.trim() || result.label,
+      search: result.label,
+      label: result.label,
       lat: result.lat,
       lng: result.lng,
       zipCode: result.zipCode,
@@ -72,7 +73,7 @@ export default function EditTripModal({ trip, driverProfile, onClose }: Props) {
     setStops((prev) =>
       prev.map((s, i) =>
         i === index
-          ? { ...s, label: s.search.trim() || result.label, lat: result.lat, lng: result.lng, zipCode: result.zipCode }
+          ? { ...s, search: result.label, label: result.label, lat: result.lat, lng: result.lng, zipCode: result.zipCode }
           : s
       )
     );

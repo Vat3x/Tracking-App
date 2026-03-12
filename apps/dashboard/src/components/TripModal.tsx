@@ -63,10 +63,10 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar, defa
     setter: React.Dispatch<React.SetStateAction<LocationData>>,
     result: AddressResult
   ) {
-    // Keep user's typed text as search/label, only fill coordinates
     setter((prev) => ({
       ...prev,
-      label: prev.search.trim() || result.label,
+      search: result.label,
+      label: result.label,
       lat: result.lat,
       lng: result.lng,
       zipCode: result.zipCode,
@@ -77,7 +77,7 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar, defa
     setStops((prev) =>
       prev.map((s, i) =>
         i === index
-          ? { ...s, label: s.search.trim() || result.label, lat: result.lat, lng: result.lng, zipCode: result.zipCode }
+          ? { ...s, search: result.label, label: result.label, lat: result.lat, lng: result.lng, zipCode: result.zipCode }
           : s
       )
     );

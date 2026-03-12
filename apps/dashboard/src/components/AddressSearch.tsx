@@ -111,10 +111,11 @@ export default function AddressSearch({
   function handleSelect(result: NominatimResult) {
     setShowDropdown(false);
     setSuggestions([]);
-    // Don't replace user's typed text — keep it as the label
-    // Only pass coordinates back so the parent sets lat/lng
+    const label = extractLabel(result);
+    // Update the input text to show the selected address
+    onChange(label);
     onSelect({
-      label: value.trim() || extractLabel(result),
+      label,
       lat: parseFloat(result.lat),
       lng: parseFloat(result.lon),
       zipCode: result.address?.postcode,
