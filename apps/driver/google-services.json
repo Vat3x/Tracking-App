@@ -15,6 +15,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "463711773961-5ocobj9pcbtuaquk2arh4oeltmsit61e.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.nexus.tracking.driver",
+            "certificate_hash": "43fd655d978389836ded19041dfab51be68d1da5"
+          }
+        },
+        {
           "client_id": "463711773961-jroe7ak3abns20jeussd83e6lt9crqt3.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
