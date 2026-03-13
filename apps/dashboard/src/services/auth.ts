@@ -4,6 +4,7 @@ import {
   signOut,
   onAuthStateChanged,
   deleteUser,
+  sendEmailVerification,
   type User as FirebaseUser,
 } from "firebase/auth";
 import {
@@ -60,6 +61,9 @@ export async function registerDispatcher(
     };
     await setDoc(doc(db, COLLECTIONS.USERS, uid), userData);
 
+    // 6. Send verification email
+    await sendEmailVerification(credential.user);
+
     return { user: credential.user, companyId };
   } catch (err) {
     // Clean up auth user so the email isn't stuck in a broken state
@@ -79,6 +83,14 @@ export async function loginWithEmail(
 export async function logout(): Promise<void> {
   await signOut(auth);
 }
+
+export async function resendVerificationEmail(): Promise<void> {
+  if (auth.currentUser) {
+    await sendEmailVerification(auth.currentUser);
+  }
+}
+
+export { auth };
 
 export async function getUserDoc(uid: string): Promise<User | null> {
   const snap = await getDoc(doc(db, COLLECTIONS.USERS, uid));

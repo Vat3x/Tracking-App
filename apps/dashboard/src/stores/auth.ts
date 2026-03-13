@@ -2,10 +2,10 @@ import { create } from "zustand";
 import type { User } from "@nexus/shared";
 
 interface AuthState {
-  firebaseUser: { uid: string; email: string | null } | null;
+  firebaseUser: { uid: string; email: string | null; emailVerified: boolean } | null;
   userDoc: User | null;
   loading: boolean;
-  setFirebaseUser: (user: { uid: string; email: string | null } | null) => void;
+  setFirebaseUser: (user: { uid: string; email: string | null; emailVerified: boolean } | null) => void;
   setUserDoc: (doc: User | null) => void;
   setLoading: (loading: boolean) => void;
   reset: () => void;

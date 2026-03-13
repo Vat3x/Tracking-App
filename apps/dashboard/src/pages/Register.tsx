@@ -40,9 +40,9 @@ export default function Register() {
       );
       const userDoc = await getUserDoc(user.uid);
 
-      setFirebaseUser({ uid: user.uid, email: user.email });
+      setFirebaseUser({ uid: user.uid, email: user.email, emailVerified: false });
       setUserDoc(userDoc);
-      navigate("/");
+      navigate("/verify-email");
     } catch (err: any) {
       if (err.code === "auth/email-already-in-use") {
         setError("An account with this email already exists.");

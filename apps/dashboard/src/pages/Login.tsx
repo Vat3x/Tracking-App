@@ -27,9 +27,9 @@ export default function Login() {
         return;
       }
 
-      setFirebaseUser({ uid: user.uid, email: user.email });
+      setFirebaseUser({ uid: user.uid, email: user.email, emailVerified: user.emailVerified });
       setUserDoc(userDoc);
-      navigate("/");
+      navigate(user.emailVerified ? "/" : "/verify-email");
     } catch (err: any) {
       if (err.code === "auth/invalid-credential") {
         setError("Invalid email or password.");

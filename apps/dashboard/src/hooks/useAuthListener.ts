@@ -8,7 +8,7 @@ export function useAuthListener() {
   useEffect(() => {
     const unsubscribe = onAuthChange(async (firebaseUser) => {
       if (firebaseUser) {
-        setFirebaseUser({ uid: firebaseUser.uid, email: firebaseUser.email });
+        setFirebaseUser({ uid: firebaseUser.uid, email: firebaseUser.email, emailVerified: firebaseUser.emailVerified });
         const userDoc = await getUserDoc(firebaseUser.uid);
         setUserDoc(userDoc);
       } else {

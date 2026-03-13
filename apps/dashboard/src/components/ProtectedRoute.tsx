@@ -17,5 +17,9 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     return <Navigate to="/login" replace />;
   }
 
+  if (!firebaseUser.emailVerified) {
+    return <Navigate to="/verify-email" replace />;
+  }
+
   return <>{children}</>;
 }

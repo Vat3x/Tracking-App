@@ -9,6 +9,7 @@ import Dashboard from "@/pages/Dashboard";
 import Trips from "@/pages/Trips";
 import Settings from "@/pages/Settings";
 import InviteLanding from "@/pages/InviteLanding";
+import VerifyEmail from "@/pages/VerifyEmail";
 
 function App() {
   useAuthListener();
@@ -20,6 +21,7 @@ function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
       <Route
         path="/"
         element={
