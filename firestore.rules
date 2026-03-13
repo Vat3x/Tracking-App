@@ -24,7 +24,10 @@ service cloud.firestore {
 
       match /members/{memberId} {
         allow read: if isCompanyMember(companyId);
-        allow write: if isCompanyMember(companyId);
+        allow create: if isCompanyMember(companyId) ||
+          (isAuth() && memberId == request.auth.uid &&
+           get(/databases/$(database)/documents/companies/$(companyId)).data.ownerId == request.auth.uid);
+        allow update, delete: if isCompanyMember(companyId);
       }
     }
 
