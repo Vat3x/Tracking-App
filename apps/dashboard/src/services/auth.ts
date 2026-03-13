@@ -3,6 +3,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
+  deleteUser,
   type User as FirebaseUser,
 } from "firebase/auth";
 import {
@@ -25,40 +26,46 @@ export async function registerDispatcher(
   const credential = await createUserWithEmailAndPassword(auth, email, password);
   const uid = credential.user.uid;
 
-  // 2. Create company document
-  const companyRef = doc(collection(db, COLLECTIONS.COMPANIES));
-  const companyId = companyRef.id;
+  try {
+    // 2. Create company document
+    const companyRef = doc(collection(db, COLLECTIONS.COMPANIES));
+    const companyId = companyRef.id;
 
-  const company: Omit<Company, "id"> = {
-    name: companyName,
-    ownerId: uid,
-    createdAt: Date.now(),
-    settings: DEFAULT_COMPANY_SETTINGS,
-  };
-  await setDoc(companyRef, company);
+    const company: Omit<Company, "id"> = {
+      name: companyName,
+      ownerId: uid,
+      createdAt: Date.now(),
+      settings: DEFAULT_COMPANY_SETTINGS,
+    };
+    await setDoc(companyRef, company);
 
-  // 3. Add dispatcher as company member
-  await setDoc(doc(db, COLLECTIONS.members(companyId), uid), {
-    userId: uid,
-    role: "admin",
-    joinedAt: Date.now(),
-  });
+    // 3. Add dispatcher as company member
+    await setDoc(doc(db, COLLECTIONS.members(companyId), uid), {
+      userId: uid,
+      role: "admin",
+      joinedAt: Date.now(),
+    });
 
-  // 4. Mirror to RTDB for security rules (so dispatcher can read locations)
-  await set(ref(rtdb, `company_members/${companyId}/${uid}`), true);
+    // 4. Mirror to RTDB for security rules (so dispatcher can read locations)
+    await set(ref(rtdb, `company_members/${companyId}/${uid}`), true);
 
-  // 5. Create user document
-  const userData: Omit<User, "id"> = {
-    email,
-    displayName,
-    role: "dispatcher",
-    companyId,
-    fcmToken: null,
-    createdAt: Date.now(),
-  };
-  await setDoc(doc(db, COLLECTIONS.USERS, uid), userData);
+    // 5. Create user document
+    const userData: Omit<User, "id"> = {
+      email,
+      displayName,
+      role: "dispatcher",
+      companyId,
+      fcmToken: null,
+      createdAt: Date.now(),
+    };
+    await setDoc(doc(db, COLLECTIONS.USERS, uid), userData);
 
-  return { user: credential.user, companyId };
+    return { user: credential.user, companyId };
+  } catch (err) {
+    // Clean up auth user so the email isn't stuck in a broken state
+    try { await deleteUser(credential.user); } catch {}
+    throw err;
+  }
 }
 
 export async function loginWithEmail(
