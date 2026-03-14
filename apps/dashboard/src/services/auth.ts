@@ -61,8 +61,8 @@ export async function registerDispatcher(
     };
     await setDoc(doc(db, COLLECTIONS.USERS, uid), userData);
 
-    // 6. Send verification email
-    await sendEmailVerification(credential.user);
+    // Send verification email (don't roll back registration if this fails)
+    try { await sendEmailVerification(credential.user); } catch {}
 
     return { user: credential.user, companyId };
   } catch (err) {
