@@ -63,6 +63,17 @@ export async function updateTripRoute(
   });
 }
 
+export async function updateTripLocation(
+  tripId: string,
+  field: "origin" | "destination",
+  location: { label: string; lat: number; lng: number; zipCode?: string }
+): Promise<void> {
+  await updateDoc(doc(db, COLLECTIONS.TRIPS, tripId), {
+    [field]: location,
+    updatedAt: Date.now(),
+  });
+}
+
 export function subscribeToCompanyTrips(
   companyId: string,
   callback: (trips: Trip[]) => void

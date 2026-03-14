@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from "react";
-import { updateTripLocation, type GeoPoint } from "@/services/trips";
+import { updateTripLocation } from "@/services/trips";
+import type { GeoPoint } from "@nexus/shared";
 import { toast } from "sonner";
 import AddressSearch from "./AddressSearch";
 

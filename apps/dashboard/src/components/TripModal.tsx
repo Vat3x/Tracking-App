@@ -253,7 +253,6 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar, defa
               {stops.map((stop, i) => {
                 const isPickup = stop.type === "pickup";
                 const borderColor = isPickup ? "border-green-400" : "border-red-400";
-                const textColor = isPickup ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400";
 
                 return (
                   <fieldset key={stop.id} className={`space-y-1.5 border-l-2 ${borderColor} pl-3`}>
