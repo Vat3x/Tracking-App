@@ -17,7 +17,7 @@ function App() {
 
   return (
     <>
-    <Toaster position="top-right" richColors theme={theme} />
+    <Toaster position="top-right" richColors theme={theme} closeButton />
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
