@@ -10,6 +10,7 @@ import Trips from "@/pages/Trips";
 import Settings from "@/pages/Settings";
 import InviteLanding from "@/pages/InviteLanding";
 import VerifyEmail from "@/pages/VerifyEmail";
+import AuthAction from "@/pages/AuthAction";
 
 function App() {
   useAuthListener();
@@ -46,6 +47,7 @@ function App() {
           </ProtectedRoute>
         }
       />
+      <Route path="/auth/action" element={<AuthAction />} />
       <Route path="/invite/:inviteId" element={<InviteLanding />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
