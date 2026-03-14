@@ -4,7 +4,6 @@ import {
   signOut,
   onAuthStateChanged,
   deleteUser,
-  sendEmailVerification,
   type User as FirebaseUser,
 } from "firebase/auth";
 import {
@@ -14,7 +13,8 @@ import {
   collection,
 } from "firebase/firestore";
 import { ref, set } from "firebase/database";
-import { auth, db, rtdb } from "./firebase";
+import { httpsCallable } from "firebase/functions";
+import { auth, db, rtdb, functions } from "./firebase";
 import { COLLECTIONS, type User, type Company, DEFAULT_COMPANY_SETTINGS } from "@nexus/shared";
 
 export async function registerDispatcher(
@@ -61,8 +61,7 @@ export async function registerDispatcher(
     };
     await setDoc(doc(db, COLLECTIONS.USERS, uid), userData);
 
-    // Send verification email (don't roll back registration if this fails)
-    try { await sendEmailVerification(credential.user); } catch {}
+    // Verification email is sent by the onDispatcherCreated Cloud Function via Resend
 
     return { user: credential.user, companyId };
   } catch (err) {
@@ -85,9 +84,8 @@ export async function logout(): Promise<void> {
 }
 
 export async function resendVerificationEmail(): Promise<void> {
-  if (auth.currentUser) {
-    await sendEmailVerification(auth.currentUser);
-  }
+  const fn = httpsCallable(functions, "resendVerification");
+  await fn();
 }
 
 export { auth };
