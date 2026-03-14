@@ -3,7 +3,6 @@ name: Deploy
 on:
   push:
     branches: [main]
-    tags: ["v*"]
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -39,31 +38,3 @@ jobs:
         run: npx firebase-tools deploy --force
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-
-  eas-build:
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-
-      - name: Setup Expo
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build Android (preview)
-        run: pnpm --filter @nexus/driver exec eas build --platform android --profile preview --non-interactive
-
-      - name: Build iOS (preview)
-        run: pnpm --filter @nexus/driver exec eas build --platform ios --profile preview --non-interactive
