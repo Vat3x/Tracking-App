@@ -47,18 +47,23 @@ export const onTripCreated = onDocumentCreated("trips/{tripId}", async (event) =
   const data = event.data?.data();
   if (!data) return;
 
-  const { driverId, origin, destination, stops } = data;
+  const { driverId, stops, origin, destination } = data;
   if (!driverId) return;
 
-  // Build route description with stops
-  const routeParts = [origin?.label ?? "Pickup"];
-  if (stops && Array.isArray(stops)) {
-    stops.forEach((s: { label?: string }) => routeParts.push(s.label ?? "Stop"));
+  // Build route description — supports new TripStop[] and legacy origin/destination
+  let routeDesc = "New trip";
+  if (stops && Array.isArray(stops) && stops.length > 0 && stops[0].type) {
+    // New format: TripStop[] with type field
+    routeDesc = stops.map((s: { label?: string }) => s.label ?? "Stop").join(" → ");
+  } else {
+    // Legacy format
+    const parts = [origin?.label ?? "Pickup"];
+    if (stops && Array.isArray(stops)) {
+      stops.forEach((s: { label?: string }) => parts.push(s.label ?? "Stop"));
+    }
+    if (destination?.label) parts.push(destination.label);
+    routeDesc = parts.join(" → ");
   }
-  if (destination?.label) {
-    routeParts.push(destination.label);
-  }
-  const routeDesc = routeParts.join(" → ");
 
   // Get driver's FCM token with retry (driver may have just logged in)
   const fcmToken = await getFcmToken(driverId);
@@ -109,33 +114,32 @@ export const onTripStatusChanged = onDocumentUpdated("trips/{tripId}", async (ev
   const driverDoc = driverId ? await firestore.doc(`users/${driverId}`).get() : null;
   const driverName = driverDoc?.data()?.displayName ?? "Driver";
 
-  // Check if origin, destination, or stops were updated → notify driver about location change
+  // Check if stops/route were updated → notify driver about location change
+  const stopsChanged = JSON.stringify(before.stops) !== JSON.stringify(after.stops);
   const originChanged = JSON.stringify(before.origin) !== JSON.stringify(after.origin);
   const destChanged = JSON.stringify(before.destination) !== JSON.stringify(after.destination);
-  const stopsChanged = JSON.stringify(before.stops) !== JSON.stringify(after.stops);
+  const routeChanged = stopsChanged || originChanged || destChanged;
 
-  if ((originChanged || destChanged || stopsChanged) && driverId) {
+  if (routeChanged && driverId) {
     const driverFcmToken = driverDoc?.data()?.fcmToken;
     if (driverFcmToken) {
-      const changedField = originChanged ? "pickup" : destChanged ? "delivery" : "stops";
-      const newLabel = originChanged ? after.origin?.label : destChanged ? after.destination?.label : "route stops";
       try {
         await admin.messaging().send({
           token: driverFcmToken,
           notification: {
-            title: "Delivery Location Updated",
-            body: `${changedField === "pickup" ? "Pickup" : "Delivery"} location changed to ${newLabel ?? "new location"}`,
+            title: "Route Updated",
+            body: "Your trip route has been updated by the dispatcher",
           },
           data: {
             type: "trip_location_updated",
             tripId: event.params.tripId,
-            field: changedField,
+            field: "route",
           },
           ...androidHighPriority,
         });
-        console.log(`onTripStatusChanged: Location update notification sent to driver ${driverId}`);
+        console.log(`onTripStatusChanged: Route update notification sent to driver ${driverId}`);
       } catch (err) {
-        console.error(`onTripStatusChanged: Failed to send location update notification to driver ${driverId}:`, err);
+        console.error(`onTripStatusChanged: Failed to send route update notification to driver ${driverId}:`, err);
       }
     }
   }

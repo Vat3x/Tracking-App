@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.nexus.tracking.driver",
+      "sha256_cert_fingerprints": [
+        "FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C",
+        "72:33:FE:D8:A5:7A:8A:9D:CD:FD:09:7A:23:4A:99:E1:B7:B4:57:FF:E8:2B:53:26:3D:ED:B5:F7:2A:CE:1C:58"
+      ]
+    }
+  }
+]

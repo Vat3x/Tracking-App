@@ -40,15 +40,9 @@ export default function AuthAction() {
               <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
                 Email verified!
               </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                Your LoadMind Tracker account is now active.
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Your account is now active. You can close this tab — the original page will redirect automatically.
               </p>
-              <Link
-                to="/login"
-                className="inline-block px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
-              >
-                Go to Dashboard
-              </Link>
             </>
           )}
 

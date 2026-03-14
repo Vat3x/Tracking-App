@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LoadMind Tracker — Invite</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #f5f7fa; color: #333; padding: 20px; }
+    .card { background: #fff; border-radius: 16px; padding: 40px 32px; max-width: 400px; width: 100%; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+    h1 { font-size: 22px; color: #1F6AB5; margin-bottom: 8px; }
+    p { font-size: 15px; color: #666; line-height: 1.6; margin-bottom: 24px; }
+    .btn { display: inline-block; background: #1a73e8; color: #fff; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 16px; }
+    .btn:hover { background: #1557b0; }
+    .small { font-size: 13px; color: #999; margin-top: 16px; }
+  </style>
+  <script>
+    // Try to open the app with the invite deep link
+    const path = window.location.pathname;
+    const inviteId = path.split('/invite/')[1];
+    if (inviteId) {
+      // Try custom scheme first
+      window.location.href = 'nexustracking://invite/' + inviteId;
+    }
+  </script>
+</head>
+<body>
+  <div class="card">
+    <h1>LoadMind Tracker</h1>
+    <p>You've been invited to connect with a dispatcher. Open this link on your phone with the LoadMind Tracker app installed.</p>
+    <a class="btn" href="https://play.google.com/store/apps/details?id=com.nexus.tracking.driver">Get the App</a>
+    <p class="small">If you already have the app, it should open automatically.</p>
+  </div>
+</body>
+</html>

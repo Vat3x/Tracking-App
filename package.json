@@ -8,6 +8,7 @@
     "build:dashboard": "turbo run build --filter=@nexus/dashboard",
     "build:functions": "cd functions && npm run build",
     "lint": "turbo run lint",
+    "test": "turbo run test",
     "clean": "turbo run clean",
     "deploy": "pnpm run build:dashboard && pnpm run build:functions && firebase deploy",
     "deploy:hosting": "pnpm run build:dashboard && firebase deploy --only hosting",

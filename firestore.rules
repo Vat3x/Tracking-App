@@ -43,7 +43,10 @@ service cloud.firestore {
 
     // Invites
     match /invites/{inviteId} {
-      allow read: if isAuth();
+      // Anyone can read a single invite by ID (IDs are unguessable UUIDs)
+      allow get: if true;
+      // Only authenticated users can list/query invites
+      allow list: if isAuth();
       allow create: if isAuth() &&
         isCompanyMember(request.resource.data.companyId);
       allow update: if isAuth() && resource.data.status == 'pending' && (

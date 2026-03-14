@@ -18,8 +18,9 @@ import { useRouter } from "expo-router";
 import { useAuthStore } from "../../src/stores/auth";
 import { subscribeToDriverTrips, respondToTrip, advanceToNextStop } from "../../src/services/trips";
 import { fetchRoute, type RouteResult } from "../../src/services/routing";
-import { MAP_STYLE } from "../../src/constants/mapStyle";
-import type { Trip, TripStatus } from "@nexus/shared";
+import { useTheme } from "../../src/hooks/useTheme";
+import { getStatusColors } from "../../src/constants/statusColors";
+import { type Trip, type TripStatus, getStopsFromTrip } from "@nexus/shared";
 
 // Error boundary
 class TripsErrorBoundary extends Component<
@@ -46,15 +47,6 @@ class TripsErrorBoundary extends Component<
     return this.props.children;
   }
 }
-
-const STATUS_COLORS: Record<TripStatus, { bg: string; text: string }> = {
-  pending: { bg: "#fef9c3", text: "#854d0e" },
-  accepted: { bg: "#dbeafe", text: "#1e40af" },
-  rejected: { bg: "#fee2e2", text: "#991b1b" },
-  in_progress: { bg: "#e0e7ff", text: "#3730a3" },
-  completed: { bg: "#dcfce7", text: "#166534" },
-  cancelled: { bg: "#fee2e2", text: "#991b1b" },
-};
 
 const STATUS_LABELS: Record<TripStatus, string> = {
   pending: "Pending",
@@ -88,15 +80,15 @@ function formatDistance(meters: number, useMiles: boolean): string {
 }
 
 function handleNavigateExternal(trip: Trip) {
-  const stops = trip.stops ?? [];
+  const stops = getStopsFromTrip(trip);
   const currentIdx = trip.currentStopIndex ?? 0;
   let target: { lat: number; lng: number } | undefined;
   if (trip.status === "accepted") {
-    target = trip.origin;
-  } else if (stops.length > 0 && currentIdx < stops.length) {
+    target = stops[0]; // first pickup
+  } else if (currentIdx < stops.length) {
     target = stops[currentIdx];
   } else {
-    target = trip.destination;
+    target = stops[stops.length - 1]; // last stop
   }
   if (!target) return;
   const { lat, lng } = target;
@@ -121,6 +113,7 @@ function ActiveTripNavView({
   onAdvanceStop: (tripId: string, nextIndex: number) => void;
   onShowList: () => void;
 }) {
+  const { colors, isDark, mapStyle } = useTheme();
   const mapRef = useRef<MapView>(null);
   const [route, setRoute] = useState<RouteResult | null>(null);
   const [routeLoading, setRouteLoading] = useState(false);
@@ -128,7 +121,7 @@ function ActiveTripNavView({
 
   const isAccepted = trip.status === "accepted";
   const isInProgress = trip.status === "in_progress";
-  const stops = trip.stops ?? [];
+  const stops = getStopsFromTrip(trip);
   const currentIdx = trip.currentStopIndex ?? 0;
   const allStopsCompleted = currentIdx >= stops.length;
   const useMiles = trip.country === "us";
@@ -145,9 +138,10 @@ function ActiveTripNavView({
         });
       })
       .catch(() => {
+        const first = stops[0];
         setInitialRegion({
-          latitude: trip.origin.lat,
-          longitude: trip.origin.lng,
+          latitude: first?.lat ?? 39.83,
+          longitude: first?.lng ?? -98.58,
           latitudeDelta: 0.1,
           longitudeDelta: 0.1,
         });
@@ -163,7 +157,6 @@ function ActiveTripNavView({
     async function loadRoute() {
       setRouteLoading(true);
       try {
-        // Build waypoints — try to include driver location, fall back to trip points only
         let driverCoord: [number, number] | null = null;
         try {
           const { status } = await Location.getForegroundPermissionsAsync();
@@ -185,17 +178,12 @@ function ActiveTripNavView({
 
         if (isAccepted) {
           if (driverCoord) waypoints.push(driverCoord);
-          waypoints.push([trip.origin.lng, trip.origin.lat]);
           stops.forEach((s) => waypoints.push([s.lng, s.lat]));
-          if (trip.destination) waypoints.push([trip.destination.lng, trip.destination.lat]);
         } else {
-          // in_progress: driver → remaining stops → destination
           if (driverCoord) waypoints.push(driverCoord);
           stops.slice(currentIdx).forEach((s) => waypoints.push([s.lng, s.lat]));
-          if (trip.destination) waypoints.push([trip.destination.lng, trip.destination.lat]);
         }
 
-        // Always build straight-line fallback from waypoints
         const straightLine = waypoints.map(([lng, lat]) => ({ latitude: lat, longitude: lng }));
         if (!cancelled) setStraightLineCoords(straightLine);
 
@@ -204,11 +192,9 @@ function ActiveTripNavView({
           return;
         }
 
-        // Try OSRM road route
         const result = await fetchRoute(waypoints);
         if (!cancelled) {
           setRoute(result);
-          // Fit map to either OSRM route or straight line
           const fitCoords = result
             ? result.coordinates.map(([lng, lat]) => ({ latitude: lat, longitude: lng }))
             : straightLine;
@@ -232,28 +218,31 @@ function ActiveTripNavView({
     return () => { cancelled = true; };
   }, [trip.id, trip.status, trip.currentStopIndex]);
 
-  // Use OSRM road route if available, otherwise straight lines between waypoints
   const routeCoords = route?.coordinates.map(([lng, lat]) => ({
     latitude: lat,
     longitude: lng,
   })) ?? [];
 
   function getNextTargetLabel(): string {
-    if (isAccepted) return trip.origin?.label ?? "Pickup";
-    if (isInProgress && stops.length > 0 && currentIdx < stops.length) {
-      return `Stop ${currentIdx + 1}: ${stops[currentIdx]?.label ?? "Unknown"}`;
+    if (isAccepted) return stops[0]?.label ?? "Pickup";
+    if (isInProgress && currentIdx < stops.length) {
+      const stop = stops[currentIdx];
+      return `${stop.type === "pickup" ? "Pickup" : "Drop-off"}: ${stop?.label ?? "Unknown"}`;
     }
-    return trip.destination?.label ?? "Destination";
+    return stops[stops.length - 1]?.label ?? "Destination";
   }
 
   function getNextTargetType(): string {
     if (isAccepted) return "Next: Pickup";
-    if (isInProgress && stops.length > 0 && currentIdx < stops.length) return `Next: Stop ${currentIdx + 1}`;
-    return "Next: Drop-off";
+    if (isInProgress && currentIdx < stops.length) {
+      const stop = stops[currentIdx];
+      return `Next: ${stop.type === "pickup" ? "Pickup" : "Drop-off"} ${currentIdx + 1}`;
+    }
+    return "Next: Final Stop";
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       {/* FULL-SCREEN MAP */}
       {initialRegion ? (
         <MapView
@@ -263,9 +252,8 @@ function ActiveTripNavView({
           showsUserLocation
           showsMyLocationButton={false}
           showsTraffic
-          customMapStyle={MAP_STYLE}
+          customMapStyle={mapStyle}
         >
-          {/* OSRM road route */}
           {routeCoords.length > 1 && (
             <Polyline
               coordinates={routeCoords}
@@ -274,7 +262,6 @@ function ActiveTripNavView({
               lineDashPattern={isAccepted ? [10, 5] : undefined}
             />
           )}
-          {/* Straight-line fallback if OSRM failed */}
           {routeCoords.length <= 1 && straightLineCoords.length > 1 && (
             <Polyline
               coordinates={straightLineCoords}
@@ -283,102 +270,86 @@ function ActiveTripNavView({
               lineDashPattern={[10, 8]}
             />
           )}
-          <Marker
-            coordinate={{ latitude: trip.origin.lat, longitude: trip.origin.lng }}
-            pinColor="#22c55e"
-            title="Pickup"
-            description={trip.origin.label}
-          />
           {stops.map((stop, i) => {
             const completed = isInProgress && i < currentIdx;
+            const color = stop.type === "pickup" ? "#22c55e" : "#ef4444";
             return (
               <Marker
                 key={`stop-${i}`}
                 coordinate={{ latitude: stop.lat, longitude: stop.lng }}
-                pinColor={completed ? "#22c55e" : "#f97316"}
-                title={`Stop ${i + 1}${completed ? " (Done)" : ""}`}
+                pinColor={completed ? "#22c55e" : color}
+                title={`${stop.type === "pickup" ? "Pickup" : "Drop-off"} ${i + 1}${completed ? " (Done)" : ""}`}
                 description={stop.label}
                 opacity={completed ? 0.5 : 1}
               />
             );
           })}
-          {trip.destination && (
-            <Marker
-              coordinate={{ latitude: trip.destination.lat, longitude: trip.destination.lng }}
-              pinColor="#ef4444"
-              title="Drop-off"
-              description={trip.destination.label}
-            />
-          )}
         </MapView>
       ) : (
-        <View style={styles.mapLoading}>
+        <View style={[styles.mapLoading, { backgroundColor: colors.bgSecondary }]}>
           <ActivityIndicator size="large" color="#1a73e8" />
         </View>
       )}
 
-      {/* TOP OVERLAY: status + back button */}
+      {/* TOP OVERLAY */}
       <View style={styles.topOverlay}>
-        <View style={styles.navStatusOverlay}>
+        <View style={[styles.navStatusOverlay, { backgroundColor: colors.bgOverlayStrong }]}>
           <View style={[styles.navBadge, isAccepted ? styles.badgeAccepted : styles.badgeInProgress]}>
             <Text style={styles.navBadgeText}>
               {isAccepted ? "ACCEPTED" : "IN PROGRESS"}
             </Text>
           </View>
-          <Text style={styles.navStatusTarget} numberOfLines={1}>
+          <Text style={[styles.navStatusTarget, { color: colors.text }]} numberOfLines={1}>
             {getNextTargetLabel()}
           </Text>
         </View>
-        <TouchableOpacity style={styles.backToListBtn} onPress={onShowList}>
+        <TouchableOpacity style={[styles.backToListBtn, { backgroundColor: colors.bgOverlayStrong }]} onPress={onShowList}>
           <Text style={styles.backToListText}>All Trips</Text>
         </TouchableOpacity>
       </View>
 
       {routeLoading && (
-        <View style={styles.routeLoadingOverlay}>
+        <View style={[styles.routeLoadingOverlay, { backgroundColor: colors.bgOverlay }]}>
           <ActivityIndicator size="small" color="#3b82f6" />
-          <Text style={styles.routeLoadingText}>Loading route...</Text>
+          <Text style={[styles.routeLoadingText, { color: colors.textSecondary }]}>Loading route...</Text>
         </View>
       )}
 
-      {/* BOTTOM OVERLAY: info + actions */}
+      {/* BOTTOM OVERLAY */}
       <View style={styles.bottomOverlay}>
-        {/* ETA / Distance row */}
         {route && (
-          <View style={styles.navInfoCard}>
+          <View style={[styles.navInfoCard, { backgroundColor: colors.bgOverlayStrong }]}>
             <View style={styles.navInfoItem}>
-              <Text style={styles.navInfoValue}>{formatETA(route.duration)}</Text>
-              <Text style={styles.navInfoLabel}>ETA</Text>
+              <Text style={[styles.navInfoValue, { color: colors.text }]}>{formatETA(route.duration)}</Text>
+              <Text style={[styles.navInfoLabel, { color: colors.textSecondary }]}>ETA</Text>
             </View>
-            <View style={styles.navInfoDivider} />
+            <View style={[styles.navInfoDivider, { backgroundColor: colors.border }]} />
             <View style={styles.navInfoItem}>
-              <Text style={styles.navInfoValue}>{formatDistance(route.distance, useMiles)}</Text>
-              <Text style={styles.navInfoLabel}>Distance</Text>
+              <Text style={[styles.navInfoValue, { color: colors.text }]}>{formatDistance(route.distance, useMiles)}</Text>
+              <Text style={[styles.navInfoLabel, { color: colors.textSecondary }]}>Distance</Text>
             </View>
             {stops.length > 0 && (
               <>
-                <View style={styles.navInfoDivider} />
+                <View style={[styles.navInfoDivider, { backgroundColor: colors.border }]} />
                 <View style={styles.navInfoItem}>
-                  <Text style={styles.navInfoValue}>{Math.min(currentIdx, stops.length)}/{stops.length}</Text>
-                  <Text style={styles.navInfoLabel}>Stops</Text>
+                  <Text style={[styles.navInfoValue, { color: colors.text }]}>{Math.min(currentIdx, stops.length)}/{stops.length}</Text>
+                  <Text style={[styles.navInfoLabel, { color: colors.textSecondary }]}>Stops</Text>
                 </View>
               </>
             )}
           </View>
         )}
 
-        {/* Next target label */}
-        <View style={styles.nextTargetRow}>
+        <View style={[styles.nextTargetRow, { backgroundColor: colors.bgOverlayStrong }]}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.navTargetType}>{getNextTargetType()}</Text>
-            <Text style={styles.navTargetName} numberOfLines={1}>{getNextTargetLabel()}</Text>
+            <Text style={[styles.navTargetType, { color: colors.textSecondary }]}>{getNextTargetType()}</Text>
+            <Text style={[styles.navTargetName, { color: colors.text }]} numberOfLines={1}>{getNextTargetLabel()}</Text>
           </View>
-          <TouchableOpacity style={styles.gmapsBtn} onPress={() => handleNavigateExternal(trip)}>
+          <TouchableOpacity style={[styles.gmapsBtn, { backgroundColor: isDark ? colors.bgCard : "#fff" }]} onPress={() => handleNavigateExternal(trip)}>
             <Text style={styles.gmapsBtnText}>Google Maps</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Action button */}
         {isAccepted && (
           <TouchableOpacity
             style={[styles.navActionBtn, { backgroundColor: "#3b82f6" }]}
@@ -420,91 +391,68 @@ function TripCard({
   onAdvanceStop: (tripId: string, nextIndex: number) => void;
   onShowDirections?: () => void;
 }) {
-  const statusColor = STATUS_COLORS[trip.status];
-  const stops = trip.stops ?? [];
+  const { colors, isDark } = useTheme();
+  const statusColors = getStatusColors(isDark);
+  const statusColor = statusColors[trip.status];
+  const stops = getStopsFromTrip(trip);
   const currentIdx = trip.currentStopIndex ?? 0;
   const isInProgress = trip.status === "in_progress";
   const hasStops = stops.length > 0;
   const allStopsCompleted = currentIdx >= stops.length;
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.borderLight }]}>
       <View style={styles.cardHeader}>
         <View style={[styles.badge, { backgroundColor: statusColor.bg }]}>
           <Text style={[styles.badgeText, { color: statusColor.text }]}>
             {STATUS_LABELS[trip.status]}
           </Text>
         </View>
-        <Text style={styles.time}>{formatTime(trip.createdAt)}</Text>
+        <Text style={[styles.time, { color: colors.textMuted }]}>{formatTime(trip.createdAt)}</Text>
       </View>
 
       <View style={styles.route}>
-        <View style={styles.routePoint}>
-          <View style={[styles.dot, { backgroundColor: "#22c55e" }]} />
-          <View style={styles.routeInfo}>
-            <Text style={styles.routeLabel}>Pickup</Text>
-            <Text style={styles.routeName}>
-              {trip.origin?.label ?? "Unknown"}
-              {trip.origin?.zipCode ? ` (${trip.origin.zipCode})` : ""}
-            </Text>
-          </View>
-        </View>
         {stops.map((stop, i) => {
           const isCompleted = isInProgress && i < currentIdx;
           const isCurrent = isInProgress && i === currentIdx;
+          const isPickup = stop.type === "pickup";
+          const dotColor = isCompleted ? "#22c55e" : isCurrent ? "#3b82f6" : isPickup ? "#22c55e" : "#ef4444";
           return (
             <View key={i}>
-              <View style={styles.routeLine} />
+              {i > 0 && <View style={[styles.routeLine, { backgroundColor: colors.routeLine }]} />}
               <View style={styles.routePoint}>
-                <View style={[styles.dot, {
-                  backgroundColor: isCompleted ? "#22c55e" : isCurrent ? "#3b82f6" : "#f97316",
-                  width: 8, height: 8, borderRadius: 4, marginHorizontal: 1,
-                }]} />
+                <View style={[styles.dot, { backgroundColor: dotColor }]} />
                 <View style={styles.routeInfo}>
-                  <Text style={styles.routeLabel}>
-                    Stop {i + 1}{isCompleted ? " (Done)" : isCurrent ? " (Next)" : ""}
+                  <Text style={[styles.routeLabel, { color: colors.textMuted }]}>
+                    {isPickup ? "Pickup" : "Drop-off"}{isCompleted ? " (Done)" : isCurrent ? " (Next)" : ""}
                   </Text>
-                  <Text style={[styles.routeName, isCompleted && styles.completedStopText]}>
+                  <Text style={[styles.routeName, { color: colors.text }, isCompleted && styles.completedStopText]}>
                     {stop?.label ?? "Unknown"}
                     {stop?.zipCode ? ` (${stop.zipCode})` : ""}
                   </Text>
+                  {stop.note && (
+                    <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }}>{stop.note}</Text>
+                  )}
                 </View>
               </View>
             </View>
           );
         })}
-        {trip.destination && (
-          <>
-            <View style={styles.routeLine} />
-            <View style={styles.routePoint}>
-              <View style={[styles.dot, { backgroundColor: "#ef4444" }]} />
-              <View style={styles.routeInfo}>
-                <Text style={styles.routeLabel}>Drop-off</Text>
-                <Text style={styles.routeName}>
-                  {trip.destination.label}
-                  {trip.destination.zipCode ? ` (${trip.destination.zipCode})` : ""}
-                </Text>
-              </View>
-            </View>
-          </>
-        )}
       </View>
 
-      {/* Directions button for active trips */}
       {(trip.status === "accepted" || trip.status === "in_progress") && onShowDirections && (
         <TouchableOpacity style={styles.directionsBtn} onPress={onShowDirections}>
           <Text style={styles.directionsBtnText}>Directions</Text>
         </TouchableOpacity>
       )}
 
-      {/* Actions */}
       {trip.status === "pending" && (
         <View style={styles.actions}>
           <TouchableOpacity
-            style={[styles.actionBtn, styles.rejectBtn]}
+            style={[styles.actionBtn, styles.rejectBtn, isDark && { backgroundColor: colors.bgSecondary, borderColor: colors.border }]}
             onPress={() => onRespond(trip.id, "rejected")}
           >
-            <Text style={styles.rejectBtnText}>Decline</Text>
+            <Text style={[styles.rejectBtnText, { color: colors.textSecondary }]}>Decline</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionBtn, styles.acceptBtn]}
@@ -562,6 +510,7 @@ export default function TripsScreenWrapper() {
 function TripsScreen() {
   const router = useRouter();
   const { userDoc, firebaseUser } = useAuthStore();
+  const { colors } = useTheme();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -613,7 +562,7 @@ function TripsScreen() {
             try {
               await respondToTrip(tripId, status, extraFields);
               if (status === "accepted") {
-                setShowList(false); // switch to nav view
+                setShowList(false);
               }
             } catch {
               Alert.alert("Error", "Failed to update trip. Try again.");
@@ -651,7 +600,6 @@ function TripsScreen() {
 
   const hasCompany = !!userDoc?.companyId;
 
-  // Show full-screen nav view if there's an active trip and user hasn't chosen to see list
   if (!initialLoading && activeTrip && !showList) {
     return (
       <ActiveTripNavView
@@ -664,21 +612,21 @@ function TripsScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       {initialLoading ? (
         <View style={styles.emptyContainer}>
           <ActivityIndicator size="large" color="#1a73e8" />
         </View>
       ) : !hasCompany ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>
+          <Text style={[styles.emptyText, { color: colors.textMuted }]}>
             Link to a company first to receive trip assignments.
           </Text>
         </View>
       ) : activeTrips.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyTitle}>No active trips</Text>
-          <Text style={styles.emptyText}>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>No active trips</Text>
+          <Text style={[styles.emptyText, { color: colors.textMuted }]}>
             Your dispatcher will assign trips to you. They'll appear here.
           </Text>
         </View>
@@ -705,7 +653,7 @@ function TripsScreen() {
           }
           ListHeaderComponent={
             <View style={styles.listHeader}>
-              <Text style={styles.sectionTitle}>
+              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
                 Active ({activeTrips.length})
               </Text>
               {activeTrip && (
@@ -725,7 +673,6 @@ function TripsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
   },
   list: {
     padding: 16,
@@ -739,7 +686,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#6b7280",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
@@ -749,11 +695,9 @@ const styles = StyleSheet.create({
     color: "#3b82f6",
   },
   card: {
-    backgroundColor: "#f9fafb",
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: "#f0f0f0",
   },
   cardHeader: {
     flexDirection: "row",
@@ -772,7 +716,6 @@ const styles = StyleSheet.create({
   },
   time: {
     fontSize: 11,
-    color: "#9ca3af",
   },
   route: {
     marginBottom: 14,
@@ -792,14 +735,12 @@ const styles = StyleSheet.create({
   },
   routeLabel: {
     fontSize: 10,
-    color: "#9ca3af",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   routeName: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#1a1a1a",
   },
   completedStopText: {
     color: "#9ca3af",
@@ -808,7 +749,6 @@ const styles = StyleSheet.create({
   routeLine: {
     width: 1,
     height: 16,
-    backgroundColor: "#d1d5db",
     marginLeft: 4.5,
     marginVertical: 2,
   },
@@ -825,7 +765,7 @@ const styles = StyleSheet.create({
   acceptBtn: { backgroundColor: "#22c55e" },
   acceptBtnText: { color: "#fff", fontWeight: "600", fontSize: 14 },
   rejectBtn: { backgroundColor: "#f3f4f6", borderWidth: 1, borderColor: "#e5e7eb" },
-  rejectBtnText: { color: "#6b7280", fontWeight: "600", fontSize: 14 },
+  rejectBtnText: { fontWeight: "600", fontSize: 14 },
   startBtn: { backgroundColor: "#3b82f6" },
   startBtnText: { color: "#fff", fontWeight: "600", fontSize: 14 },
   arrivedBtn: { backgroundColor: "#f97316" },
@@ -838,15 +778,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 32,
   },
-  emptyTitle: { fontSize: 16, fontWeight: "600", color: "#1a1a1a", marginBottom: 8 },
-  emptyText: { fontSize: 14, color: "#9ca3af", textAlign: "center", lineHeight: 20 },
+  emptyTitle: { fontSize: 16, fontWeight: "600", marginBottom: 8 },
+  emptyText: { fontSize: 14, textAlign: "center", lineHeight: 20 },
 
-  // ── Nav view styles (full-screen map + overlays) ──
+  // ── Nav view styles ──
   mapLoading: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
   },
   topOverlay: {
     position: "absolute",
@@ -858,7 +797,6 @@ const styles = StyleSheet.create({
   },
   navStatusOverlay: {
     flex: 1,
-    backgroundColor: "rgba(255,255,255,0.95)",
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -888,10 +826,8 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: "600",
-    color: "#1a1a1a",
   },
   backToListBtn: {
-    backgroundColor: "rgba(255,255,255,0.95)",
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -911,7 +847,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 70,
     alignSelf: "center",
-    backgroundColor: "rgba(255,255,255,0.9)",
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 6,
@@ -921,7 +856,6 @@ const styles = StyleSheet.create({
   },
   routeLoadingText: {
     fontSize: 12,
-    color: "#6b7280",
   },
   bottomOverlay: {
     position: "absolute",
@@ -933,7 +867,6 @@ const styles = StyleSheet.create({
   navInfoCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.95)",
     borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 8,
@@ -950,11 +883,9 @@ const styles = StyleSheet.create({
   navInfoValue: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#1a1a1a",
   },
   navInfoLabel: {
     fontSize: 10,
-    color: "#6b7280",
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginTop: 1,
@@ -962,12 +893,10 @@ const styles = StyleSheet.create({
   navInfoDivider: {
     width: 1,
     height: 28,
-    backgroundColor: "#e5e7eb",
   },
   nextTargetRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.95)",
     borderRadius: 14,
     paddingVertical: 10,
     paddingHorizontal: 14,
@@ -981,17 +910,14 @@ const styles = StyleSheet.create({
   navTargetType: {
     fontSize: 10,
     fontWeight: "600",
-    color: "#6b7280",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   navTargetName: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#1a1a1a",
   },
   gmapsBtn: {
-    backgroundColor: "#fff",
     borderWidth: 1.5,
     borderColor: "#3b82f6",
     borderRadius: 10,

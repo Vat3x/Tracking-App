@@ -24,13 +24,14 @@ import {
 } from "../../src/services/location";
 import { updateDriverLocation, markDriverOffline } from "../../src/services/tracking";
 import { subscribeToDriverTrips } from "../../src/services/trips";
-import { MAP_STYLE } from "../../src/constants/mapStyle";
+import { useTheme } from "../../src/hooks/useTheme";
 import { timeAgo } from "@nexus/shared";
-import type { Trip } from "@nexus/shared";
+import { type Trip, getTripRouteLabel } from "@nexus/shared";
 import { Logo } from "../../src/components/Logo";
 
 export default function HomeScreen() {
   const { userDoc, firebaseUser } = useAuthStore();
+  const { colors, isDark, mapStyle } = useTheme();
   const {
     isOnline,
     lastSync,
@@ -184,7 +185,7 @@ export default function HomeScreen() {
   const pendingTrips = trips.filter((t) => t.status === "pending").length;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       {/* MAP (~40%) */}
       <View style={styles.mapContainer}>
         {initialRegion ? (
@@ -195,7 +196,7 @@ export default function HomeScreen() {
             showsUserLocation
             showsMyLocationButton
             showsTraffic
-            customMapStyle={MAP_STYLE}
+            customMapStyle={mapStyle}
           >
             {lastSync && (
               <Marker
@@ -206,16 +207,16 @@ export default function HomeScreen() {
             )}
           </MapView>
         ) : (
-          <View style={styles.mapLoading}>
+          <View style={[styles.mapLoading, { backgroundColor: colors.bgSecondary }]}>
             <ActivityIndicator size="large" color="#1a73e8" />
           </View>
         )}
 
         {/* Greeting overlay */}
-        <View style={styles.greetingOverlay}>
+        <View style={[styles.greetingOverlay, { backgroundColor: colors.bgOverlay }]}>
           <View style={styles.greetingRow}>
             <Logo size={28} />
-            <Text style={styles.greetingText}>
+            <Text style={[styles.greetingText, { color: colors.text }]}>
               Hello, {userDoc?.displayName ?? "Driver"}
             </Text>
           </View>
@@ -231,12 +232,16 @@ export default function HomeScreen() {
       {/* BOTTOM PANEL (~60%) */}
       <ScrollView style={styles.bottomPanel} contentContainerStyle={{ paddingBottom: 20 }}>
         {/* Online/Offline Toggle */}
-        <View style={[styles.statusRow, isOnline && styles.statusRowOnline]}>
+        <View style={[
+          styles.statusRow,
+          { backgroundColor: colors.statusRowBg, borderColor: colors.statusRowBorder },
+          isOnline && { backgroundColor: colors.onlineRowBg, borderColor: colors.onlineRowBorder },
+        ]}>
           <View>
-            <Text style={[styles.statusLabel, isOnline && { color: "#16a34a" }]}>
+            <Text style={[styles.statusLabel, { color: colors.textMuted }, isOnline && { color: "#16a34a" }]}>
               {isOnline ? "Online" : "Offline"}
             </Text>
-            <Text style={styles.statusHint}>
+            <Text style={[styles.statusHint, { color: colors.textSecondary }]}>
               {isOnline
                 ? "Sharing location"
                 : hasCompany
@@ -248,29 +253,29 @@ export default function HomeScreen() {
             value={isOnline}
             onValueChange={handleToggle}
             disabled={!hasCompany}
-            trackColor={{ false: "#e5e7eb", true: "#86efac" }}
-            thumbColor={isOnline ? "#22c55e" : "#999"}
-            ios_backgroundColor="#e5e7eb"
+            trackColor={{ false: isDark ? "#333" : "#e5e7eb", true: "#86efac" }}
+            thumbColor={isOnline ? "#22c55e" : isDark ? "#666" : "#999"}
+            ios_backgroundColor={isDark ? "#333" : "#e5e7eb"}
           />
         </View>
 
         {/* Compact info row */}
         {isOnline && lastSync && (
           <View style={styles.compactInfoRow}>
-            <View style={styles.compactInfoItem}>
-              <Text style={styles.compactLabel}>Sync</Text>
-              <Text style={styles.compactValue}>{timeAgo(lastSync.timestamp)}</Text>
+            <View style={[styles.compactInfoItem, { backgroundColor: colors.statusRowBg, borderColor: colors.borderLight }]}>
+              <Text style={[styles.compactLabel, { color: colors.textMuted }]}>Sync</Text>
+              <Text style={[styles.compactValue, { color: colors.text }]}>{timeAgo(lastSync.timestamp)}</Text>
             </View>
-            <View style={styles.compactInfoItem}>
-              <Text style={styles.compactLabel}>Battery</Text>
-              <Text style={styles.compactValue}>
+            <View style={[styles.compactInfoItem, { backgroundColor: colors.statusRowBg, borderColor: colors.borderLight }]}>
+              <Text style={[styles.compactLabel, { color: colors.textMuted }]}>Battery</Text>
+              <Text style={[styles.compactValue, { color: colors.text }]}>
                 {Math.round(lastSync.batteryLevel * 100)}%
                 {lastSync.isCharging ? " \u26A1" : ""}
               </Text>
             </View>
-            <View style={styles.compactInfoItem}>
-              <Text style={styles.compactLabel}>Speed</Text>
-              <Text style={styles.compactValue}>
+            <View style={[styles.compactInfoItem, { backgroundColor: colors.statusRowBg, borderColor: colors.borderLight }]}>
+              <Text style={[styles.compactLabel, { color: colors.textMuted }]}>Speed</Text>
+              <Text style={[styles.compactValue, { color: colors.text }]}>
                 {lastSync.speed > 0 ? `${Math.round(lastSync.speed * 3.6)} km/h` : "Still"}
               </Text>
             </View>
@@ -279,39 +284,39 @@ export default function HomeScreen() {
 
         {/* Location */}
         {isOnline && locationLabel && (
-          <View style={styles.locationCard}>
+          <View style={[styles.locationCard, { backgroundColor: colors.statusRowBg, borderColor: colors.borderLight }]}>
             <Text style={styles.locationIcon}>📍</Text>
-            <Text style={styles.locationText}>{locationLabel}</Text>
+            <Text style={[styles.locationText, { color: colors.textSecondary }]}>{locationLabel}</Text>
           </View>
         )}
 
         {/* Trip Stats */}
         {hasCompany && (
-          <View style={styles.statsRow}>
+          <View style={[styles.statsRow, { backgroundColor: colors.statusRowBg, borderColor: colors.borderLight }]}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{completedTrips}</Text>
-              <Text style={styles.statLabel}>Completed</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{completedTrips}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Completed</Text>
             </View>
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, activeTrip ? { color: "#3b82f6" } : {}]}>
+              <Text style={[styles.statValue, { color: activeTrip ? "#3b82f6" : colors.text }]}>
                 {activeTrip ? "1" : "0"}
               </Text>
-              <Text style={styles.statLabel}>Active</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Active</Text>
             </View>
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, pendingTrips > 0 ? { color: "#f59e0b" } : {}]}>
+              <Text style={[styles.statValue, { color: pendingTrips > 0 ? "#f59e0b" : colors.text }]}>
                 {pendingTrips}
               </Text>
-              <Text style={styles.statLabel}>Pending</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Pending</Text>
             </View>
           </View>
         )}
 
         {/* Active trip indicator */}
         {activeTrip && (
-          <View style={styles.activeTripCard}>
+          <View style={[styles.activeTripCard, { backgroundColor: colors.activeTripBg, borderColor: colors.activeTripBorder }]}>
             <View style={styles.activeTripHeader}>
               <View style={[styles.activeTripBadge, activeTrip.status === "accepted" ? styles.badgeAccepted : styles.badgeInProgress]}>
                 <Text style={styles.activeTripBadgeText}>
@@ -320,20 +325,19 @@ export default function HomeScreen() {
               </View>
             </View>
             <Text style={styles.activeTripLabel}>
-              {activeTrip.origin?.label ?? "Pickup"}
-              {activeTrip.destination ? ` → ${activeTrip.destination.label ?? "Drop-off"}` : ""}
+              {getTripRouteLabel(activeTrip)}
             </Text>
-            <Text style={styles.activeTripHint}>Open Trips tab to manage</Text>
+            <Text style={[styles.activeTripHint, { color: colors.textSecondary }]}>Open Trips tab to manage</Text>
           </View>
         )}
 
         {/* Offline Sync Indicator */}
         {pendingSync > 0 && (
-          <View style={styles.warningCard}>
-            <Text style={styles.warningTitle}>
+          <View style={[styles.warningCard, { backgroundColor: colors.warningBg, borderColor: colors.warningBorder }]}>
+            <Text style={[styles.warningTitle, { color: colors.warningTitle }]}>
               {pendingSync} update{pendingSync > 1 ? "s" : ""} pending
             </Text>
-            <Text style={styles.warningText}>
+            <Text style={[styles.warningText, { color: colors.warningText }]}>
               {isNetworkConnected
                 ? "Syncing queued location updates..."
                 : "No internet. Will sync when back online."}
@@ -343,9 +347,9 @@ export default function HomeScreen() {
 
         {/* Permission Warning */}
         {isOnline && permissionStatus === "foreground" && (
-          <View style={styles.warningCard}>
-            <Text style={styles.warningTitle}>Action required</Text>
-            <Text style={styles.warningText}>
+          <View style={[styles.warningCard, { backgroundColor: colors.warningBg, borderColor: colors.warningBorder }]}>
+            <Text style={[styles.warningTitle, { color: colors.warningTitle }]}>Action required</Text>
+            <Text style={[styles.warningText, { color: colors.warningText }]}>
               Tracking stops when minimized. Enable "Allow all the time" in Settings.
             </Text>
             <TouchableOpacity style={styles.fixButton} onPress={() => Linking.openSettings()}>
@@ -355,9 +359,9 @@ export default function HomeScreen() {
         )}
 
         {!hasCompany && (
-          <View style={styles.warningCard}>
-            <Text style={styles.warningTitle}>No company linked</Text>
-            <Text style={styles.warningText}>
+          <View style={[styles.warningCard, { backgroundColor: colors.warningBg, borderColor: colors.warningBorder }]}>
+            <Text style={[styles.warningTitle, { color: colors.warningTitle }]}>No company linked</Text>
+            <Text style={[styles.warningText, { color: colors.warningText }]}>
               Ask your dispatcher to send you a tracking request link.
             </Text>
           </View>
@@ -370,7 +374,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
   },
   mapContainer: {
     flex: 1.5,
@@ -379,13 +382,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
   },
   greetingOverlay: {
     position: "absolute",
     top: 16,
     left: 16,
-    backgroundColor: "rgba(255,255,255,0.92)",
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -403,7 +404,6 @@ const styles = StyleSheet.create({
   greetingText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#1a1a1a",
   },
   connectedText: {
     fontSize: 12,
@@ -426,26 +426,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#f9fafb",
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
     marginBottom: 10,
-  },
-  statusRowOnline: {
-    backgroundColor: "#f0fdf4",
-    borderColor: "#bbf7d0",
   },
   statusLabel: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#999",
     marginBottom: 2,
   },
   statusHint: {
     fontSize: 12,
-    color: "#6b7280",
   },
   compactInfoRow: {
     flexDirection: "row",
@@ -454,23 +446,19 @@ const styles = StyleSheet.create({
   },
   compactInfoItem: {
     flex: 1,
-    backgroundColor: "#f9fafb",
     borderRadius: 10,
     padding: 10,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#f0f0f0",
   },
   compactLabel: {
     fontSize: 10,
-    color: "#9ca3af",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   compactValue: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#1a1a1a",
     marginTop: 2,
   },
 
@@ -478,11 +466,9 @@ const styles = StyleSheet.create({
   locationCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f9fafb",
     borderRadius: 10,
     padding: 10,
     borderWidth: 1,
-    borderColor: "#f0f0f0",
     marginBottom: 10,
     gap: 8,
   },
@@ -492,7 +478,6 @@ const styles = StyleSheet.create({
   locationText: {
     fontSize: 13,
     fontWeight: "500",
-    color: "#374151",
     flex: 1,
   },
 
@@ -500,11 +485,9 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f9fafb",
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: "#f0f0f0",
     marginBottom: 10,
   },
   statItem: {
@@ -514,11 +497,9 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#1a1a1a",
   },
   statLabel: {
     fontSize: 10,
-    color: "#9ca3af",
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginTop: 2,
@@ -526,16 +507,13 @@ const styles = StyleSheet.create({
   statDivider: {
     width: 1,
     height: 28,
-    backgroundColor: "#e5e7eb",
   },
 
   // Active trip card
   activeTripCard: {
-    backgroundColor: "#eff6ff",
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: "#bfdbfe",
     marginBottom: 10,
   },
   activeTripHeader: {
@@ -568,27 +546,22 @@ const styles = StyleSheet.create({
   },
   activeTripHint: {
     fontSize: 11,
-    color: "#6b7280",
   },
 
   // Warning cards
   warningCard: {
-    backgroundColor: "#fffbeb",
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: "#fde68a",
     marginBottom: 10,
   },
   warningTitle: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#92400e",
     marginBottom: 4,
   },
   warningText: {
     fontSize: 12,
-    color: "#a16207",
     lineHeight: 18,
   },
   fixButton: {

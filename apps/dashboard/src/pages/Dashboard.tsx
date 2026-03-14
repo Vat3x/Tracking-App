@@ -16,7 +16,7 @@ import { useNavigate } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/services/firebase";
 import { toast } from "sonner";
-import { COLLECTIONS, type Invite, type User, type Trip, type TripStatus } from "@nexus/shared";
+import { COLLECTIONS, type Invite, type User, type Trip, type TripStatus, getTripRouteLabel } from "@nexus/shared";
 import { updateTripStatus } from "@/services/trips";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -350,17 +350,9 @@ export default function Dashboard() {
                                 {trip.status.replace("_", " ")}
                               </span>
                             </div>
-                            <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 truncate">
-                              <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
-                              <span className="truncate">{trip.origin.label}</span>
-                              {trip.destination && (
-                                <>
-                                  <span className="mx-0.5">→</span>
-                                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
-                                  <span className="truncate">{trip.destination.label}</span>
-                                </>
-                              )}
-                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                              {getTripRouteLabel(trip)}
+                            </p>
                             {isActive && (
                               <div className="flex items-center gap-3 mt-1">
                                 <button

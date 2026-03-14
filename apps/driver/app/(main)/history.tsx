@@ -9,16 +9,9 @@ import {
 } from "react-native";
 import { useAuthStore } from "../../src/stores/auth";
 import { subscribeToDriverTrips } from "../../src/services/trips";
-import type { Trip, TripStatus } from "@nexus/shared";
-
-const STATUS_COLORS: Record<TripStatus, { bg: string; text: string }> = {
-  pending: { bg: "#fef9c3", text: "#854d0e" },
-  accepted: { bg: "#dbeafe", text: "#1e40af" },
-  rejected: { bg: "#fee2e2", text: "#991b1b" },
-  in_progress: { bg: "#e0e7ff", text: "#3730a3" },
-  completed: { bg: "#dcfce7", text: "#166534" },
-  cancelled: { bg: "#fee2e2", text: "#991b1b" },
-};
+import { useTheme } from "../../src/hooks/useTheme";
+import { getStatusColors } from "../../src/constants/statusColors";
+import { type Trip, type TripStatus, getStopsFromTrip } from "@nexus/shared";
 
 const STATUS_LABELS: Record<TripStatus, string> = {
   pending: "Pending",
@@ -35,48 +28,34 @@ function formatTime(ts: number): string {
 }
 
 function HistoryCard({ trip }: { trip: Trip }) {
-  const statusColor = STATUS_COLORS[trip.status];
-  const stopCount = trip.stops?.length ?? 0;
+  const { colors, isDark } = useTheme();
+  const statusColors = getStatusColors(isDark);
+  const statusColor = statusColors[trip.status];
+  const stops = getStopsFromTrip(trip);
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.borderLight }]}>
       <View style={styles.cardHeader}>
         <View style={[styles.badge, { backgroundColor: statusColor.bg }]}>
           <Text style={[styles.badgeText, { color: statusColor.text }]}>
             {STATUS_LABELS[trip.status]}
           </Text>
         </View>
-        <Text style={styles.time}>{formatTime(trip.createdAt)}</Text>
+        <Text style={[styles.time, { color: colors.textMuted }]}>{formatTime(trip.createdAt)}</Text>
       </View>
 
-      {/* Route summary */}
       <View style={styles.route}>
-        <View style={styles.routePoint}>
-          <View style={[styles.dot, { backgroundColor: "#22c55e" }]} />
-          <Text style={styles.routeText} numberOfLines={1}>
-            {trip.origin.label}
-          </Text>
-        </View>
-        {stopCount > 0 && (
-          <>
-            <View style={styles.routeLine} />
+        {stops.map((stop, i) => (
+          <View key={i}>
+            {i > 0 && <View style={[styles.routeLine, { backgroundColor: colors.routeLine }]} />}
             <View style={styles.routePoint}>
-              <View style={[styles.dot, { backgroundColor: "#f97316", width: 6, height: 6, borderRadius: 3, marginHorizontal: 1 }]} />
-              <Text style={styles.stopsText}>{stopCount} stop{stopCount > 1 ? "s" : ""}</Text>
-            </View>
-          </>
-        )}
-        {trip.destination && (
-          <>
-            <View style={styles.routeLine} />
-            <View style={styles.routePoint}>
-              <View style={[styles.dot, { backgroundColor: "#ef4444" }]} />
-              <Text style={styles.routeText} numberOfLines={1}>
-                {trip.destination.label}
+              <View style={[styles.dot, { backgroundColor: stop.type === "pickup" ? "#22c55e" : "#ef4444" }]} />
+              <Text style={[styles.routeText, { color: colors.text }]} numberOfLines={1}>
+                {stop.label}
               </Text>
             </View>
-          </>
-        )}
+          </View>
+        ))}
       </View>
     </View>
   );
@@ -84,6 +63,7 @@ function HistoryCard({ trip }: { trip: Trip }) {
 
 export default function HistoryScreen() {
   const { userDoc, firebaseUser } = useAuthStore();
+  const { colors } = useTheme();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -107,21 +87,21 @@ export default function HistoryScreen() {
   const hasCompany = !!userDoc?.companyId;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       {loading ? (
         <View style={styles.emptyContainer}>
           <ActivityIndicator size="large" color="#1a73e8" />
         </View>
       ) : !hasCompany ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>
+          <Text style={[styles.emptyText, { color: colors.textMuted }]}>
             Link to a company first to see trip history.
           </Text>
         </View>
       ) : trips.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyTitle}>No trip history</Text>
-          <Text style={styles.emptyText}>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>No trip history</Text>
+          <Text style={[styles.emptyText, { color: colors.textMuted }]}>
             Completed, declined, and cancelled trips will appear here.
           </Text>
         </View>
@@ -135,7 +115,7 @@ export default function HistoryScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
           ListHeaderComponent={
-            <Text style={styles.sectionTitle}>
+            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
               Past Trips ({trips.length})
             </Text>
           }
@@ -149,7 +129,6 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
   },
   list: {
     padding: 16,
@@ -157,17 +136,14 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#6b7280",
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 10,
   },
   card: {
-    backgroundColor: "#f9fafb",
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: "#f0f0f0",
   },
   cardHeader: {
     flexDirection: "row",
@@ -186,7 +162,6 @@ const styles = StyleSheet.create({
   },
   time: {
     fontSize: 11,
-    color: "#9ca3af",
   },
   route: {},
   routePoint: {
@@ -202,18 +177,11 @@ const styles = StyleSheet.create({
   routeText: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#1a1a1a",
     flex: 1,
-  },
-  stopsText: {
-    fontSize: 13,
-    color: "#9ca3af",
-    fontStyle: "italic",
   },
   routeLine: {
     width: 1,
     height: 12,
-    backgroundColor: "#d1d5db",
     marginLeft: 3.5,
     marginVertical: 2,
   },
@@ -226,12 +194,10 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#1a1a1a",
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: "#9ca3af",
     textAlign: "center",
     lineHeight: 20,
   },

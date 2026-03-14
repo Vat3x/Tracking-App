@@ -1,11 +1,24 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../../src/hooks/useTheme";
 
 export default function MainLayout() {
+  const { colors, isDark } = useTheme();
+
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: "#1a73e8",
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarStyle: {
+          backgroundColor: colors.tabBarBg,
+          borderTopColor: colors.tabBarBorder,
+        },
+        headerStyle: {
+          backgroundColor: colors.headerBg,
+        },
+        headerTintColor: colors.text,
+        headerShadowVisible: !isDark,
         headerShown: true,
       }}
     >

@@ -1,7 +1,8 @@
 import { collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
-import { db, functions } from "./firebase";
-import { COLLECTIONS, type User } from "@nexus/shared";
+import { db, auth } from "./firebase";
+import { COLLECTIONS, type User, firebaseConfig } from "@nexus/shared";
+
+const FUNCTIONS_URL = `https://us-central1-${firebaseConfig.projectId}.cloudfunctions.net`;
 
 /**
  * Fetch all driver users belonging to a company.
@@ -35,14 +36,28 @@ export async function updateDriverName(
 }
 
 /**
- * Remove a driver from a company via Cloud Function.
- * The function validates permissions server-side, then clears companyId,
- * removes from company members, and cleans up RTDB entries.
+ * Remove a driver from a company via Cloud Function (onRequest).
+ * Uses fetch with Bearer token auth to avoid Cloud Run CORS issues.
  */
 export async function removeDriverFromCompany(
   driverId: string,
   companyId: string
 ): Promise<void> {
-  const fn = httpsCallable(functions, "removeDriver");
-  await fn({ driverId, companyId });
+  const user = auth.currentUser;
+  if (!user) throw new Error("Not authenticated");
+
+  const token = await user.getIdToken();
+  const res = await fetch(`${FUNCTIONS_URL}/removeDriver`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify({ driverId, companyId }),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Failed to remove driver");
+  }
 }

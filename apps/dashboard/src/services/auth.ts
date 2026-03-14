@@ -61,7 +61,13 @@ export async function registerDispatcher(
     };
     await setDoc(doc(db, COLLECTIONS.USERS, uid), userData);
 
-    // Verification email is sent by the onDispatcherCreated Cloud Function via Resend
+    // Send verification email via Cloud Function (more reliable than Firestore trigger)
+    try {
+      const sendVerification = httpsCallable(functions, "resendVerification");
+      await sendVerification();
+    } catch (e) {
+      console.error("Failed to send verification email:", e);
+    }
 
     return { user: credential.user, companyId };
   } catch (err) {

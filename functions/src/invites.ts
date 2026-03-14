@@ -1,5 +1,6 @@
 import * as admin from "firebase-admin";
 import { onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -44,4 +45,30 @@ export const onInviteAccepted = onDocumentUpdated("invites/{inviteId}", async (e
 
   // 3. Mirror to RTDB for security rules
   await rtdb.ref(`company_members/${companyId}/${acceptedBy}`).set(true);
+});
+
+/**
+ * Public callable: fetch invite data by ID (no auth required).
+ * Uses Admin SDK to bypass Firestore security rules.
+ */
+export const getInvitePublic = onCall({ cors: true }, async (request) => {
+  const inviteId = request.data?.inviteId;
+  if (!inviteId || typeof inviteId !== "string") {
+    throw new HttpsError("invalid-argument", "inviteId is required");
+  }
+
+  const snap = await firestore.doc(`invites/${inviteId}`).get();
+  if (!snap.exists) {
+    throw new HttpsError("not-found", "Invite not found");
+  }
+
+  const data = snap.data()!;
+  return {
+    id: snap.id,
+    companyId: data.companyId,
+    companyName: data.companyName,
+    status: data.status,
+    expiresAt: data.expiresAt,
+    createdAt: data.createdAt,
+  };
 });

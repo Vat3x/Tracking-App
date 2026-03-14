@@ -10,6 +10,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { getInvite, acceptInvite } from "../../src/services/invites";
 import { useAuthStore } from "../../src/stores/auth";
+import { useTheme } from "../../src/hooks/useTheme";
 import { getUserDoc } from "../../src/services/auth";
 import type { Invite } from "@nexus/shared";
 
@@ -17,6 +18,7 @@ export default function AcceptInviteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { firebaseUser, setUserDoc } = useAuthStore();
+  const { colors, isDark } = useTheme();
 
   const [invite, setInvite] = useState<Invite | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,20 +32,26 @@ export default function AcceptInviteScreen() {
       return;
     }
 
-    getInvite(id)
-      .then((inv) => {
-        if (!inv) {
-          setError("Invite not found");
-        } else if (inv.status === "accepted") {
-          setError("This invite has already been used");
-        } else if (inv.status === "expired" || inv.expiresAt < Date.now()) {
-          setError("This invite has expired");
-        } else {
-          setInvite(inv);
-        }
-      })
-      .catch(() => setError("Failed to load invite"))
-      .finally(() => setLoading(false));
+    const timer = setTimeout(() => {
+      getInvite(id)
+        .then((inv) => {
+          if (!inv) {
+            setError("Invite not found");
+          } else if (inv.status === "accepted") {
+            setError("This invite has already been used");
+          } else if (inv.status === "expired" || inv.expiresAt < Date.now()) {
+            setError("This invite has expired");
+          } else {
+            setInvite(inv);
+          }
+        })
+        .catch((err) => {
+          console.error("Invite load error:", err?.code, err?.message);
+          setError(`Failed to load invite: ${err?.code || err?.message || "unknown"}`);
+        })
+        .finally(() => setLoading(false));
+    }, 500);
+    return () => clearTimeout(timer);
   }, [id]);
 
   async function handleAccept() {
@@ -52,9 +60,6 @@ export default function AcceptInviteScreen() {
     setAccepting(true);
     try {
       await acceptInvite(invite.id, firebaseUser.uid);
-
-      // Refresh the user doc to pick up the companyId set by the Cloud Function
-      // Small delay to let the function execute
       await new Promise((r) => setTimeout(r, 2000));
       const updatedUser = await getUserDoc(firebaseUser.uid);
       if (updatedUser) setUserDoc(updatedUser);
@@ -77,24 +82,24 @@ export default function AcceptInviteScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.bg }]}>
         <ActivityIndicator size="large" color="#1a73e8" />
-        <Text style={styles.loadingText}>Loading invite...</Text>
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading invite...</Text>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.errorIcon}>!</Text>
-        <Text style={styles.errorTitle}>Cannot Accept Invite</Text>
-        <Text style={styles.errorText}>{error}</Text>
+      <View style={[styles.container, { backgroundColor: colors.bg }]}>
+        <Text style={[styles.errorIcon, isDark && { backgroundColor: "#450a0a" }]}>!</Text>
+        <Text style={[styles.errorTitle, { color: colors.text }]}>Cannot Accept Invite</Text>
+        <Text style={[styles.errorText, { color: colors.textSecondary }]}>{error}</Text>
         <TouchableOpacity
           style={styles.secondaryButton}
           onPress={() => router.replace("/(main)/home")}
         >
-          <Text style={styles.secondaryButtonText}>Go to Home</Text>
+          <Text style={[styles.secondaryButtonText, { color: colors.textSecondary }]}>Go to Home</Text>
         </TouchableOpacity>
       </View>
     );
@@ -102,10 +107,10 @@ export default function AcceptInviteScreen() {
 
   if (!firebaseUser) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.title}>Tracking Request</Text>
-        <Text style={styles.companyName}>{invite?.companyName}</Text>
-        <Text style={styles.description}>
+      <View style={[styles.container, { backgroundColor: colors.bg }]}>
+        <Text style={[styles.screenTitle, { color: colors.text }]}>Tracking Request</Text>
+        <Text style={[styles.companyName, { color: colors.text }]}>{invite?.companyName}</Text>
+        <Text style={[styles.description, { color: colors.textSecondary }]}>
           You need to sign in or create an account before accepting this invite.
         </Text>
         <TouchableOpacity
@@ -113,7 +118,7 @@ export default function AcceptInviteScreen() {
           onPress={() =>
             router.push({
               pathname: "/(auth)/login",
-              params: { inviteId: id },
+              params: { inviteId: id, inviteCompanyName: invite?.companyName },
             })
           }
         >
@@ -124,30 +129,30 @@ export default function AcceptInviteScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      <View style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
         <Text style={styles.badge}>TRACKING REQUEST</Text>
-        <Text style={styles.companyName}>{invite?.companyName}</Text>
-        <Text style={styles.description}>
+        <Text style={[styles.companyName, { color: colors.text }]}>{invite?.companyName}</Text>
+        <Text style={[styles.description, { color: colors.textSecondary }]}>
           This company wants to track your location while you are on duty. You
           can go offline at any time to stop sharing your location.
         </Text>
 
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>What they see:</Text>
-          <Text style={styles.infoValue}>
+          <Text style={[styles.infoLabel, { color: colors.text }]}>What they see:</Text>
+          <Text style={[styles.infoValue, { color: colors.textSecondary }]}>
             GPS location, speed, battery level
           </Text>
         </View>
 
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Frequency:</Text>
-          <Text style={styles.infoValue}>Every 40 minutes while online</Text>
+          <Text style={[styles.infoLabel, { color: colors.text }]}>Frequency:</Text>
+          <Text style={[styles.infoValue, { color: colors.textSecondary }]}>Every 40 minutes while online</Text>
         </View>
 
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Control:</Text>
-          <Text style={styles.infoValue}>
+          <Text style={[styles.infoLabel, { color: colors.text }]}>Control:</Text>
+          <Text style={[styles.infoValue, { color: colors.textSecondary }]}>
             Toggle online/offline anytime from the home screen
           </Text>
         </View>
@@ -170,7 +175,7 @@ export default function AcceptInviteScreen() {
         onPress={handleDecline}
         disabled={accepting}
       >
-        <Text style={styles.secondaryButtonText}>Decline</Text>
+        <Text style={[styles.secondaryButtonText, { color: colors.textSecondary }]}>Decline</Text>
       </TouchableOpacity>
     </View>
   );
@@ -179,7 +184,6 @@ export default function AcceptInviteScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
@@ -187,7 +191,6 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: "#666",
   },
   errorIcon: {
     fontSize: 40,
@@ -205,23 +208,19 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 20,
     fontWeight: "600",
-    color: "#1a1a1a",
     marginBottom: 8,
   },
   errorText: {
     fontSize: 14,
-    color: "#666",
     textAlign: "center",
     marginBottom: 24,
   },
   card: {
     width: "100%",
-    backgroundColor: "#f9fafb",
     borderRadius: 16,
     padding: 24,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
   },
   badge: {
     fontSize: 11,
@@ -230,21 +229,18 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginBottom: 12,
   },
-  title: {
+  screenTitle: {
     fontSize: 24,
     fontWeight: "600",
-    color: "#1a1a1a",
     marginBottom: 8,
   },
   companyName: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#1a1a1a",
     marginBottom: 12,
   },
   description: {
     fontSize: 14,
-    color: "#666",
     lineHeight: 20,
     marginBottom: 20,
   },
@@ -255,12 +251,10 @@ const styles = StyleSheet.create({
   infoLabel: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#374151",
     width: 100,
   },
   infoValue: {
     fontSize: 13,
-    color: "#6b7280",
     flex: 1,
   },
   primaryButton: {
@@ -284,7 +278,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   secondaryButtonText: {
-    color: "#666",
     fontSize: 16,
   },
   buttonDisabled: {

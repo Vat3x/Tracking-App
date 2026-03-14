@@ -11,11 +11,13 @@ import {
   Alert,
   ScrollView,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { loginWithEmail, registerDriver, getUserDoc } from "../../src/services/auth";
 import { sendVerificationCode, verifyOtpAndSignIn, createPhoneUser } from "../../src/services/phoneAuth";
+import { acceptInvite } from "../../src/services/invites";
 import { Logo } from "../../src/components/Logo";
 import { useAuthStore } from "../../src/stores/auth";
+import { useTheme } from "../../src/hooks/useTheme";
 import { auth } from "../../src/services/firebase";
 
 // Common country codes (US-optimized)
@@ -35,7 +37,14 @@ type PhoneStep = "idle" | "sending" | "otp" | "verifying" | "name" | "saving";
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { colors, isDark } = useTheme();
+  const { inviteId, inviteCompanyName } = useLocalSearchParams<{
+    inviteId?: string;
+    inviteCompanyName?: string;
+  }>();
   const { setFirebaseUser, setUserDoc } = useAuthStore();
+
+  const hasInvite = !!inviteId;
 
   // Auth method toggle
   const [authMethod, setAuthMethod] = useState<"phone" | "email">("phone");
@@ -76,7 +85,17 @@ export default function LoginScreen() {
     }
   }, [authMethod]);
 
-  // ---- Email handlers (unchanged) ----
+  async function tryAcceptInvite(uid: string) {
+    if (!inviteId) return;
+    try {
+      await acceptInvite(inviteId, uid);
+      await new Promise((r) => setTimeout(r, 2000));
+    } catch {
+      // non-fatal
+    }
+  }
+
+  // ---- Email handlers ----
 
   async function handleLogin() {
     if (!email || !password) {
@@ -94,8 +113,10 @@ export default function LoginScreen() {
         return;
       }
 
+      await tryAcceptInvite(user.uid);
+      const finalDoc = inviteId ? await getUserDoc(user.uid) : userDoc;
       setFirebaseUser({ uid: user.uid, email: user.email });
-      setUserDoc(userDoc);
+      setUserDoc(finalDoc);
       router.replace("/(main)/home");
     } catch (err: any) {
       if (err.code === "auth/invalid-credential") {
@@ -122,6 +143,7 @@ export default function LoginScreen() {
     setEmailLoading(true);
     try {
       const user = await registerDriver(email, password, displayName);
+      await tryAcceptInvite(user.uid);
       const userDoc = await getUserDoc(user.uid);
 
       setFirebaseUser({ uid: user.uid, email: user.email });
@@ -178,12 +200,21 @@ export default function LoginScreen() {
           setPhoneStep("idle");
           return;
         }
+        await tryAcceptInvite(user.uid);
+        const finalDoc = inviteId ? await getUserDoc(user.uid) : userDoc;
         setFirebaseUser({ uid: user.uid, email: user.email });
-        setUserDoc(userDoc);
+        setUserDoc(finalDoc);
         router.replace("/(main)/home");
-      } else {
-        // New user — need display name
+      } else if (hasInvite) {
         setPhoneStep("name");
+      } else {
+        Alert.alert(
+          "No Account Found",
+          "Please use an invite link from your dispatcher to register."
+        );
+        setPhoneStep("idle");
+        setOtpCode("");
+        setVerificationId(null);
       }
     } catch (err: any) {
       setPhoneStep("otp");
@@ -211,6 +242,7 @@ export default function LoginScreen() {
 
       const fullNumber = countryCode + phoneNumber.replace(/\D/g, "");
       await createPhoneUser(user.uid, fullNumber, newUserName.trim());
+      await tryAcceptInvite(user.uid);
       const userDoc = await getUserDoc(user.uid);
 
       setFirebaseUser({ uid: user.uid, email: user.email });
@@ -228,13 +260,11 @@ export default function LoginScreen() {
     handleSendOtp();
   }
 
-  // ---- Render ----
-
   const phoneLoading = phoneStep === "sending" || phoneStep === "verifying" || phoneStep === "saving";
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.bg }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <ScrollView
@@ -248,10 +278,19 @@ export default function LoginScreen() {
             <Text style={styles.titleAccent}>Tracker</Text>
           </View>
         </View>
-        <Text style={styles.subtitle}>
+        {hasInvite && inviteCompanyName && (
+          <View style={[styles.inviteBanner, isDark && { backgroundColor: "#052e16" }]}>
+            <Text style={[styles.inviteBannerText, isDark && { color: "#86efac" }]}>
+              Invited by <Text style={styles.inviteCompany}>{inviteCompanyName}</Text>
+            </Text>
+          </View>
+        )}
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           {authMethod === "phone"
             ? phoneStep === "name"
               ? "Set your name to continue"
+              : hasInvite
+              ? "Sign in or register with your phone"
               : "Sign in with your phone number"
             : isRegister
             ? "Create your driver account"
@@ -259,13 +298,13 @@ export default function LoginScreen() {
         </Text>
 
         {/* Auth method toggle */}
-        <View style={styles.toggleRow}>
+        <View style={[styles.toggleRow, { backgroundColor: colors.toggleBg }]}>
           <TouchableOpacity
             style={[styles.toggleBtn, authMethod === "phone" && styles.toggleActive]}
             onPress={() => setAuthMethod("phone")}
           >
             <Text
-              style={[styles.toggleText, authMethod === "phone" && styles.toggleTextActive]}
+              style={[styles.toggleText, { color: colors.textSecondary }, authMethod === "phone" && styles.toggleTextActive]}
             >
               Phone
             </Text>
@@ -275,7 +314,7 @@ export default function LoginScreen() {
             onPress={() => setAuthMethod("email")}
           >
             <Text
-              style={[styles.toggleText, authMethod === "email" && styles.toggleTextActive]}
+              style={[styles.toggleText, { color: colors.textSecondary }, authMethod === "email" && styles.toggleTextActive]}
             >
               Email
             </Text>
@@ -287,19 +326,18 @@ export default function LoginScreen() {
           <>
             {phoneStep === "idle" || phoneStep === "sending" ? (
               <>
-                {/* Country code + phone input */}
                 <View style={styles.phoneRow}>
                   <TouchableOpacity
-                    style={styles.countryBtn}
+                    style={[styles.countryBtn, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg }]}
                     onPress={() => setShowCountryPicker(!showCountryPicker)}
                   >
-                    <Text style={styles.countryBtnText}>{countryCode}</Text>
-                    <Text style={styles.countryArrow}>▼</Text>
+                    <Text style={[styles.countryBtnText, { color: colors.inputText }]}>{countryCode}</Text>
+                    <Text style={[styles.countryArrow, { color: colors.textMuted }]}>▼</Text>
                   </TouchableOpacity>
                   <TextInput
-                    style={styles.phoneInput}
+                    style={[styles.phoneInput, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg, color: colors.inputText }]}
                     placeholder="Phone number"
-                    placeholderTextColor="#999"
+                    placeholderTextColor={colors.placeholder}
                     value={phoneNumber}
                     onChangeText={setPhoneNumber}
                     keyboardType="phone-pad"
@@ -308,20 +346,21 @@ export default function LoginScreen() {
                 </View>
 
                 {showCountryPicker && (
-                  <View style={styles.countryList}>
+                  <View style={[styles.countryList, { borderColor: colors.inputBorder, backgroundColor: colors.bgCard }]}>
                     {COUNTRY_CODES.map((c) => (
                       <TouchableOpacity
                         key={c.code + c.label}
                         style={[
                           styles.countryItem,
-                          c.code === countryCode && styles.countryItemActive,
+                          { borderBottomColor: colors.divider },
+                          c.code === countryCode && { backgroundColor: isDark ? "#172554" : "#e8f0fe" },
                         ]}
                         onPress={() => {
                           setCountryCode(c.code);
                           setShowCountryPicker(false);
                         }}
                       >
-                        <Text style={styles.countryItemText}>{c.label}</Text>
+                        <Text style={[styles.countryItemText, { color: colors.text }]}>{c.label}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -341,17 +380,17 @@ export default function LoginScreen() {
               </>
             ) : phoneStep === "otp" || phoneStep === "verifying" ? (
               <>
-                <Text style={styles.otpLabel}>
+                <Text style={[styles.otpLabel, { color: colors.textSecondary }]}>
                   Enter the 6-digit code sent to{" "}
-                  <Text style={styles.otpPhone}>
+                  <Text style={[styles.otpPhone, { color: colors.text }]}>
                     {countryCode} {phoneNumber}
                   </Text>
                 </Text>
 
                 <TextInput
-                  style={[styles.input, styles.otpInput]}
+                  style={[styles.input, styles.otpInput, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg, color: colors.inputText }]}
                   placeholder="000000"
-                  placeholderTextColor="#ccc"
+                  placeholderTextColor={colors.placeholder}
                   value={otpCode}
                   onChangeText={(text) => setOtpCode(text.replace(/\D/g, "").slice(0, 6))}
                   keyboardType="number-pad"
@@ -377,7 +416,7 @@ export default function LoginScreen() {
                   onPress={handleResendOtp}
                   disabled={resendCooldown > 0}
                 >
-                  <Text style={[styles.resendText, resendCooldown > 0 && styles.resendDisabled]}>
+                  <Text style={[styles.resendText, resendCooldown > 0 && { color: colors.textMuted }]}>
                     {resendCooldown > 0
                       ? `Resend code in ${resendCooldown}s`
                       : "Resend Code"}
@@ -399,9 +438,9 @@ export default function LoginScreen() {
               /* phoneStep === "name" || "saving" */
               <>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg, color: colors.inputText }]}
                   placeholder="Your name"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={colors.placeholder}
                   value={newUserName}
                   onChangeText={setNewUserName}
                   autoCapitalize="words"
@@ -421,7 +460,6 @@ export default function LoginScreen() {
                 </TouchableOpacity>
               </>
             )}
-
           </>
         )}
 
@@ -430,9 +468,9 @@ export default function LoginScreen() {
           <>
             {isRegister && (
               <TextInput
-                style={styles.input}
+                style={[styles.input, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg, color: colors.inputText }]}
                 placeholder="Name"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.placeholder}
                 value={displayName}
                 onChangeText={setDisplayName}
                 autoCapitalize="words"
@@ -440,9 +478,9 @@ export default function LoginScreen() {
             )}
 
             <TextInput
-              style={styles.input}
+              style={[styles.input, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg, color: colors.inputText }]}
               placeholder="Email"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.placeholder}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -450,11 +488,11 @@ export default function LoginScreen() {
               autoCorrect={false}
             />
 
-            <View style={styles.passwordContainer}>
+            <View style={[styles.passwordContainer, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg }]}>
               <TextInput
-                style={styles.passwordInput}
+                style={[styles.passwordInput, { color: colors.inputText }]}
                 placeholder="Password"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.placeholder}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -481,16 +519,18 @@ export default function LoginScreen() {
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.switchButton}
-              onPress={() => setIsRegister(!isRegister)}
-            >
-              <Text style={styles.switchText}>
-                {isRegister
-                  ? "Already have an account? Sign in"
-                  : "Don't have an account? Register"}
-              </Text>
-            </TouchableOpacity>
+            {hasInvite && (
+              <TouchableOpacity
+                style={styles.switchButton}
+                onPress={() => setIsRegister(!isRegister)}
+              >
+                <Text style={styles.switchText}>
+                  {isRegister
+                    ? "Already have an account? Sign in"
+                    : "Don't have an account? Register"}
+                </Text>
+              </TouchableOpacity>
+            )}
           </>
         )}
       </ScrollView>
@@ -501,7 +541,6 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
   },
   inner: {
     flexGrow: 1,
@@ -529,14 +568,26 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 15,
-    color: "#666",
     marginBottom: 24,
+  },
+  inviteBanner: {
+    backgroundColor: "#e8f5e9",
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+  },
+  inviteBannerText: {
+    fontSize: 14,
+    color: "#2e7d32",
+  },
+  inviteCompany: {
+    fontWeight: "700",
   },
 
   // Toggle
   toggleRow: {
     flexDirection: "row",
-    backgroundColor: "#f0f0f0",
     borderRadius: 8,
     padding: 3,
     marginBottom: 20,
@@ -553,7 +604,6 @@ const styles = StyleSheet.create({
   toggleText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#666",
   },
   toggleTextActive: {
     color: "#fff",
@@ -569,65 +619,49 @@ const styles = StyleSheet.create({
     height: 48,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: "#ddd",
     borderRadius: 8,
-    backgroundColor: "#fafafa",
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
   },
   countryBtnText: {
     fontSize: 15,
-    color: "#000",
     fontWeight: "500",
   },
   countryArrow: {
     fontSize: 10,
-    color: "#999",
   },
   phoneInput: {
     flex: 1,
     height: 48,
     borderWidth: 1,
-    borderColor: "#ddd",
     borderRadius: 8,
     paddingHorizontal: 14,
     fontSize: 15,
-    backgroundColor: "#fafafa",
-    color: "#000",
   },
   countryList: {
     borderWidth: 1,
-    borderColor: "#ddd",
     borderRadius: 8,
     marginBottom: 12,
-    backgroundColor: "#fff",
     overflow: "hidden",
   },
   countryItem: {
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#eee",
-  },
-  countryItemActive: {
-    backgroundColor: "#e8f0fe",
   },
   countryItemText: {
     fontSize: 14,
-    color: "#333",
   },
 
   // OTP
   otpLabel: {
     fontSize: 14,
-    color: "#555",
     marginBottom: 16,
     lineHeight: 20,
   },
   otpPhone: {
     fontWeight: "600",
-    color: "#333",
   },
   otpInput: {
     fontSize: 24,
@@ -642,30 +676,22 @@ const styles = StyleSheet.create({
     color: "#1a73e8",
     fontSize: 14,
   },
-  resendDisabled: {
-    color: "#999",
-  },
 
   // Shared
   input: {
     height: 48,
     borderWidth: 1,
-    borderColor: "#ddd",
     borderRadius: 8,
     paddingHorizontal: 14,
     fontSize: 15,
     marginBottom: 12,
-    backgroundColor: "#fafafa",
-    color: "#000",
   },
   passwordContainer: {
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#ddd",
     borderRadius: 8,
     marginBottom: 12,
-    backgroundColor: "#fafafa",
     height: 48,
   },
   passwordInput: {
@@ -673,7 +699,6 @@ const styles = StyleSheet.create({
     height: 48,
     paddingHorizontal: 14,
     fontSize: 15,
-    color: "#000",
   },
   eyeButton: {
     paddingHorizontal: 12,

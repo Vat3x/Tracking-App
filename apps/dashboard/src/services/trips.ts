@@ -11,30 +11,25 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import { COLLECTIONS, type Trip, type GeoPoint, type TripStatus } from "@nexus/shared";
-export type { GeoPoint };
+import { COLLECTIONS, type Trip, type TripStop, type TripStatus } from "@nexus/shared";
 
 export interface CreateTripInput {
   companyId: string;
   driverId: string;
   assignedBy: string;
-  origin: GeoPoint;
-  stops?: GeoPoint[];
-  destination?: GeoPoint;
+  stops: TripStop[];
   country?: string;
 }
 
 export async function createTrip(input: CreateTripInput): Promise<string> {
   const tripRef = doc(collection(db, COLLECTIONS.TRIPS));
 
-  const trip: Omit<Trip, "id"> = {
+  const trip = {
     companyId: input.companyId,
     driverId: input.driverId,
     assignedBy: input.assignedBy,
     status: "pending",
-    origin: input.origin,
-    ...(input.stops && input.stops.length > 0 && { stops: input.stops }),
-    ...(input.destination && { destination: input.destination }),
+    stops: input.stops,
     ...(input.country && { country: input.country }),
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -55,48 +50,17 @@ export async function updateTripStatus(
   });
 }
 
-export async function updateTripLocation(
+export async function updateTripRoute(
   tripId: string,
-  field: "origin" | "destination",
-  location: GeoPoint
-): Promise<void> {
-  await updateDoc(doc(db, COLLECTIONS.TRIPS, tripId), {
-    [field]: location,
-    updatedAt: Date.now(),
-  });
-}
-
-export async function updateTripStop(
-  tripId: string,
-  stops: GeoPoint[]
+  stops: TripStop[]
 ): Promise<void> {
   await updateDoc(doc(db, COLLECTIONS.TRIPS, tripId), {
     stops,
+    // Clean up legacy fields
+    origin: deleteField(),
+    destination: deleteField(),
     updatedAt: Date.now(),
   });
-}
-
-export async function updateTripRoute(
-  tripId: string,
-  origin: GeoPoint,
-  stops: GeoPoint[],
-  destination: GeoPoint | null
-): Promise<void> {
-  const update: Record<string, unknown> = {
-    origin,
-    updatedAt: Date.now(),
-  };
-  if (stops.length > 0) {
-    update.stops = stops;
-  } else {
-    update.stops = deleteField();
-  }
-  if (destination) {
-    update.destination = destination;
-  } else {
-    update.destination = deleteField();
-  }
-  await updateDoc(doc(db, COLLECTIONS.TRIPS, tripId), update);
 }
 
 export function subscribeToCompanyTrips(

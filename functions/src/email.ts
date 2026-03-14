@@ -26,6 +26,7 @@ function buildVerificationHtml(displayName: string, verificationLink: string): s
         <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
           <tr>
             <td style="background:#1e40af;padding:28px 32px;text-align:center;">
+              <img src="https://tracking.loadmind.app/logo.png" alt="LoadMind" width="56" height="56" style="display:block;margin:0 auto 12px;border-radius:12px;" />
               <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.5px;">LoadMind Tracker</h1>
             </td>
           </tr>
@@ -72,7 +73,7 @@ async function sendVerificationEmail(email: string, displayName: string, apiKey:
 
   const resend = new Resend(apiKey);
   await resend.emails.send({
-    from: "LoadMind Tracker <noreply@loadmind.app>",
+    from: "LoadMind Tracker <team@loadmind.app>",
     to: email,
     subject: "Verify your LoadMind Tracker account",
     html: buildVerificationHtml(displayName, verificationLink),
@@ -107,7 +108,7 @@ export const onDispatcherCreated = onDocumentCreated(
  * Callable function: resend verification email for the authenticated user.
  */
 export const resendVerification = onCall(
-  { secrets: [resendApiKey] },
+  { secrets: [resendApiKey], cors: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Must be logged in");

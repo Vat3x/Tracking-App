@@ -8,10 +8,20 @@ import { logout } from "../../src/services/auth";
 import { useAuthStore } from "../../src/stores/auth";
 import { clearFcmToken } from "../../src/services/notifications";
 import { COLLECTIONS } from "@nexus/shared";
+import { useTheme } from "../../src/hooks/useTheme";
+import type { ThemeColors } from "../../src/constants/colors";
+
+type ThemePref = "system" | "light" | "dark";
+const THEME_OPTIONS: { key: ThemePref; label: string }[] = [
+  { key: "system", label: "System" },
+  { key: "light", label: "Light" },
+  { key: "dark", label: "Dark" },
+];
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { userDoc, reset } = useAuthStore();
+  const { colors, isDark, preference, setPreference } = useTheme();
   const [companyName, setCompanyName] = useState<string | null>(null);
 
   useEffect(() => {
@@ -42,45 +52,76 @@ export default function SettingsScreen() {
   const appVersion = Constants.expoConfig?.version ?? "1.0.0";
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
       {/* Profile Section */}
-      <Text style={styles.sectionHeader}>Profile</Text>
-      <View style={styles.card}>
+      <Text style={[styles.sectionHeader, { color: colors.textMuted }]}>Profile</Text>
+      <View style={[styles.card, { backgroundColor: colors.bgCard }]}>
         <View style={styles.row}>
-          <Text style={styles.label}>Name</Text>
-          <Text style={styles.value}>{userDoc?.displayName ?? "—"}</Text>
+          <Text style={[styles.label, { color: colors.textMuted }]}>Name</Text>
+          <Text style={[styles.value, { color: colors.text }]}>{userDoc?.displayName ?? "—"}</Text>
         </View>
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.divider }]} />
         <View style={styles.row}>
-          <Text style={styles.label}>{userDoc?.email ? "Email" : "Phone"}</Text>
-          <Text style={styles.value}>{userDoc?.email ?? userDoc?.phone ?? "—"}</Text>
+          <Text style={[styles.label, { color: colors.textMuted }]}>{userDoc?.email ? "Email" : "Phone"}</Text>
+          <Text style={[styles.value, { color: colors.text }]}>{userDoc?.email ?? userDoc?.phone ?? "—"}</Text>
         </View>
       </View>
 
       {/* Company Section */}
-      <Text style={styles.sectionHeader}>Company</Text>
-      <View style={styles.card}>
+      <Text style={[styles.sectionHeader, { color: colors.textMuted }]}>Company</Text>
+      <View style={[styles.card, { backgroundColor: colors.bgCard }]}>
         <View style={styles.row}>
-          <Text style={styles.label}>Company</Text>
-          <Text style={styles.value}>
+          <Text style={[styles.label, { color: colors.textMuted }]}>Company</Text>
+          <Text style={[styles.value, { color: colors.text }]}>
             {companyName ?? (userDoc?.companyId ? "Loading..." : "Not linked")}
           </Text>
         </View>
       </View>
 
+      {/* Appearance Section */}
+      <Text style={[styles.sectionHeader, { color: colors.textMuted }]}>Appearance</Text>
+      <View style={[styles.card, { backgroundColor: colors.bgCard }]}>
+        <View style={styles.themeRow}>
+          {THEME_OPTIONS.map((opt) => (
+            <TouchableOpacity
+              key={opt.key}
+              style={[
+                styles.themeOption,
+                { backgroundColor: colors.toggleBg },
+                preference === opt.key && styles.themeOptionActive,
+              ]}
+              onPress={() => setPreference(opt.key)}
+            >
+              <Text
+                style={[
+                  styles.themeOptionText,
+                  { color: colors.textSecondary },
+                  preference === opt.key && styles.themeOptionTextActive,
+                ]}
+              >
+                {opt.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
       {/* App Section */}
-      <Text style={styles.sectionHeader}>App</Text>
-      <View style={styles.card}>
+      <Text style={[styles.sectionHeader, { color: colors.textMuted }]}>App</Text>
+      <View style={[styles.card, { backgroundColor: colors.bgCard }]}>
         <View style={styles.row}>
-          <Text style={styles.label}>Version</Text>
-          <Text style={styles.value}>{appVersion}</Text>
+          <Text style={[styles.label, { color: colors.textMuted }]}>Version</Text>
+          <Text style={[styles.value, { color: colors.text }]}>{appVersion}</Text>
         </View>
       </View>
 
       {/* Account Section */}
       <View style={{ marginTop: 24, paddingBottom: 40 }}>
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutText}>Sign Out</Text>
+        <TouchableOpacity
+          style={[styles.logoutButton, { backgroundColor: isDark ? "#450a0a" : "#fee2e2" }]}
+          onPress={handleLogout}
+        >
+          <Text style={[styles.logoutText, { color: isDark ? "#fca5a5" : "#dc2626" }]}>Sign Out</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -90,13 +131,11 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
     padding: 16,
   },
   sectionHeader: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#999",
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginTop: 20,
@@ -104,7 +143,6 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   card: {
-    backgroundColor: "#fff",
     borderRadius: 12,
     overflow: "hidden",
   },
@@ -114,29 +152,45 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: "#f0f0f0",
     marginLeft: 16,
   },
   label: {
     fontSize: 12,
-    color: "#999",
     marginBottom: 2,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   value: {
     fontSize: 16,
-    color: "#1a1a1a",
+  },
+  themeRow: {
+    flexDirection: "row",
+    padding: 8,
+    gap: 8,
+  },
+  themeOption: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  themeOptionActive: {
+    backgroundColor: "#1a73e8",
+  },
+  themeOptionText: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  themeOptionTextActive: {
+    color: "#fff",
   },
   logoutButton: {
     height: 48,
-    backgroundColor: "#fee2e2",
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
   },
   logoutText: {
-    color: "#dc2626",
     fontSize: 16,
     fontWeight: "600",
   },

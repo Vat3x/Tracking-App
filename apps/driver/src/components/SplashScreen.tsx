@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { View, Text, Animated, StyleSheet, Dimensions } from "react-native";
 import { Logo } from "./Logo";
+import { useThemeStore } from "../stores/theme";
 
 const { width } = Dimensions.get("window");
 
@@ -9,6 +10,7 @@ interface SplashScreenProps {
 }
 
 export function SplashScreen({ onFinish }: SplashScreenProps) {
+  const colors = useThemeStore((s) => s.colors);
   const logoScale = useRef(new Animated.Value(0.3)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const textOpacity = useRef(new Animated.Value(0)).current;
@@ -17,7 +19,6 @@ export function SplashScreen({ onFinish }: SplashScreenProps) {
 
   useEffect(() => {
     Animated.sequence([
-      // 1. Logo fades in + scales up with spring
       Animated.parallel([
         Animated.spring(logoScale, {
           toValue: 1,
@@ -31,9 +32,7 @@ export function SplashScreen({ onFinish }: SplashScreenProps) {
           useNativeDriver: true,
         }),
       ]),
-      // 2. Brief pause
       Animated.delay(200),
-      // 3. Text slides up + fades in
       Animated.parallel([
         Animated.timing(textOpacity, {
           toValue: 1,
@@ -47,9 +46,7 @@ export function SplashScreen({ onFinish }: SplashScreenProps) {
           useNativeDriver: true,
         }),
       ]),
-      // 4. Hold
       Animated.delay(800),
-      // 5. Fade out everything
       Animated.timing(containerOpacity, {
         toValue: 0,
         duration: 300,
@@ -61,7 +58,7 @@ export function SplashScreen({ onFinish }: SplashScreenProps) {
   }, []);
 
   return (
-    <Animated.View style={[styles.container, { opacity: containerOpacity }]}>
+    <Animated.View style={[styles.container, { backgroundColor: colors.splashBg, opacity: containerOpacity }]}>
       <Animated.View
         style={[
           styles.logoContainer,
@@ -90,7 +87,6 @@ export function SplashScreen({ onFinish }: SplashScreenProps) {
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#fff",
     justifyContent: "center",
     alignItems: "center",
     zIndex: 999,

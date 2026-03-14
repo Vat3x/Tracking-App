@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { updateTripRoute } from "@/services/trips";
 import { toast } from "sonner";
 import AddressSearch, { type AddressResult } from "./AddressSearch";
-import type { Trip, User, GeoPoint } from "@nexus/shared";
+import type { Trip, User, TripStop } from "@nexus/shared";
+import { getStopsFromTrip } from "@nexus/shared";
 
 interface Props {
   trip: Trip;
@@ -10,37 +11,48 @@ interface Props {
   onClose: () => void;
 }
 
-interface LocationData {
+interface StopData {
+  id: string;
+  type: "pickup" | "dropoff";
   search: string;
   label: string;
   lat: number | null;
   lng: number | null;
   zipCode?: string;
+  note: string;
 }
 
-function geoToLocation(geo: GeoPoint): LocationData {
+let stopIdCounter = 0;
+const emptyStop = (type: "pickup" | "dropoff"): StopData => ({
+  id: `es-${++stopIdCounter}`,
+  type,
+  search: "",
+  label: "",
+  lat: null,
+  lng: null,
+  note: "",
+});
+
+function tripStopToData(s: TripStop): StopData {
   return {
-    search: geo.label,
-    label: geo.label,
-    lat: geo.lat,
-    lng: geo.lng,
-    zipCode: geo.zipCode,
+    id: `es-${++stopIdCounter}`,
+    type: s.type,
+    search: s.label,
+    label: s.label,
+    lat: s.lat,
+    lng: s.lng,
+    zipCode: s.zipCode,
+    note: s.note ?? "",
   };
 }
-
-const emptyLocation = (): LocationData => ({ search: "", label: "", lat: null, lng: null });
 
 export default function EditTripModal({ trip, driverProfile, onClose }: Props) {
   const country = trip.country ?? "us";
   const driverName = driverProfile?.displayName ?? `Driver ${trip.driverId?.slice(0, 6) ?? "—"}`;
   const driverPhone = driverProfile?.phone ?? "";
 
-  const [origin, setOrigin] = useState<LocationData>(geoToLocation(trip.origin));
-  const [stops, setStops] = useState<LocationData[]>(
-    (trip.stops ?? []).map(geoToLocation)
-  );
-  const [dest, setDest] = useState<LocationData>(
-    trip.destination ? geoToLocation(trip.destination) : emptyLocation()
+  const [stops, setStops] = useState<StopData[]>(() =>
+    getStopsFromTrip(trip).map(tripStopToData)
   );
   const [trackingLink, setTrackingLink] = useState(true);
   const [stopNotifs, setStopNotifs] = useState(false);
@@ -49,52 +61,40 @@ export default function EditTripModal({ trip, driverProfile, onClose }: Props) {
 
   // Reset on trip change
   useEffect(() => {
-    setOrigin(geoToLocation(trip.origin));
-    setStops((trip.stops ?? []).map(geoToLocation));
-    setDest(trip.destination ? geoToLocation(trip.destination) : emptyLocation());
+    setStops(getStopsFromTrip(trip).map(tripStopToData));
     setError("");
   }, [trip.id]);
 
-  function handleSelect(
-    setter: React.Dispatch<React.SetStateAction<LocationData>>,
-    result: AddressResult
-  ) {
-    setter((prev) => ({
-      ...prev,
+  function updateStop(index: number, updates: Partial<StopData>) {
+    setStops((prev) => prev.map((s, i) => (i === index ? { ...s, ...updates } : s)));
+  }
+
+  function handleStopSelect(index: number, result: AddressResult) {
+    updateStop(index, {
       search: result.label,
       label: result.label,
       lat: result.lat,
       lng: result.lng,
       zipCode: result.zipCode,
-    }));
-  }
-
-  function handleStopSelect(index: number, result: AddressResult) {
-    setStops((prev) =>
-      prev.map((s, i) =>
-        i === index
-          ? { ...s, search: result.label, label: result.label, lat: result.lat, lng: result.lng, zipCode: result.zipCode }
-          : s
-      )
-    );
+    });
   }
 
   function addStop() {
-    setStops((prev) => [...prev, emptyLocation()]);
+    setStops((prev) => [...prev, emptyStop("pickup")]);
   }
 
   function removeStop(index: number) {
+    if (stops.length <= 2) return;
     setStops((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function handleUpdate() {
     setError("");
 
-    if (!origin.label || origin.lat == null || origin.lng == null) {
-      setError("Origin must have a valid location");
+    if (stops.length < 2) {
+      setError("At least 2 stops required");
       return;
     }
-
     for (let i = 0; i < stops.length; i++) {
       const s = stops[i];
       if (!s.label || s.lat == null || s.lng == null) {
@@ -103,29 +103,19 @@ export default function EditTripModal({ trip, driverProfile, onClose }: Props) {
       }
     }
 
-    const hasDest = !!(dest.label && dest.lat != null && dest.lng != null);
-
-    const geoOrigin: GeoPoint = {
-      label: origin.label,
-      lat: origin.lat,
-      lng: origin.lng,
-      ...(origin.zipCode && { zipCode: origin.zipCode }),
-    };
-
-    const geoStops: GeoPoint[] = stops.map((s) => ({
-      label: s.label,
-      lat: s.lat!,
-      lng: s.lng!,
-      ...(s.zipCode && { zipCode: s.zipCode }),
-    }));
-
-    const geoDest: GeoPoint | null = hasDest
-      ? { label: dest.label, lat: dest.lat!, lng: dest.lng!, ...(dest.zipCode && { zipCode: dest.zipCode }) }
-      : null;
-
     setSaving(true);
     try {
-      await updateTripRoute(trip.id, geoOrigin, geoStops, geoDest);
+      await updateTripRoute(
+        trip.id,
+        stops.map((s) => ({
+          type: s.type,
+          label: s.label,
+          lat: s.lat!,
+          lng: s.lng!,
+          ...(s.zipCode && { zipCode: s.zipCode }),
+          ...(s.note.trim() && { note: s.note.trim() }),
+        }))
+      );
       toast.success("Trip updated");
       onClose();
     } catch {
@@ -136,10 +126,7 @@ export default function EditTripModal({ trip, driverProfile, onClose }: Props) {
   }
 
   const inputCls =
-    "w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500";
-
-  // Count total numbered stops: origin(#1) + stops(#2..N) + dest(#N+1 if present)
-  let stopNum = 1;
+    "w-full px-3.5 py-2.5 border-0 rounded-xl text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 shadow-sm ring-1 ring-gray-200 dark:ring-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-all";
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center" onClick={onClose}>
@@ -158,12 +145,12 @@ export default function EditTripModal({ trip, driverProfile, onClose }: Props) {
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
           {error && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-700 dark:text-red-400">
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-700 dark:text-red-400">
               {error}
             </div>
           )}
 
-          {/* Driver info row — like Load Market's top row */}
+          {/* Driver info row */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Driver</label>
@@ -179,119 +166,111 @@ export default function EditTripModal({ trip, driverProfile, onClose }: Props) {
             </div>
           </div>
 
-          {/* Pick-up/Drop-off stops */}
+          {/* Stops */}
           <div>
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Pick-up/Drop-off stops</h4>
+            <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-3">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 0 0-8 8c0 5.4 7.05 11.5 7.35 11.76a1 1 0 0 0 1.3 0C13 21.5 20 15.4 20 10a8 8 0 0 0-8-8z"/></svg>
+              Route
+            </label>
 
             <div className="space-y-3">
-              {/* Origin — always #1 */}
-              <div className="flex items-start gap-2">
-                <span className="text-xs font-medium text-gray-400 dark:text-gray-500 mt-2.5 w-5 shrink-0">
-                  #{stopNum++}
-                </span>
-                <div className="flex-1 relative">
-                  <AddressSearch
-                    value={origin.search}
-                    country={country}
-                    placeholder="Origin address..."
-                    onChange={(v) => setOrigin((prev) => ({ ...prev, search: v }))}
-                    onSelect={(r) => handleSelect(setOrigin, r)}
-                    className={inputCls}
-                  />
-                  {origin.lat != null && origin.label !== origin.search && (
-                    <p className="text-[11px] text-green-600 dark:text-green-400 mt-0.5 px-1">{origin.label}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Intermediate stops */}
               {stops.map((stop, i) => {
-                const num = stopNum++;
-                return (
-                  <div key={i} className="flex items-start gap-2">
-                    <span className="text-xs font-medium text-gray-400 dark:text-gray-500 mt-2.5 w-5 shrink-0">
-                      #{num}
-                    </span>
-                    <div className="flex-1 relative">
-                      <AddressSearch
-                        value={stop.search}
-                        country={country}
-                        placeholder={`Stop ${i + 1} address...`}
-                        onChange={(v) =>
-                          setStops((prev) => prev.map((s, j) => (j === i ? { ...s, search: v } : s)))
-                        }
-                        onSelect={(r) => handleStopSelect(i, r)}
-                        className={inputCls}
-                      />
-                      {stop.lat != null && stop.label !== stop.search && (
-                        <p className="text-[11px] text-green-600 dark:text-green-400 mt-0.5 px-1">{stop.label}</p>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeStop(i)}
-                      className="mt-2 w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors shrink-0"
-                      title="Remove stop"
-                    >
-                      &minus;
-                    </button>
-                  </div>
-                );
-              })}
+                const isPickup = stop.type === "pickup";
+                const borderColor = isPickup ? "border-green-400" : "border-red-400";
 
-              {/* Destination */}
-              {(dest.search || dest.lat != null) && (
-                <div className="flex items-start gap-2">
-                  <span className="text-xs font-medium text-gray-400 dark:text-gray-500 mt-2.5 w-5 shrink-0">
-                    #{stopNum++}
-                  </span>
-                  <div className="flex-1 relative">
+                return (
+                  <fieldset key={stop.id} className={`space-y-1.5 border-l-2 ${borderColor} pl-3`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-gray-400 dark:text-gray-500 w-5">
+                          #{i + 1}
+                        </span>
+                        <div className="flex rounded-lg overflow-hidden ring-1 ring-gray-200 dark:ring-gray-700">
+                          <button
+                            type="button"
+                            onClick={() => updateStop(i, { type: "pickup" })}
+                            className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide transition-colors ${
+                              isPickup
+                                ? "bg-green-500 text-white"
+                                : "bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                            }`}
+                          >
+                            Pickup
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateStop(i, { type: "dropoff" })}
+                            className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide transition-colors ${
+                              !isPickup
+                                ? "bg-red-500 text-white"
+                                : "bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                            }`}
+                          >
+                            Drop-off
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {!stop.note && (
+                          <button
+                            type="button"
+                            onClick={() => updateStop(i, { note: " " })}
+                            className="text-[11px] text-gray-400 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+                          >
+                            + Note
+                          </button>
+                        )}
+                        {stops.length > 2 && (
+                          <button
+                            type="button"
+                            onClick={() => removeStop(i)}
+                            className="text-xs text-red-400 hover:text-red-600 dark:hover:text-red-400 font-medium"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </div>
                     <AddressSearch
-                      value={dest.search}
+                      value={stop.search}
                       country={country}
-                      placeholder="Destination address..."
-                      onChange={(v) => setDest((prev) => ({ ...prev, search: v }))}
-                      onSelect={(r) => handleSelect(setDest, r)}
+                      placeholder={isPickup ? "Pickup address..." : "Drop-off address..."}
+                      onChange={(v) => updateStop(i, { search: v })}
+                      onSelect={(r) => handleStopSelect(i, r)}
                       className={inputCls}
                     />
-                    {dest.lat != null && dest.label !== dest.search && (
-                      <p className="text-[11px] text-green-600 dark:text-green-400 mt-0.5 px-1">{dest.label}</p>
+                    {stop.lat != null && (
+                      <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6 9 17l-5-5"/></svg>
+                        {stop.label}
+                      </p>
                     )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setDest(emptyLocation())}
-                    className="mt-2 w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors shrink-0"
-                    title="Remove destination"
-                  >
-                    &minus;
-                  </button>
-                </div>
-              )}
-
-              {/* Add Stop / Add Destination */}
-              <div className="flex gap-2 pl-7">
-                <button
-                  type="button"
-                  onClick={addStop}
-                  className="px-3 py-1.5 text-xs font-medium border border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-                >
-                  + Add Stop
-                </button>
-                {!dest.search && dest.lat == null && (
-                  <button
-                    type="button"
-                    onClick={() => setDest({ ...emptyLocation(), search: " " })}
-                    className="px-3 py-1.5 text-xs font-medium border border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-                  >
-                    + Add Destination
-                  </button>
-                )}
-              </div>
+                    {stop.note && (
+                      <input
+                        type="text"
+                        value={stop.note}
+                        onChange={(e) => updateStop(i, { note: e.target.value })}
+                        placeholder="Note..."
+                        autoFocus
+                        className="w-full px-2.5 py-1 text-[11px] bg-gray-50 dark:bg-gray-800/50 text-gray-500 dark:text-gray-400 placeholder-gray-300 dark:placeholder-gray-600 rounded border-0 ring-1 ring-gray-100 dark:ring-gray-700/50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-all"
+                      />
+                    )}
+                  </fieldset>
+                );
+              })}
             </div>
+
+            {/* Add Stop button */}
+            <button
+              type="button"
+              onClick={addStop}
+              className="w-full mt-3 py-2.5 px-4 border-2 border-dashed border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-400 dark:text-gray-500 rounded-xl hover:border-blue-300 dark:hover:border-blue-700 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-all"
+            >
+              + Add Stop
+            </button>
           </div>
 
-          {/* Toggles — matching Load Market style */}
+          {/* Toggles */}
           <div className="border-t border-gray-100 dark:border-gray-700 pt-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-700 dark:text-gray-300">Include Real-Time Tracking Link</span>
@@ -328,7 +307,7 @@ export default function EditTripModal({ trip, driverProfile, onClose }: Props) {
           </div>
         </div>
 
-        {/* Footer — Update button */}
+        {/* Footer */}
         <div className="px-5 py-3 border-t border-gray-100 dark:border-gray-700 flex justify-end shrink-0">
           <button
             onClick={handleUpdate}

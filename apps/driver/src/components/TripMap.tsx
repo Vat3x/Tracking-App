@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, ActivityIndicator, Platform } from "react-nativ
 import MapView, { Polyline, Marker, type Region } from "react-native-maps";
 import * as Location from "expo-location";
 import { fetchRoute, type RouteResult } from "../services/routing";
-import { MAP_STYLE } from "../constants/mapStyle";
-import type { Trip } from "@nexus/shared";
+import { useTheme } from "../hooks/useTheme";
+import { type Trip, getStopsFromTrip } from "@nexus/shared";
 
 function formatETA(seconds: number): string {
   if (seconds < 60) return "< 1 min";
@@ -33,6 +33,7 @@ interface Props {
 }
 
 function TripMapInner({ trip }: Props) {
+  const { colors, mapStyle } = useTheme();
   const mapRef = useRef<MapView>(null);
   const mountedRef = useRef(true);
   const [route, setRoute] = useState<RouteResult | null>(null);
@@ -44,7 +45,7 @@ function TripMapInner({ trip }: Props) {
     return () => { mountedRef.current = false; };
   }, []);
 
-  const stops = trip.stops ?? [];
+  const stops = getStopsFromTrip(trip);
   const currentIdx = trip.currentStopIndex ?? 0;
   const isAccepted = trip.status === "accepted";
   const isInProgress = trip.status === "in_progress";
@@ -59,8 +60,7 @@ function TripMapInner({ trip }: Props) {
       try {
         let waypoints: [number, number][];
 
-        if (isAccepted) {
-          // Accepted: driver → origin → all stops → destination
+        if (isAccepted || isInProgress) {
           const { status } = await Location.getForegroundPermissionsAsync();
           if (status !== "granted" || cancelled) {
             if (!cancelled) { setError(true); setLoading(false); }
@@ -72,46 +72,13 @@ function TripMapInner({ trip }: Props) {
           });
           if (cancelled) return;
 
-          const allStopWaypoints: [number, number][] = stops.map(
-            (s) => [s.lng, s.lat] as [number, number]
-          );
+          const relevantStops = isInProgress ? stops.slice(currentIdx) : stops;
           waypoints = [
             [loc.coords.longitude, loc.coords.latitude],
-            [trip.origin.lng, trip.origin.lat],
-            ...allStopWaypoints,
-            ...(trip.destination ? [[trip.destination.lng, trip.destination.lat] as [number, number]] : []),
-          ];
-        } else if (isInProgress) {
-          // In progress: driver → remaining stops → destination
-          const { status } = await Location.getForegroundPermissionsAsync();
-          if (status !== "granted" || cancelled) {
-            if (!cancelled) { setError(true); setLoading(false); }
-            return;
-          }
-          const loc = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Balanced,
-            timeInterval: 10000,
-          });
-          if (cancelled) return;
-
-          const remainingStops: [number, number][] = stops.slice(currentIdx).map(
-            (s) => [s.lng, s.lat] as [number, number]
-          );
-          waypoints = [
-            [loc.coords.longitude, loc.coords.latitude],
-            ...remainingStops,
-            ...(trip.destination ? [[trip.destination.lng, trip.destination.lat] as [number, number]] : []),
+            ...relevantStops.map((s) => [s.lng, s.lat] as [number, number]),
           ];
         } else {
-          // Fallback: origin → all stops → destination
-          const allStopWaypoints: [number, number][] = stops.map(
-            (s) => [s.lng, s.lat] as [number, number]
-          );
-          waypoints = [
-            [trip.origin.lng, trip.origin.lat],
-            ...allStopWaypoints,
-            ...(trip.destination ? [[trip.destination.lng, trip.destination.lat] as [number, number]] : []),
-          ];
+          waypoints = stops.map((s) => [s.lng, s.lat] as [number, number]);
         }
 
         if (waypoints.length < 2) {
@@ -140,9 +107,9 @@ function TripMapInner({ trip }: Props) {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
         <ActivityIndicator size="small" color="#3b82f6" />
-        <Text style={styles.loadingText}>Loading route...</Text>
+        <Text style={[styles.loadingText, { color: colors.textMuted }]}>Loading route...</Text>
       </View>
     );
   }
@@ -177,17 +144,17 @@ function TripMapInner({ trip }: Props) {
     }
   };
 
-  // ETA label based on next target
   const getEtaLabel = () => {
     if (isAccepted) return "ETA to pickup";
-    if (isInProgress && stops.length > 0 && currentIdx < stops.length) {
-      return `ETA to Stop ${currentIdx + 1}`;
+    if (isInProgress && currentIdx < stops.length) {
+      const nextStop = stops[currentIdx];
+      return `ETA to ${nextStop.type === "pickup" ? "pickup" : "drop-off"} ${currentIdx + 1}`;
     }
-    return trip.destination ? "ETA to drop-off" : "ETA";
+    return "ETA";
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { borderColor: colors.border }]}>
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -200,7 +167,7 @@ function TripMapInner({ trip }: Props) {
         liteMode={Platform.OS === "android"}
         loadingEnabled
         showsTraffic
-        customMapStyle={MAP_STYLE}
+        customMapStyle={mapStyle}
       >
         <Polyline
           coordinates={routeCoords}
@@ -209,53 +176,30 @@ function TripMapInner({ trip }: Props) {
           lineDashPattern={isAccepted ? [10, 5] : undefined}
         />
 
-        <Marker
-          coordinate={{
-            latitude: trip.origin.lat,
-            longitude: trip.origin.lng,
-          }}
-          pinColor="#22c55e"
-          title="Pickup"
-          description={trip.origin.label}
-        />
-
-        {/* Intermediate stop markers — completed stops in green, remaining in orange */}
         {stops.map((stop, i) => {
           const isCompleted = isInProgress && i < currentIdx;
+          const color = stop.type === "pickup" ? "#22c55e" : "#ef4444";
           return (
             <Marker
               key={`stop-${i}`}
               coordinate={{ latitude: stop.lat, longitude: stop.lng }}
-              pinColor={isCompleted ? "#22c55e" : "#f97316"}
-              title={`Stop ${i + 1}${isCompleted ? " (Done)" : ""}`}
+              pinColor={isCompleted ? "#22c55e" : color}
+              title={`${stop.type === "pickup" ? "Pickup" : "Drop-off"} ${i + 1}${isCompleted ? " (Done)" : ""}`}
               description={stop.label}
               opacity={isCompleted ? 0.5 : 1}
             />
           );
         })}
-
-        {!isAccepted && trip.destination && (
-          <Marker
-            coordinate={{
-              latitude: trip.destination.lat,
-              longitude: trip.destination.lng,
-            }}
-            pinColor="#ef4444"
-            title="Drop-off"
-            description={trip.destination.label}
-          />
-        )}
       </MapView>
 
-      <View style={styles.etaBar}>
-        <Text style={styles.etaLabel}>{getEtaLabel()}</Text>
-        <Text style={styles.etaValue}>{formatETA(route.duration)}</Text>
+      <View style={[styles.etaBar, { backgroundColor: colors.bgCard }]}>
+        <Text style={[styles.etaLabel, { color: colors.textSecondary }]}>{getEtaLabel()}</Text>
+        <Text style={[styles.etaValue, { color: colors.text }]}>{formatETA(route.duration)}</Text>
       </View>
     </View>
   );
 }
 
-// Only render map for the FIRST active trip to avoid multiple MapView instances
 export default function TripMap({ trip }: Props) {
   return (
     <MapErrorBoundary>
@@ -270,7 +214,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "#e5e7eb",
   },
   map: {
     height: 180,
@@ -283,14 +226,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     marginTop: 10,
-    backgroundColor: "#f9fafb",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
   },
   loadingText: {
     fontSize: 12,
-    color: "#9ca3af",
   },
   etaBar: {
     flexDirection: "row",
@@ -298,15 +238,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: "#f9fafb",
   },
   etaLabel: {
     fontSize: 12,
-    color: "#6b7280",
   },
   etaValue: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#1a1a1a",
   },
 });

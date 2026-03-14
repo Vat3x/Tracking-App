@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Linking from "expo-linking";
 import { onAuthChange, getUserDoc } from "../src/services/auth";
 import { useAuthStore } from "../src/stores/auth";
+import { useThemeStore } from "../src/stores/theme";
 import {
   registerForPushNotifications,
   setupNotificationListeners,
@@ -115,10 +116,15 @@ function AuthGate() {
 
 export default function RootLayout() {
   const [showSplash, setShowSplash] = useState(true);
+  const isDark = useThemeStore((s) => s.isDark);
+
+  useEffect(() => {
+    useThemeStore.getState().init();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <StatusBar style="auto" />
+      <StatusBar style={isDark ? "light" : "dark"} />
       <AuthGate />
       {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
     </QueryClientProvider>

@@ -10,7 +10,7 @@ import { useTripNotifications } from "@/hooks/useTripNotifications";
 import { useNavigate } from "react-router-dom";
 import { logout } from "@/services/auth";
 import { toast } from "sonner";
-import { type Trip, type TripStatus, type User, distanceMeters } from "@nexus/shared";
+import { type Trip, type TripStatus, type User, distanceMeters, getStopsFromTrip, getFirstPickup, getLastDropoff } from "@nexus/shared";
 import ThemeToggle from "@/components/ThemeToggle";
 
 const STATUS_CONFIG: Record<TripStatus, { label: string; bg: string; text: string }> = {
@@ -206,15 +206,17 @@ export default function Trips() {
                 const isActive = ["pending", "accepted", "in_progress"].includes(trip.status);
 
                 const useMiles = trip.country === "us";
+                const pickup = getFirstPickup(trip);
+                const dropoff = getLastDropoff(trip);
                 let distanceLabel: string | null = null;
-                if (trip.status === "accepted" && trip.driverId) {
+                if (trip.status === "accepted" && trip.driverId && pickup) {
                   const driverLoc = drivers.find((d) => d.driverId === trip.driverId);
                   if (driverLoc) {
-                    const m = distanceMeters(driverLoc.current.lat, driverLoc.current.lng, trip.origin.lat, trip.origin.lng);
+                    const m = distanceMeters(driverLoc.current.lat, driverLoc.current.lng, pickup.lat, pickup.lng);
                     distanceLabel = `${formatDistance(m, useMiles)} to pickup`;
                   }
-                } else if (trip.status === "in_progress" && trip.destination) {
-                  const m = distanceMeters(trip.origin.lat, trip.origin.lng, trip.destination.lat, trip.destination.lng);
+                } else if (trip.status === "in_progress" && pickup && dropoff) {
+                  const m = distanceMeters(pickup.lat, pickup.lng, dropoff.lat, dropoff.lng);
                   distanceLabel = `${formatDistance(m, useMiles)} trip distance`;
                 }
 
@@ -252,36 +254,21 @@ export default function Trips() {
                       )}
                     </div>
 
-                    {/* Route: Origin → Stops → Destination */}
+                    {/* Route stops */}
                     <div className="space-y-2">
-                      {/* Origin */}
-                      <div className="flex items-start gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full bg-green-500 mt-1.5 flex-shrink-0" />
-                        <p className="text-sm text-gray-900 dark:text-gray-100 truncate">{trip.origin.label}</p>
-                      </div>
-
-                      {/* Stops */}
-                      {trip.stops?.map((stop, i) => (
-                        <div key={i} className="flex items-start gap-2 pl-0.5">
-                          <div className="w-1.5 h-1.5 rounded-full bg-orange-500 mt-2 flex-shrink-0 ml-0.5" />
-                          <p className="text-sm text-gray-700 dark:text-gray-300 truncate">{stop.label}</p>
+                      {getStopsFromTrip(trip).map((stop, i) => (
+                        <div key={i} className="flex items-start gap-2">
+                          <div className={`w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0 ${
+                            stop.type === "pickup" ? "bg-green-500" : "bg-red-500"
+                          }`} />
+                          <div className="min-w-0">
+                            <p className="text-sm text-gray-900 dark:text-gray-100 truncate">{stop.label}</p>
+                            {stop.note && (
+                              <p className="text-[11px] text-gray-400 dark:text-gray-500 truncate">{stop.note}</p>
+                            )}
+                          </div>
                         </div>
                       ))}
-
-                      {/* Destination */}
-                      {trip.destination && (
-                        <div className="flex items-start gap-2">
-                          <div className="w-2.5 h-2.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
-                          <p className="text-sm text-gray-900 dark:text-gray-100 truncate">{trip.destination.label}</p>
-                        </div>
-                      )}
-
-                      {/* Stop count */}
-                      {trip.stops && trip.stops.length > 0 && (
-                        <p className="text-xs text-orange-500 dark:text-orange-400 pl-5">
-                          {trip.stops.length} stop{trip.stops.length > 1 ? "s" : ""}
-                        </p>
-                      )}
                     </div>
                     {distanceLabel && (
                       <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
-import type { Trip, User } from "@nexus/shared";
+import { type Trip, type User, getTripRouteLabel } from "@nexus/shared";
 
 /**
  * Detects trip status transitions and shows toast notifications.
@@ -33,7 +33,7 @@ export function useTripNotifications(
 
       if (trip.status === "completed") {
         toast.success(`${driverName} completed the trip`, {
-          description: trip.origin.label + (trip.destination ? ` → ${trip.destination.label}` : ""),
+          description: getTripRouteLabel(trip),
         });
       } else if (trip.status === "accepted") {
         toast.info(`${driverName} accepted the trip`);

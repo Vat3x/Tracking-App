@@ -9,6 +9,7 @@ export default function VerifyEmail() {
   const { firebaseUser, setFirebaseUser } = useAuthStore();
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
+  const [error, setError] = useState("");
 
   // Poll every 5s to check if user verified their email
   useEffect(() => {
@@ -26,12 +27,13 @@ export default function VerifyEmail() {
 
   async function handleResend() {
     setResending(true);
+    setError("");
     try {
       await resendVerificationEmail();
       setResent(true);
       setTimeout(() => setResent(false), 5000);
-    } catch {
-      // ignore
+    } catch (err: any) {
+      setError(err?.message || "Failed to send email");
     } finally {
       setResending(false);
     }
@@ -58,6 +60,10 @@ export default function VerifyEmail() {
           <p className="text-xs text-gray-400 dark:text-gray-500 mb-6">
             Click the link in the email to verify your account. This page will update automatically.
           </p>
+
+          {error && (
+            <p className="text-xs text-red-500 mb-4">{error}</p>
+          )}
 
           <div className="space-y-3">
             <button

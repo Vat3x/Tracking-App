@@ -1,5 +1,5 @@
 import * as admin from "firebase-admin";
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onRequest } from "firebase-functions/v2/https";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -9,34 +9,54 @@ const firestore = admin.firestore();
 const rtdb = admin.database();
 
 /**
- * Callable function to remove a driver from a company.
- * Validates caller is a company member, then:
+ * HTTP function to remove a driver from a company.
+ * Uses onRequest (not onCall) to avoid Cloud Run invoker CORS issues.
+ * Validates caller via Bearer token, then:
  * 1. Clears companyId on driver's user doc
  * 2. Removes from company members subcollection
  * 3. Removes from RTDB company_members
  * 4. Removes RTDB location data
  */
-export const removeDriver = onCall(async (request) => {
-  const callerId = request.auth?.uid;
-  if (!callerId) {
-    throw new HttpsError("unauthenticated", "Must be authenticated");
+export const removeDriver = onRequest({ cors: true }, async (req, res) => {
+  if (req.method !== "POST") {
+    res.status(405).json({ error: "Method not allowed" });
+    return;
   }
 
-  const { driverId, companyId } = request.data as { driverId?: string; companyId?: string };
+  // Verify auth token
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  let callerId: string;
+  try {
+    const decoded = await admin.auth().verifyIdToken(authHeader.split("Bearer ")[1]);
+    callerId = decoded.uid;
+  } catch {
+    res.status(401).json({ error: "Invalid token" });
+    return;
+  }
+
+  const { driverId, companyId } = req.body;
   if (!driverId || !companyId) {
-    throw new HttpsError("invalid-argument", "Missing driverId or companyId");
+    res.status(400).json({ error: "Missing driverId or companyId" });
+    return;
   }
 
   // Verify caller is a company member
   const memberDoc = await firestore.doc(`companies/${companyId}/members/${callerId}`).get();
   if (!memberDoc.exists) {
-    throw new HttpsError("permission-denied", "Not a company member");
+    res.status(403).json({ error: "Not a company member" });
+    return;
   }
 
   // Verify driver belongs to this company
   const driverDoc = await firestore.doc(`users/${driverId}`).get();
   if (!driverDoc.exists || driverDoc.data()?.companyId !== companyId) {
-    throw new HttpsError("not-found", "Driver not found in company");
+    res.status(404).json({ error: "Driver not found in company" });
+    return;
   }
 
   // Atomic Firestore updates
@@ -50,5 +70,5 @@ export const removeDriver = onCall(async (request) => {
   await rtdb.ref(`locations/${companyId}/${driverId}`).remove();
 
   console.log(`removeDriver: Driver ${driverId} removed from company ${companyId} by ${callerId}`);
-  return { success: true };
+  res.json({ success: true });
 });

@@ -3,7 +3,7 @@ import type { DriverLocationEntry } from "@/services/locations";
 import { updateDriverName, removeDriverFromCompany } from "@/services/drivers";
 import { createInvite, generateInviteLink } from "@/services/invites";
 import { useAuthStore } from "@/stores/auth";
-import { type Trip, type User, timeAgo, distanceMeters } from "@nexus/shared";
+import { type Trip, type User, timeAgo, distanceMeters, getFirstPickup, getLastDropoff } from "@nexus/shared";
 import { toast } from "sonner";
 
 interface Props {
@@ -286,7 +286,8 @@ function DeleteDriverModal({
       toast.success(`${driverName} removed`);
       onDeleted();
       onClose();
-    } catch {
+    } catch (err) {
+      console.error("removeDriver error:", err);
       toast.error("Failed to remove driver");
     } finally {
       setDeleting(false);
@@ -404,9 +405,11 @@ function DriverCard({
 
   return (
     <>
-      <button
+      <div
         onClick={onSelect}
-        className={`relative w-full text-left px-4 py-3 transition-colors ${
+        role="button"
+        tabIndex={0}
+        className={`relative w-full text-left px-4 py-3 transition-colors cursor-pointer ${
           isSelected
             ? "bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-500"
             : "hover:bg-gray-50 dark:hover:bg-gray-800 border-l-2 border-transparent"
@@ -447,7 +450,10 @@ function DriverCard({
           <span>{c.speed > 0 ? `${Math.round(c.speed * 3.6)} km/h` : "Still"}</span>
         </div>
 
-        {isSelected && activeTrip && (
+        {isSelected && activeTrip && (() => {
+              const pickup = getFirstPickup(activeTrip);
+              const dropoff = getLastDropoff(activeTrip);
+              return (
               <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 space-y-1">
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs font-medium text-gray-700 dark:text-gray-200">Active Trip</span>
@@ -459,20 +465,22 @@ function DriverCard({
                     {activeTrip.status === "accepted" ? "Accepted" : "In Progress"}
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-gray-400 dark:text-gray-500">Origin</span>
-                  <span className="text-gray-600 dark:text-gray-300 truncate ml-2 max-w-[140px]">{activeTrip.origin.label}</span>
-                </div>
-                {activeTrip.destination && (
+                {pickup && (
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-gray-400 dark:text-gray-500">Destination</span>
-                    <span className="text-gray-600 dark:text-gray-300 truncate ml-2 max-w-[140px]">{activeTrip.destination.label}</span>
+                    <span className="text-gray-400 dark:text-gray-500">Pickup</span>
+                    <span className="text-gray-600 dark:text-gray-300 truncate ml-2 max-w-[140px]">{pickup.label}</span>
+                  </div>
+                )}
+                {dropoff && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-400 dark:text-gray-500">Drop-off</span>
+                    <span className="text-gray-600 dark:text-gray-300 truncate ml-2 max-w-[140px]">{dropoff.label}</span>
                   </div>
                 )}
                 {(() => {
                   const useMiles = activeTrip.country === "us";
-                  if (activeTrip.status === "accepted") {
-                    const m = distanceMeters(c.lat, c.lng, activeTrip.origin.lat, activeTrip.origin.lng);
+                  if (activeTrip.status === "accepted" && pickup) {
+                    const m = distanceMeters(c.lat, c.lng, pickup.lat, pickup.lng);
                     return (
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-gray-400 dark:text-gray-500">To pickup</span>
@@ -480,8 +488,8 @@ function DriverCard({
                       </div>
                     );
                   }
-                  if (activeTrip.status === "in_progress" && activeTrip.destination) {
-                    const m = distanceMeters(activeTrip.origin.lat, activeTrip.origin.lng, activeTrip.destination.lat, activeTrip.destination.lng);
+                  if (activeTrip.status === "in_progress" && pickup && dropoff) {
+                    const m = distanceMeters(pickup.lat, pickup.lng, dropoff.lat, dropoff.lng);
                     return (
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-gray-400 dark:text-gray-500">Trip distance</span>
@@ -492,7 +500,8 @@ function DriverCard({
                   return null;
                 })()}
               </div>
-        )}
+              );
+        })()}
 
         {menuOpen && (
           <OptionsMenu
@@ -500,7 +509,7 @@ function DriverCard({
             onClose={() => setMenuOpen(false)}
           />
         )}
-      </button>
+      </div>
 
       {infoOpen && (
         <DriverInfoModal profile={profile} driver={driver} hasActiveTrip={hasActiveTrip} onClose={() => setInfoOpen(false)} />

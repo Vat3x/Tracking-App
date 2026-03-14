@@ -9,6 +9,10 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".expo/**"]
     },
+    "test": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
     "lint": {
       "dependsOn": ["^build"]
     },

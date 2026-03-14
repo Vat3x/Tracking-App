@@ -26,6 +26,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Test
+        run: pnpm test
+
       - name: Build dashboard
         run: pnpm run build:dashboard
 
@@ -40,15 +43,15 @@ jobs:
   eas-build:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/driver
     steps:
       - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: pnpm
 
       - name: Setup Expo
         uses: expo/expo-github-action@v8
@@ -57,10 +60,10 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Install dependencies
-        run: npm install
+        run: pnpm install --frozen-lockfile
 
       - name: Build Android (preview)
-        run: eas build --platform android --profile preview --non-interactive
+        run: pnpm --filter @nexus/driver exec eas build --platform android --profile preview --non-interactive
 
       - name: Build iOS (preview)
-        run: eas build --platform ios --profile preview --non-interactive
+        run: pnpm --filter @nexus/driver exec eas build --platform ios --profile preview --non-interactive
