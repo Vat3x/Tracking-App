@@ -16,7 +16,8 @@ import MapView, { Marker, Polyline, type Region } from "react-native-maps";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import { useAuthStore } from "../../src/stores/auth";
-import { subscribeToDriverTrips, respondToTrip, advanceToNextStop } from "../../src/services/trips";
+import { useTripsStore } from "../../src/stores/trips";
+import { respondToTrip, advanceToNextStop } from "../../src/services/trips";
 import { fetchRoute, type RouteResult } from "../../src/services/routing";
 import { useTheme } from "../../src/hooks/useTheme";
 import { getStatusColors } from "../../src/constants/statusColors";
@@ -241,6 +242,12 @@ function ActiveTripNavView({
     return "Next: Final Stop";
   }
 
+  function getNextStopNote(): string | undefined {
+    if (isAccepted) return stops[0]?.note;
+    if (isInProgress && currentIdx < stops.length) return stops[currentIdx]?.note;
+    return undefined;
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       {/* FULL-SCREEN MAP */}
@@ -344,6 +351,13 @@ function ActiveTripNavView({
           <View style={{ flex: 1 }}>
             <Text style={[styles.navTargetType, { color: colors.textSecondary }]}>{getNextTargetType()}</Text>
             <Text style={[styles.navTargetName, { color: colors.text }]} numberOfLines={1}>{getNextTargetLabel()}</Text>
+            {getNextStopNote() && (
+              <View style={[styles.navNoteContainer, { backgroundColor: isDark ? "#1e293b" : "#fef9c3", borderColor: isDark ? "#334155" : "#fde68a" }]}>
+                <Text style={[styles.navNoteText, { color: isDark ? "#fcd34d" : "#92400e" }]}>
+                  {getNextStopNote()}
+                </Text>
+              </View>
+            )}
           </View>
           <TouchableOpacity style={[styles.gmapsBtn, { backgroundColor: isDark ? colors.bgCard : "#fff" }]} onPress={() => handleNavigateExternal(trip)}>
             <Text style={styles.gmapsBtnText}>Google Maps</Text>
@@ -431,7 +445,11 @@ function TripCard({
                     {stop?.zipCode ? ` (${stop.zipCode})` : ""}
                   </Text>
                   {stop.note && (
-                    <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }}>{stop.note}</Text>
+                    <View style={[styles.noteContainer, { backgroundColor: isDark ? "#1e293b" : "#fef9c3", borderColor: isDark ? "#334155" : "#fde68a" }]}>
+                      <Text style={[styles.noteText, { color: isDark ? "#fcd34d" : "#92400e" }]}>
+                        {stop.note}
+                      </Text>
+                    </View>
                   )}
                 </View>
               </View>
@@ -511,29 +529,12 @@ function TripsScreen() {
   const router = useRouter();
   const { userDoc, firebaseUser } = useAuthStore();
   const { colors } = useTheme();
-  const [trips, setTrips] = useState<Trip[]>([]);
+  const trips = useTripsStore((s) => s.trips);
+  const loaded = useTripsStore((s) => s.loaded);
   const [refreshing, setRefreshing] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
   const [showList, setShowList] = useState(false);
 
-  useEffect(() => {
-    if (!firebaseUser?.uid) return;
-    try {
-      return subscribeToDriverTrips(firebaseUser.uid, (newTrips) => {
-        try {
-          setTrips(newTrips);
-          setInitialLoading(false);
-        } catch (err) {
-          console.error("Trips setState error:", err);
-          setInitialLoading(false);
-        }
-      });
-    } catch (err) {
-      console.error("Trips subscription error:", err);
-      setInitialLoading(false);
-      return undefined;
-    }
-  }, [firebaseUser?.uid]);
+  const initialLoading = !loaded;
 
   const activeTrips = trips.filter((t) =>
     ["pending", "accepted", "in_progress"].includes(t.status)
@@ -746,6 +747,17 @@ const styles = StyleSheet.create({
     color: "#9ca3af",
     textDecorationLine: "line-through",
   },
+  noteContainer: {
+    marginTop: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  noteText: {
+    fontSize: 12,
+    fontStyle: "italic",
+  },
   routeLine: {
     width: 1,
     height: 16,
@@ -928,6 +940,17 @@ const styles = StyleSheet.create({
     color: "#3b82f6",
     fontWeight: "700",
     fontSize: 12,
+  },
+  navNoteContainer: {
+    marginTop: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  navNoteText: {
+    fontSize: 12,
+    fontStyle: "italic",
   },
   navActionBtn: {
     paddingVertical: 14,

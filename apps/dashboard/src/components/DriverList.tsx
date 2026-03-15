@@ -13,6 +13,7 @@ interface Props {
   onSelectDriver: (driverId: string) => void;
   activeDriverIds: Set<string>;
   trips: Trip[];
+  newDriverIds?: Set<string>;
   onRefreshProfiles?: () => void;
   onCreateTrip?: (driverId: string) => void;
 }
@@ -348,6 +349,7 @@ function DriverCard({
   driver,
   profile,
   isSelected,
+  isNew,
   onSelect,
   hasActiveTrip,
   activeTrip,
@@ -357,6 +359,7 @@ function DriverCard({
   driver: DriverLocationEntry;
   profile: User | undefined;
   isSelected: boolean;
+  isNew: boolean;
   onSelect: () => void;
   hasActiveTrip: boolean;
   activeTrip: Trip | null;
@@ -416,7 +419,14 @@ function DriverCard({
         }`}
       >
         <div className="flex items-center justify-between mb-1">
-          <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{name}</span>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{name}</span>
+            {isNew && (
+              <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 animate-pulse">
+                New
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <span
               className={`w-2 h-2 rounded-full ${
@@ -539,6 +549,7 @@ export default function DriverList({
   onSelectDriver,
   activeDriverIds,
   trips,
+  newDriverIds,
   onRefreshProfiles,
   onCreateTrip,
 }: Props) {
@@ -575,6 +586,7 @@ export default function DriverList({
                 driver={driver}
                 profile={driverProfiles.get(driver.driverId)}
                 isSelected={selectedDriverId === driver.driverId}
+                isNew={newDriverIds?.has(driver.driverId) ?? false}
                 onSelect={() => onSelectDriver(driver.driverId)}
                 hasActiveTrip={activeDriverIds.has(driver.driverId)}
                 activeTrip={getActiveTrip(driver.driverId)}

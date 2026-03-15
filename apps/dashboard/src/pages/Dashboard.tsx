@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useAuthStore } from "@/stores/auth";
 import { useDriversStore } from "@/stores/drivers";
 import { logout } from "@/services/auth";
@@ -54,6 +54,8 @@ export default function Dashboard() {
   const [tripFilter, setTripFilter] = useState<"active" | "completed" | "cancelled">("active");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [tripFormDriverId, setTripFormDriverId] = useState<string | undefined>();
+  const [newDriverIds, setNewDriverIds] = useState<Set<string>>(new Set());
+  const newDriverTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   // Toast notifications for trip status changes
   useTripNotifications(trips, driverProfiles);
@@ -93,9 +95,30 @@ export default function Dashboard() {
   // Re-fetch profiles when a new driver appears that we don't have a profile for
   useEffect(() => {
     if (!userDoc?.companyId) return;
-    const unknownDriver = drivers.find((d) => !driverProfiles.has(d.driverId));
-    if (unknownDriver) {
+    const unknownDrivers = drivers.filter((d) => !driverProfiles.has(d.driverId));
+    if (unknownDrivers.length > 0) {
       getCompanyDrivers(userDoc.companyId).then(setDriverProfiles);
+      // Mark as "new" with auto-clear after 20 seconds
+      const ids = unknownDrivers.map((d) => d.driverId);
+      setNewDriverIds((prev) => {
+        const next = new Set(prev);
+        ids.forEach((id) => next.add(id));
+        return next;
+      });
+      for (const id of ids) {
+        if (newDriverTimers.current.has(id)) clearTimeout(newDriverTimers.current.get(id));
+        newDriverTimers.current.set(
+          id,
+          setTimeout(() => {
+            setNewDriverIds((prev) => {
+              const next = new Set(prev);
+              next.delete(id);
+              return next;
+            });
+            newDriverTimers.current.delete(id);
+          }, 20000)
+        );
+      }
     }
   }, [drivers, driverProfiles, userDoc?.companyId]);
 
@@ -144,9 +167,12 @@ export default function Dashboard() {
     <div className="h-screen flex flex-col">
       {/* Header */}
       <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center justify-between shrink-0 z-10">
-        <div>
-          <h1 className="text-base font-semibold text-gray-900 dark:text-gray-100">LoadMind Tracker</h1>
-          <p className="text-xs text-gray-500 dark:text-gray-400">{userDoc?.displayName}</p>
+        <div className="flex items-center gap-2.5">
+          <img src="/logo.svg" alt="LoadMind" className="w-8 h-8" />
+          <div>
+            <h1 className="text-base font-semibold text-gray-900 dark:text-gray-100">LoadMind Tracker</h1>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{userDoc?.displayName}</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -242,6 +268,7 @@ export default function Dashboard() {
           onSelectDriver={selectDriver}
           activeDriverIds={activeDriverIds}
           trips={trips}
+          newDriverIds={newDriverIds}
           onRefreshProfiles={() => userDoc?.companyId && getCompanyDrivers(userDoc.companyId).then(setDriverProfiles)}
           onCreateTrip={(driverId) => { setTripFormDriverId(driverId); setTripFormOpen(true); setInvitesOpen(false); setTripsOpen(false); }}
         />

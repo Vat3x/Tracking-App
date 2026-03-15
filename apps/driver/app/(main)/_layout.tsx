@@ -1,9 +1,21 @@
+import { useEffect } from "react";
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../src/hooks/useTheme";
+import { useAuthStore } from "../../src/stores/auth";
+import { useTripsStore } from "../../src/stores/trips";
 
 export default function MainLayout() {
   const { colors, isDark } = useTheme();
+  const uid = useAuthStore((s) => s.firebaseUser?.uid);
+  const pendingCount = useTripsStore((s) => s.pendingCount);
+  const subscribe = useTripsStore((s) => s.subscribe);
+  const unsubscribe = useTripsStore((s) => s.unsubscribe);
+
+  useEffect(() => {
+    if (uid) subscribe(uid);
+    return () => unsubscribe();
+  }, [uid]);
 
   return (
     <Tabs
@@ -40,6 +52,8 @@ export default function MainLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="navigate-outline" size={size} color={color} />
           ),
+          tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
+          tabBarBadgeStyle: { backgroundColor: "#ef4444", fontSize: 10 },
         }}
       />
       <Tabs.Screen

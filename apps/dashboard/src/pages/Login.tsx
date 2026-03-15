@@ -47,12 +47,15 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 px-4">
       <div className="w-full max-w-md">
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8">
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-1">
-            LoadMind Tracker
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-            Dispatcher Dashboard
-          </p>
+          <div className="text-center mb-6">
+            <img src="/logo.svg" alt="LoadMind" className="w-16 h-16 mx-auto mb-3" />
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+              LoadMind Tracker
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Dispatcher Dashboard
+            </p>
+          </div>
 
           {error && (
             <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-sm text-red-700 dark:text-red-400">

@@ -49,8 +49,8 @@ export default function LoginScreen() {
   // Auth method toggle
   const [authMethod, setAuthMethod] = useState<"phone" | "email">("phone");
 
-  // Email auth state
-  const [isRegister, setIsRegister] = useState(false);
+  // Email auth state — default to register when coming from invite link
+  const [isRegister, setIsRegister] = useState(hasInvite);
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
