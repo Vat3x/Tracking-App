@@ -18,6 +18,7 @@ import { db } from "@/services/firebase";
 import { toast } from "sonner";
 import { COLLECTIONS, type Invite, type User, type Trip, type TripStatus, getTripRouteLabel } from "@nexus/shared";
 import { updateTripStatus } from "@/services/trips";
+import { createTrackingLink, generateTrackingUrl } from "@/services/trackingLinks";
 import ThemeToggle from "@/components/ThemeToggle";
 
 function formatTime(ts: number): string {
@@ -393,6 +394,21 @@ export default function Dashboard() {
                             </p>
                             {isActive && (
                               <div className="flex items-center gap-3 mt-1">
+                                <button
+                                  onClick={async () => {
+                                    if (!trip.driverId || !userDoc?.companyId || !userDoc?.id) return;
+                                    try {
+                                      const linkId = await createTrackingLink(trip.id, userDoc.companyId, trip.driverId, userDoc.id);
+                                      await navigator.clipboard.writeText(generateTrackingUrl(linkId));
+                                      toast.success("Tracking link copied to clipboard");
+                                    } catch {
+                                      toast.error("Failed to generate tracking link");
+                                    }
+                                  }}
+                                  className="text-[10px] text-green-500 hover:text-green-700 dark:hover:text-green-400"
+                                >
+                                  Share
+                                </button>
                                 <button
                                   onClick={() => setEditingTrip(trip)}
                                   className="text-[10px] text-blue-500 hover:text-blue-700 dark:hover:text-blue-400"

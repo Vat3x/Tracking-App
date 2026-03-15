@@ -4,6 +4,7 @@ export const COLLECTIONS = {
   USERS: "users",
   INVITES: "invites",
   TRIPS: "trips",
+  TRACKING_LINKS: "tracking_links",
   members: (companyId: string) => `companies/${companyId}/members`,
 } as const;
 

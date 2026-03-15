@@ -4,14 +4,48 @@ import { registerDispatcher, getUserDoc } from "@/services/auth";
 import { useAuthStore } from "@/stores/auth";
 import { Loader2 } from "lucide-react";
 
+const FLEET_SIZE_OPTIONS = [
+  { value: "", label: "Select fleet size" },
+  { value: "1-10", label: "1–10 trucks" },
+  { value: "11-30", label: "11–30 trucks" },
+  { value: "31-100", label: "31–100 trucks" },
+  { value: "100+", label: "100+ trucks" },
+];
+
+const REFERRAL_OPTIONS = [
+  { value: "", label: "Select an option" },
+  { value: "google", label: "Google Search" },
+  { value: "social", label: "Social Media" },
+  { value: "word-of-mouth", label: "Word of Mouth" },
+  { value: "industry-event", label: "Industry Event" },
+  { value: "other", label: "Other" },
+];
+
+const inputClass =
+  "w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent";
+
+const labelClass =
+  "block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1";
+
 export default function Register() {
   const navigate = useNavigate();
   const { setFirebaseUser, setUserDoc } = useAuthStore();
-  const [companyName, setCompanyName] = useState("");
+
+  // Required
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [position, setPosition] = useState("");
+  const [address, setAddress] = useState("");
+  const [fleetSize, setFleetSize] = useState("");
+  const [referralSource, setReferralSource] = useState("");
+
+  // Optional
+  const [mcNumber, setMcNumber] = useState("");
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -36,7 +70,8 @@ export default function Register() {
         email,
         password,
         displayName,
-        companyName
+        companyName,
+        { phone, position, address, fleetSize, referralSource, mcNumber: mcNumber || undefined }
       );
       const userDoc = await getUserDoc(user.uid);
 
@@ -57,8 +92,8 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 px-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 px-4 py-8">
+      <div className="w-full max-w-2xl">
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8">
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-1">
             Create Account
@@ -73,81 +108,185 @@ export default function Register() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Company Name
-              </label>
-              <input
-                id="companyName"
-                type="text"
-                required
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Your Transport Co."
-              />
-            </div>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* ── Account ───────────────────────────────── */}
+            <fieldset>
+              <legend className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-3">
+                Account
+              </legend>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="displayName" className={labelClass}>
+                    Your Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="displayName"
+                    type="text"
+                    required
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    className={inputClass}
+                    placeholder="John Smith"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="email" className={labelClass}>
+                    Email <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={inputClass}
+                    placeholder="dispatcher@company.com"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="password" className={labelClass}>
+                    Password <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="password"
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={inputClass}
+                    placeholder="At least 6 characters"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="confirmPassword" className={labelClass}>
+                    Confirm Password <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="confirmPassword"
+                    type="password"
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className={inputClass}
+                    placeholder="Repeat your password"
+                  />
+                </div>
+              </div>
+            </fieldset>
 
-            <div>
-              <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Your Name
-              </label>
-              <input
-                id="displayName"
-                type="text"
-                required
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="John Smith"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="dispatcher@company.com"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="At least 6 characters"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Confirm Password
-              </label>
-              <input
-                id="confirmPassword"
-                type="password"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Repeat your password"
-              />
-            </div>
+            {/* ── Company ───────────────────────────────── */}
+            <fieldset>
+              <legend className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-3">
+                Company Information
+              </legend>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="companyName" className={labelClass}>
+                    Company Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="companyName"
+                    type="text"
+                    required
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    className={inputClass}
+                    placeholder="Your Transport Co."
+                  />
+                </div>
+                <div>
+                  <label htmlFor="address" className={labelClass}>
+                    Company Address <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="address"
+                    type="text"
+                    required
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    className={inputClass}
+                    placeholder="City, State"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="phone" className={labelClass}>
+                    Phone Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="phone"
+                    type="tel"
+                    required
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className={inputClass}
+                    placeholder="(555) 123-4567"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="position" className={labelClass}>
+                    Your Position <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="position"
+                    type="text"
+                    required
+                    value={position}
+                    onChange={(e) => setPosition(e.target.value)}
+                    className={inputClass}
+                    placeholder="Owner, Dispatcher, Manager…"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="fleetSize" className={labelClass}>
+                    Fleet Size <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="fleetSize"
+                    required
+                    value={fleetSize}
+                    onChange={(e) => setFleetSize(e.target.value)}
+                    className={inputClass}
+                  >
+                    {FLEET_SIZE_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="referralSource" className={labelClass}>
+                    How did you hear about us? <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="referralSource"
+                    required
+                    value={referralSource}
+                    onChange={(e) => setReferralSource(e.target.value)}
+                    className={inputClass}
+                  >
+                    {REFERRAL_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="sm:col-span-2">
+                  <label htmlFor="mcNumber" className={labelClass}>
+                    MC# <span className="text-xs text-gray-400 dark:text-gray-500 font-normal">(optional)</span>
+                  </label>
+                  <input
+                    id="mcNumber"
+                    type="text"
+                    value={mcNumber}
+                    onChange={(e) => setMcNumber(e.target.value)}
+                    className={inputClass}
+                    placeholder="MC-123456"
+                  />
+                </div>
+              </div>
+            </fieldset>
 
             <button
               type="submit"

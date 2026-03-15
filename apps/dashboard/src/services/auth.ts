@@ -21,7 +21,15 @@ export async function registerDispatcher(
   email: string,
   password: string,
   displayName: string,
-  companyName: string
+  companyName: string,
+  extra: {
+    phone: string;
+    position: string;
+    address: string;
+    fleetSize: string;
+    referralSource: string;
+    mcNumber?: string;
+  }
 ): Promise<{ user: FirebaseUser; companyId: string }> {
   // 1. Create Firebase Auth user
   const credential = await createUserWithEmailAndPassword(auth, email, password);
@@ -37,6 +45,10 @@ export async function registerDispatcher(
       ownerId: uid,
       createdAt: Date.now(),
       settings: DEFAULT_COMPANY_SETTINGS,
+      address: extra.address,
+      fleetSize: extra.fleetSize,
+      referralSource: extra.referralSource,
+      ...(extra.mcNumber && { mcNumber: extra.mcNumber }),
     };
     await setDoc(companyRef, company);
 
@@ -58,6 +70,8 @@ export async function registerDispatcher(
       companyId,
       fcmToken: null,
       createdAt: Date.now(),
+      phone: extra.phone,
+      position: extra.position,
     };
     await setDoc(doc(db, COLLECTIONS.USERS, uid), userData);
 

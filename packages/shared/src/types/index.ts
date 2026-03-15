@@ -3,3 +3,4 @@ export * from "./company";
 export * from "./trip";
 export * from "./invite";
 export * from "./tracking";
+export * from "./trackingLink";

@@ -10,6 +10,7 @@ import { useTripNotifications } from "@/hooks/useTripNotifications";
 import { useNavigate } from "react-router-dom";
 import { logout } from "@/services/auth";
 import { toast } from "sonner";
+import { createTrackingLink, generateTrackingUrl } from "@/services/trackingLinks";
 import { type Trip, type TripStatus, type User, distanceMeters, getStopsFromTrip, getFirstPickup, getLastDropoff } from "@nexus/shared";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -241,6 +242,21 @@ export default function Trips() {
                       </div>
                       {isActive && (
                         <div className="flex items-center gap-2">
+                          <button
+                            onClick={async () => {
+                              if (!trip.driverId || !userDoc?.companyId || !userDoc?.id) return;
+                              try {
+                                const linkId = await createTrackingLink(trip.id, userDoc.companyId, trip.driverId, userDoc.id);
+                                await navigator.clipboard.writeText(generateTrackingUrl(linkId));
+                                toast.success("Tracking link copied to clipboard");
+                              } catch {
+                                toast.error("Failed to generate tracking link");
+                              }
+                            }}
+                            className="text-xs text-green-500 hover:text-green-700 dark:hover:text-green-400"
+                          >
+                            Share
+                          </button>
                           <button
                             onClick={() => setEditingTrip(trip)}
                             className="text-xs text-blue-500 hover:text-blue-700 dark:hover:text-blue-400"

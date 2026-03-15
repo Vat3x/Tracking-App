@@ -23,6 +23,10 @@
         "destination": "/invite/index.html"
       },
       {
+        "source": "/track/**",
+        "destination": "/index.html"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

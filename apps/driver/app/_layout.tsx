@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -74,38 +74,60 @@ function AuthGate() {
     return startNetworkListener();
   }, []);
 
-  // Handle deep links
+  // Track auth state for deep link handler (avoids stale closure)
+  const firebaseUserRef = useRef(firebaseUser);
+  firebaseUserRef.current = firebaseUser;
+
+  // Handle deep links while app is already open (warm start)
   useEffect(() => {
-    function handleDeepLink(event: { url: string }) {
+    const sub = Linking.addEventListener("url", (event) => {
       const inviteId = extractInviteId(event.url);
       if (inviteId) {
-        router.push({
-          pathname: "/(auth)/accept-invite",
-          params: { id: inviteId },
-        });
+        if (firebaseUserRef.current) {
+          // Authenticated: show consent screen
+          router.push({
+            pathname: "/(auth)/accept-invite",
+            params: { id: inviteId },
+          });
+        } else {
+          // Not authenticated: go directly to login with invite params
+          router.replace({
+            pathname: "/(auth)/login",
+            params: { inviteId },
+          });
+        }
       }
-    }
-
-    // Check if app was opened via deep link
-    Linking.getInitialURL().then((url) => {
-      if (url) handleDeepLink({ url });
     });
-
-    // Listen for deep links while app is open
-    const sub = Linking.addEventListener("url", handleDeepLink);
     return () => sub.remove();
   }, [router]);
 
-  // Auth-based routing
+  // Auth-based routing (handles cold start + invite links)
+  const initialUrlProcessed = useRef(false);
+
   useEffect(() => {
     if (loading) return;
 
     const inAuthGroup = segments[0] === "(auth)";
-    // Don't redirect away from accept-invite screen
     const onAcceptInvite = (segments as string[])[1] === "accept-invite";
 
     if (!firebaseUser && !inAuthGroup) {
-      router.replace("/(auth)/login");
+      if (!initialUrlProcessed.current) {
+        initialUrlProcessed.current = true;
+        // Check if cold-started via invite link
+        Linking.getInitialURL().then((url) => {
+          const invId = url ? extractInviteId(url) : null;
+          if (invId) {
+            router.replace({
+              pathname: "/(auth)/login",
+              params: { inviteId: invId },
+            });
+          } else {
+            router.replace("/(auth)/login");
+          }
+        });
+      } else {
+        router.replace("/(auth)/login");
+      }
     } else if (firebaseUser && inAuthGroup && !onAcceptInvite) {
       router.replace("/(main)/home");
     }

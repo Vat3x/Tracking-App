@@ -147,6 +147,28 @@ export const onTripStatusChanged = onDocumentUpdated("trips/{tripId}", async (ev
   // Only proceed if status actually changed
   if (before.status === after.status) return;
 
+  // Auto-deactivate tracking links when trip ends
+  if (["completed", "cancelled", "rejected"].includes(status)) {
+    try {
+      const trackingLinksSnap = await firestore
+        .collection("tracking_links")
+        .where("tripId", "==", event.params.tripId)
+        .where("active", "==", true)
+        .get();
+
+      if (!trackingLinksSnap.empty) {
+        const batch = firestore.batch();
+        trackingLinksSnap.docs.forEach((doc) => {
+          batch.update(doc.ref, { active: false });
+        });
+        await batch.commit();
+        console.log(`onTripStatusChanged: Deactivated ${trackingLinksSnap.size} tracking link(s) for trip ${event.params.tripId}`);
+      }
+    } catch (err) {
+      console.error(`onTripStatusChanged: Failed to deactivate tracking links:`, err);
+    }
+  }
+
   // Cancelled by dispatcher → notify the driver instead
   if (status === "cancelled" && driverId) {
     const driverFcmToken = driverDoc?.data()?.fcmToken;

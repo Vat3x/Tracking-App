@@ -46,8 +46,8 @@ export default function LoginScreen() {
 
   const hasInvite = !!inviteId;
 
-  // Auth method toggle
-  const [authMethod, setAuthMethod] = useState<"phone" | "email">("phone");
+  // Auth method toggle — default to email registration when coming from invite
+  const [authMethod, setAuthMethod] = useState<"phone" | "email">(hasInvite ? "email" : "phone");
 
   // Email auth state — default to register when coming from invite link
   const [isRegister, setIsRegister] = useState(hasInvite);
@@ -89,7 +89,12 @@ export default function LoginScreen() {
     if (!inviteId) return;
     try {
       await acceptInvite(inviteId, uid);
-      await new Promise((r) => setTimeout(r, 2000));
+      // Poll until cloud function sets companyId (up to 10s)
+      for (let i = 0; i < 7; i++) {
+        await new Promise((r) => setTimeout(r, 1500));
+        const doc = await getUserDoc(uid);
+        if (doc?.companyId) return;
+      }
     } catch {
       // non-fatal
     }

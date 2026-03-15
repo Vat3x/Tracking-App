@@ -60,6 +60,13 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Tracking Links (shareable trip tracking for customers)
+    match /tracking_links/{linkDocId} {
+      allow read: if isAuth();
+      allow create: if isAuth() && isCompanyMember(request.resource.data.companyId);
+      allow update, delete: if false;
+    }
+
     // Trips
     match /trips/{tripId} {
       // Single-doc read: dispatcher (company member) or assigned driver

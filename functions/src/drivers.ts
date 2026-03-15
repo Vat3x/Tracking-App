@@ -52,20 +52,19 @@ export const removeDriver = onRequest({ cors: true }, async (req, res) => {
     return;
   }
 
-  // Verify driver belongs to this company
+  // Check if driver exists in Firestore
   const driverDoc = await firestore.doc(`users/${driverId}`).get();
-  if (!driverDoc.exists || driverDoc.data()?.companyId !== companyId) {
-    res.status(404).json({ error: "Driver not found in company" });
-    return;
+  const hasFirestoreDoc = driverDoc.exists && driverDoc.data()?.companyId === companyId;
+
+  if (hasFirestoreDoc) {
+    // Atomic Firestore updates
+    const batch = firestore.batch();
+    batch.update(firestore.doc(`users/${driverId}`), { companyId: null });
+    batch.delete(firestore.doc(`companies/${companyId}/members/${driverId}`));
+    await batch.commit();
   }
 
-  // Atomic Firestore updates
-  const batch = firestore.batch();
-  batch.update(firestore.doc(`users/${driverId}`), { companyId: null });
-  batch.delete(firestore.doc(`companies/${companyId}/members/${driverId}`));
-  await batch.commit();
-
-  // Clean up RTDB
+  // Clean up RTDB (always — handles orphan entries with no Firestore doc)
   await rtdb.ref(`company_members/${companyId}/${driverId}`).remove();
   await rtdb.ref(`locations/${companyId}/${driverId}`).remove();
 

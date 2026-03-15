@@ -4,6 +4,10 @@ export interface Company {
   ownerId: string;
   createdAt: number;
   settings: CompanySettings;
+  address: string;
+  fleetSize: string;
+  referralSource: string;
+  mcNumber?: string;
 }
 
 export interface CompanySettings {

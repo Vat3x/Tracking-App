@@ -9,6 +9,7 @@ import Dashboard from "@/pages/Dashboard";
 import Trips from "@/pages/Trips";
 import Settings from "@/pages/Settings";
 import InviteLanding from "@/pages/InviteLanding";
+import TrackingPage from "@/pages/TrackingPage";
 import VerifyEmail from "@/pages/VerifyEmail";
 import AuthAction from "@/pages/AuthAction";
 
@@ -49,6 +50,7 @@ function App() {
       />
       <Route path="/auth/action" element={<AuthAction />} />
       <Route path="/invite/:inviteId" element={<InviteLanding />} />
+      <Route path="/track/:linkId" element={<TrackingPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </>
