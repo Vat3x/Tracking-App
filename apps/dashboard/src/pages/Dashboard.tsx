@@ -56,6 +56,7 @@ export default function Dashboard() {
   const [tripFormDriverId, setTripFormDriverId] = useState<string | undefined>();
   const [newDriverIds, setNewDriverIds] = useState<Set<string>>(new Set());
   const newDriverTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const knownDriverIdsRef = useRef<Set<string> | null>(null);
 
   // Toast notifications for trip status changes
   useTripNotifications(trips, driverProfiles);
@@ -95,32 +96,42 @@ export default function Dashboard() {
   // Re-fetch profiles when a new driver appears that we don't have a profile for
   useEffect(() => {
     if (!userDoc?.companyId) return;
-    const unknownDrivers = drivers.filter((d) => !driverProfiles.has(d.driverId));
-    if (unknownDrivers.length > 0) {
+    const unknownDriver = drivers.find((d) => !driverProfiles.has(d.driverId));
+    if (unknownDriver) {
       getCompanyDrivers(userDoc.companyId).then(setDriverProfiles);
-      // Mark as "new" with auto-clear after 20 seconds
-      const ids = unknownDrivers.map((d) => d.driverId);
-      setNewDriverIds((prev) => {
-        const next = new Set(prev);
-        ids.forEach((id) => next.add(id));
-        return next;
-      });
-      for (const id of ids) {
-        if (newDriverTimers.current.has(id)) clearTimeout(newDriverTimers.current.get(id));
-        newDriverTimers.current.set(
-          id,
-          setTimeout(() => {
-            setNewDriverIds((prev) => {
-              const next = new Set(prev);
-              next.delete(id);
-              return next;
-            });
-            newDriverTimers.current.delete(id);
-          }, 20000)
-        );
-      }
     }
   }, [drivers, driverProfiles, userDoc?.companyId]);
+
+  // Track new drivers: compare RTDB snapshots, skip first load
+  useEffect(() => {
+    if (drivers.length === 0) return;
+    const currentIds = new Set(drivers.map((d) => d.driverId));
+    if (knownDriverIdsRef.current !== null) {
+      const freshIds = [...currentIds].filter((id) => !knownDriverIdsRef.current!.has(id));
+      if (freshIds.length > 0) {
+        setNewDriverIds((prev) => {
+          const next = new Set(prev);
+          freshIds.forEach((id) => next.add(id));
+          return next;
+        });
+        for (const id of freshIds) {
+          if (newDriverTimers.current.has(id)) clearTimeout(newDriverTimers.current.get(id));
+          newDriverTimers.current.set(
+            id,
+            setTimeout(() => {
+              setNewDriverIds((prev) => {
+                const next = new Set(prev);
+                next.delete(id);
+                return next;
+              });
+              newDriverTimers.current.delete(id);
+            }, 20000)
+          );
+        }
+      }
+    }
+    knownDriverIdsRef.current = currentIds;
+  }, [drivers]);
 
   async function handleLogout() {
     if (!window.confirm("Are you sure you want to sign out?")) return;
