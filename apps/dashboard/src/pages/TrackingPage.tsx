@@ -169,9 +169,9 @@ export default function TrackingPage() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  // Init map
+  // Init map (depends on loading — container doesn't exist while loading)
   useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) return;
+    if (loading || !mapContainerRef.current || mapRef.current) return;
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
       style: MAP_STYLE,
@@ -183,7 +183,7 @@ export default function TrackingPage() {
     map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
     mapRef.current = map;
     return () => { map.remove(); mapRef.current = null; };
-  }, []);
+  }, [loading]);
 
   // Update map markers + route when data changes
   useEffect(() => {

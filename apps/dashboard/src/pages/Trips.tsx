@@ -10,7 +10,7 @@ import { useTripNotifications } from "@/hooks/useTripNotifications";
 import { useNavigate } from "react-router-dom";
 import { logout } from "@/services/auth";
 import { toast } from "sonner";
-import { createTrackingLink, generateTrackingUrl } from "@/services/trackingLinks";
+import { createTrackingLink } from "@/services/trackingLinks";
 import { type Trip, type TripStatus, type User, distanceMeters, getStopsFromTrip, getFirstPickup, getLastDropoff } from "@nexus/shared";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -246,11 +246,12 @@ export default function Trips() {
                             onClick={async () => {
                               if (!trip.driverId || !userDoc?.companyId || !userDoc?.id) return;
                               try {
-                                const linkId = await createTrackingLink(trip.id, userDoc.companyId, trip.driverId, userDoc.id);
-                                await navigator.clipboard.writeText(generateTrackingUrl(linkId));
+                                const { url, saved } = createTrackingLink(trip.id, userDoc.companyId, trip.driverId, userDoc.id);
+                                await navigator.clipboard.writeText(url);
                                 toast.success("Tracking link copied to clipboard");
-                              } catch {
-                                toast.error("Failed to generate tracking link");
+                                saved.catch((err) => console.error("Failed to save tracking link:", err));
+                              } catch (err: any) {
+                                toast.error(`Failed: ${err?.message || err}`);
                               }
                             }}
                             className="text-xs text-green-500 hover:text-green-700 dark:hover:text-green-400"

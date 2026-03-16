@@ -26,7 +26,7 @@ function buildVerificationHtml(displayName: string, verificationLink: string): s
         <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
           <tr>
             <td style="background:#ffffff;padding:32px 32px 24px;text-align:center;">
-              <img src="https://tracking.loadmind.app/logo.png" alt="LoadMind" width="64" height="64" style="display:block;margin:0 auto 14px;border-radius:12px;" />
+              <img src="https://load-mind.com/tracker/logo.png" alt="LoadMind" width="64" height="64" style="display:block;margin:0 auto 14px;border-radius:12px;" />
               <h1 style="margin:0;color:#1e293b;font-size:22px;font-weight:700;letter-spacing:-0.5px;">LoadMind Tracker</h1>
             </td>
           </tr>
@@ -68,12 +68,12 @@ function buildVerificationHtml(displayName: string, verificationLink: string): s
 /** Helper: send a verification email via Resend */
 async function sendVerificationEmail(email: string, displayName: string, apiKey: string): Promise<void> {
   const verificationLink = await admin.auth().generateEmailVerificationLink(email, {
-    url: "https://tracking.loadmind.app/auth/action",
+    url: "https://load-mind.com/tracker/auth/action",
   });
 
   const resend = new Resend(apiKey);
   await resend.emails.send({
-    from: "LoadMind Tracker <team@loadmind.app>",
+    from: "LoadMind Tracker <team@load-mind.com>",
     to: email,
     subject: "Verify your LoadMind Tracker account",
     html: buildVerificationHtml(displayName, verificationLink),

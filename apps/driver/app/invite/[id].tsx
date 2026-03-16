@@ -4,7 +4,7 @@ import { View, ActivityIndicator } from "react-native";
 import { useThemeStore } from "../../src/stores/theme";
 
 /**
- * Catch deep links like https://tracking.loadmind.app/invite/{id}
+ * Catch deep links like https://load-mind.com/tracker/invite/{id}
  * and redirect to the actual accept-invite screen.
  */
 export default function InviteRedirect() {

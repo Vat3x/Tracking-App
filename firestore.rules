@@ -63,7 +63,7 @@ service cloud.firestore {
     // Tracking Links (shareable trip tracking for customers)
     match /tracking_links/{linkDocId} {
       allow read: if isAuth();
-      allow create: if isAuth() && isCompanyMember(request.resource.data.companyId);
+      allow create: if isAuth();
       allow update, delete: if false;
     }
 

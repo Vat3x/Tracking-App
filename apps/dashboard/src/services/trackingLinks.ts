@@ -2,41 +2,30 @@ import {
   collection,
   doc,
   setDoc,
-  query,
-  where,
-  getDocs,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { COLLECTIONS, TRACKING_LINK_EXPIRY_DAYS } from "@nexus/shared";
 
 export function generateTrackingUrl(linkId: string): string {
-  return `https://tracking.loadmind.app/track/${linkId}`;
+  return `https://load-mind.com/tracker/track/${linkId}`;
 }
 
-export async function createTrackingLink(
+/**
+ * Generates a tracking link UUID and URL synchronously (for immediate clipboard copy),
+ * then persists to Firestore in the background.
+ */
+export function createTrackingLink(
   tripId: string,
   companyId: string,
   driverId: string,
   createdBy: string
-): Promise<string> {
-  // Check if an active link already exists for this trip
-  const existingSnap = await getDocs(
-    query(
-      collection(db, COLLECTIONS.TRACKING_LINKS),
-      where("tripId", "==", tripId),
-      where("active", "==", true)
-    )
-  );
-
-  if (!existingSnap.empty) {
-    return existingSnap.docs[0].data().linkId;
-  }
-
+): { linkId: string; url: string; saved: Promise<void> } {
   const linkId = crypto.randomUUID();
+  const url = generateTrackingUrl(linkId);
   const now = Date.now();
   const ref = doc(collection(db, COLLECTIONS.TRACKING_LINKS));
 
-  await setDoc(ref, {
+  const saved = setDoc(ref, {
     linkId,
     tripId,
     companyId,
@@ -47,5 +36,5 @@ export async function createTrackingLink(
     active: true,
   });
 
-  return linkId;
+  return { linkId, url, saved };
 }

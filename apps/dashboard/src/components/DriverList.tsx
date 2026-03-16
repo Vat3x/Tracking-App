@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { DriverLocationEntry } from "@/services/locations";
 import { updateDriverName, removeDriverFromCompany } from "@/services/drivers";
-import { createInvite, generateInviteLink } from "@/services/invites";
+import { createTrackingLink } from "@/services/trackingLinks";
 import { useAuthStore } from "@/stores/auth";
 import { type Trip, type User, timeAgo, distanceMeters, getFirstPickup, getLastDropoff } from "@nexus/shared";
 import { toast } from "sonner";
@@ -385,13 +385,18 @@ function DriverCard({
         break;
 
       case "share": {
-        if (!userDoc?.companyId) return;
+        if (!userDoc?.companyId || !activeTrip?.driverId) {
+          toast.error("No active trip to share");
+          return;
+        }
         try {
-          const invite = await createInvite(userDoc.companyId, "LoadMind Tracker", userDoc.id);
-          await navigator.clipboard.writeText(generateInviteLink(invite.id));
+          const { url, saved } = createTrackingLink(activeTrip.id, userDoc.companyId, activeTrip.driverId, userDoc.id);
+          await navigator.clipboard.writeText(url);
           toast.success("Tracking link copied to clipboard");
-        } catch {
-          toast.error("Failed to generate tracking link");
+          saved.catch((err) => console.error("Failed to save tracking link:", err));
+        } catch (err: any) {
+          console.error("Share tracking link error:", err);
+          toast.error(`Failed: ${err?.message || err}`);
         }
         break;
       }

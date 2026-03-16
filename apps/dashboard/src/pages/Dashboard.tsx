@@ -18,7 +18,7 @@ import { db } from "@/services/firebase";
 import { toast } from "sonner";
 import { COLLECTIONS, type Invite, type User, type Trip, type TripStatus, getTripRouteLabel } from "@nexus/shared";
 import { updateTripStatus } from "@/services/trips";
-import { createTrackingLink, generateTrackingUrl } from "@/services/trackingLinks";
+import { createTrackingLink } from "@/services/trackingLinks";
 import ThemeToggle from "@/components/ThemeToggle";
 
 function formatTime(ts: number): string {
@@ -396,13 +396,18 @@ export default function Dashboard() {
                               <div className="flex items-center gap-3 mt-1">
                                 <button
                                   onClick={async () => {
-                                    if (!trip.driverId || !userDoc?.companyId || !userDoc?.id) return;
+                                    if (!trip.driverId || !userDoc?.companyId || !userDoc?.id) {
+                                      toast.error("Cannot share: trip has no assigned driver");
+                                      return;
+                                    }
                                     try {
-                                      const linkId = await createTrackingLink(trip.id, userDoc.companyId, trip.driverId, userDoc.id);
-                                      await navigator.clipboard.writeText(generateTrackingUrl(linkId));
+                                      const { url, saved } = createTrackingLink(trip.id, userDoc.companyId, trip.driverId, userDoc.id);
+                                      await navigator.clipboard.writeText(url);
                                       toast.success("Tracking link copied to clipboard");
-                                    } catch {
-                                      toast.error("Failed to generate tracking link");
+                                      saved.catch((err) => console.error("Failed to save tracking link:", err));
+                                    } catch (err: any) {
+                                      console.error("Share tracking link error:", err);
+                                      toast.error(`Failed: ${err?.message || err}`);
                                     }
                                   }}
                                   className="text-[10px] text-green-500 hover:text-green-700 dark:hover:text-green-400"

@@ -65,8 +65,8 @@
           "data": [
             {
               "scheme": "https",
-              "host": "tracking.loadmind.app",
-              "pathPrefix": "/invite"
+              "host": "load-mind.com",
+              "pathPrefix": "/tracker/invite"
             },
             {
               "scheme": "https",
