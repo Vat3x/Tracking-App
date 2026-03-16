@@ -39,14 +39,8 @@ function formatSuggestion(r: NominatimResult): string {
 }
 
 function extractLabel(r: NominatimResult): string {
-  const a = r.address;
-  if (!a) {
-    const parts = r.display_name.split(", ");
-    return parts.slice(0, 3).join(", ");
-  }
-  const city = a.city || a.town || a.village || "";
-  const parts = [a.road, city, a.state].filter(Boolean);
-  return parts.length > 0 ? parts.join(", ") : r.display_name.split(", ").slice(0, 3).join(", ");
+  // Use the same readable format shown in the dropdown
+  return formatSuggestion(r);
 }
 
 export default function AddressSearch({
