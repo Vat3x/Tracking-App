@@ -25,9 +25,9 @@ function buildVerificationHtml(displayName: string, verificationLink: string): s
       <td align="center">
         <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
           <tr>
-            <td style="background:#ffffff;padding:32px 32px 24px;text-align:center;">
-              <img src="https://load-mind.com/tracker/logo.png" alt="LoadMind" width="64" height="64" style="display:block;margin:0 auto 14px;border-radius:12px;" />
-              <h1 style="margin:0;color:#1e293b;font-size:22px;font-weight:700;letter-spacing:-0.5px;">LoadMind Tracker</h1>
+            <td style="background:#1a73e8;padding:28px 32px;text-align:center;">
+              <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:-0.5px;">LoadMind Tracker</h1>
+              <p style="margin:6px 0 0;color:rgba(255,255,255,0.8);font-size:13px;font-weight:400;">Fleet Tracking Platform</p>
             </td>
           </tr>
           <tr>

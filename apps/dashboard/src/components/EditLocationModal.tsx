@@ -89,7 +89,7 @@ export default function EditLocationModal({ open, onClose, tripId, field, curren
               placeholder="Search address, street, city, or zip..."
               onChange={setSearch}
               onSelect={(r) => {
-                setLabel(search.trim() || r.label);
+                setLabel(r.label);
                 setLat(r.lat);
                 setLng(r.lng);
                 setZipCode(r.zipCode);
