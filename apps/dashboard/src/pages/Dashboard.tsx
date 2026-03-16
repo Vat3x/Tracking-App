@@ -189,13 +189,13 @@ export default function Dashboard() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => { setTripsOpen(!tripsOpen); setInvitesOpen(false); setTripFormOpen(false); }}
-            className="h-8 px-3 text-sm bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="h-8 px-3 text-sm bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-gray-100 hover:bg-blue-50 dark:hover:bg-gray-700 rounded-lg transition-all hover:shadow-md hover:-translate-y-0.5"
           >
             Trips
           </button>
           <button
             onClick={() => { setInvitesOpen(!invitesOpen); setTripsOpen(false); setTripFormOpen(false); }}
-            className="relative h-8 px-3 text-sm bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="relative h-8 px-3 text-sm bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-gray-100 hover:bg-blue-50 dark:hover:bg-gray-700 rounded-lg transition-all hover:shadow-md hover:-translate-y-0.5"
           >
             Invites
             {pendingInvites > 0 && (
@@ -206,20 +206,20 @@ export default function Dashboard() {
           </button>
           <button
             onClick={() => navigate("/settings")}
-            className="h-8 px-3 text-sm bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="h-8 px-3 text-sm bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-gray-100 hover:bg-blue-50 dark:hover:bg-gray-700 rounded-lg transition-all hover:shadow-md hover:-translate-y-0.5"
           >
             Settings
           </button>
           <ThemeToggle />
           <button
             onClick={() => { setTripFormDriverId(undefined); setTripFormOpen(true); setInvitesOpen(false); setTripsOpen(false); }}
-            className="h-8 px-3 border border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 text-sm font-medium rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+            className="h-8 px-3 border border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 text-sm font-medium rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all hover:shadow-md hover:-translate-y-0.5"
           >
             New Trip
           </button>
           <button
             onClick={() => setInviteModalOpen(true)}
-            className="h-8 px-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-300 rounded-lg shadow-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="h-8 px-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-300 rounded-lg shadow-sm hover:bg-blue-50 dark:hover:bg-gray-800 hover:text-blue-600 transition-all hover:shadow-md hover:-translate-y-0.5"
           >
             Invite Driver
           </button>

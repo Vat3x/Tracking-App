@@ -2,6 +2,14 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Blue-tinted grays for light mode — softer, less white */
+@theme {
+  --color-gray-50: #f0f4f8;
+  --color-gray-100: #e4e9f0;
+  --color-gray-200: #d5dbe5;
+  --color-gray-300: #c1c9d6;
+}
+
 html, body, #root {
   height: 100%;
   margin: 0;
