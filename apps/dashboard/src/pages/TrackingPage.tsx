@@ -5,7 +5,8 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 const POLL_INTERVAL = 30_000;
 const FUNCTIONS_BASE = "https://us-central1-tracking-app-f6ad7.cloudfunctions.net";
-const MAP_STYLE = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
+const MAP_STYLE_LIGHT = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
+const MAP_STYLE_DARK = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 const OSRM_BASE = "https://router.project-osrm.org/route/v1/driving";
 
 interface TripStop {
@@ -174,7 +175,7 @@ export default function TrackingPage() {
     if (loading || !mapContainerRef.current || mapRef.current) return;
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: MAP_STYLE,
+      style: isDark ? MAP_STYLE_DARK : MAP_STYLE_LIGHT,
       center: [-98.5, 39.8], // US center
       zoom: 4,
       attributionControl: false,
@@ -184,6 +185,13 @@ export default function TrackingPage() {
     mapRef.current = map;
     return () => { map.remove(); mapRef.current = null; };
   }, [loading]);
+
+  // Switch map tiles when system dark mode changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    map.setStyle(isDark ? MAP_STYLE_DARK : MAP_STYLE_LIGHT);
+  }, [isDark]);
 
   // Update map markers + route when data changes
   useEffect(() => {
