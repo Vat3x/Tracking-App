@@ -4,3 +4,4 @@ export * from "./firebase/config";
 export * from "./firebase/paths";
 export * from "./utils/geo";
 export * from "./utils/time";
+export * from "./utils/phone";

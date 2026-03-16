@@ -1,0 +1,5 @@
+{
+  "react-native": {
+    "auth_android_recaptcha_custom_tab": true
+  }
+}

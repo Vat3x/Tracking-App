@@ -19,19 +19,7 @@ import { Logo } from "../../src/components/Logo";
 import { useAuthStore } from "../../src/stores/auth";
 import { useTheme } from "../../src/hooks/useTheme";
 import { auth } from "../../src/services/firebase";
-
-// Common country codes (US-optimized)
-const COUNTRY_CODES = [
-  { code: "+1", label: "US/CA +1" },
-  { code: "+52", label: "MX +52" },
-  { code: "+44", label: "UK +44" },
-  { code: "+49", label: "DE +49" },
-  { code: "+33", label: "FR +33" },
-  { code: "+91", label: "IN +91" },
-  { code: "+86", label: "CN +86" },
-  { code: "+81", label: "JP +81" },
-  { code: "+995", label: "GE +995" },
-];
+import { COUNTRY_CODES, extractDigits, isValidPhoneDigits, buildFullNumber, sanitizeOtp } from "@nexus/shared";
 
 type PhoneStep = "idle" | "sending" | "otp" | "verifying" | "name" | "saving";
 
@@ -168,12 +156,11 @@ export default function LoginScreen() {
   // ---- Phone handlers ----
 
   async function handleSendOtp() {
-    const digits = phoneNumber.replace(/\D/g, "");
-    if (digits.length < 7) {
+    if (!isValidPhoneDigits(phoneNumber)) {
       Alert.alert("Error", "Please enter a valid phone number.");
       return;
     }
-    const fullNumber = countryCode + digits;
+    const fullNumber = buildFullNumber(countryCode, phoneNumber);
     setPhoneStep("sending");
     try {
       const vId = await sendVerificationCode(fullNumber);
@@ -245,7 +232,7 @@ export default function LoginScreen() {
       const user = auth.currentUser;
       if (!user) throw new Error("No authenticated user");
 
-      const fullNumber = countryCode + phoneNumber.replace(/\D/g, "");
+      const fullNumber = buildFullNumber(countryCode, phoneNumber);
       await createPhoneUser(user.uid, fullNumber, newUserName.trim());
       await tryAcceptInvite(user.uid);
       const userDoc = await getUserDoc(user.uid);
@@ -397,7 +384,7 @@ export default function LoginScreen() {
                   placeholder="000000"
                   placeholderTextColor={colors.placeholder}
                   value={otpCode}
-                  onChangeText={(text) => setOtpCode(text.replace(/\D/g, "").slice(0, 6))}
+                  onChangeText={(text) => setOtpCode(sanitizeOtp(text))}
                   keyboardType="number-pad"
                   maxLength={6}
                   autoFocus
