@@ -121,22 +121,22 @@ function DriverInfoModal({
               { l: "Last Sync", v: timeAgo(c.timestamp) },
               { l: "Heading", v: c.heading ? `${Math.round(c.heading)}°` : "—" },
             ].map(({ l, v }) => (
-              <div key={l} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg px-3 py-2">
+              <div key={l} className="bg-white dark:bg-gray-700/50 rounded-lg px-3 py-2">
                 <p className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-0.5">{l}</p>
                 <p className="text-xs font-medium text-gray-700 dark:text-gray-300 capitalize">{v}</p>
               </div>
             ))}
           </div>
-          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg px-3 py-2">
+          <div className="bg-white dark:bg-gray-700/50 rounded-lg px-3 py-2">
             <p className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-0.5">Coordinates</p>
             <p className="text-xs font-mono text-gray-700 dark:text-gray-300">{c.lat.toFixed(5)}, {c.lng.toFixed(5)}</p>
           </div>
-          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg px-3 py-2">
+          <div className="bg-white dark:bg-gray-700/50 rounded-lg px-3 py-2">
             <p className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-0.5">Driver UID</p>
             <p className="text-xs font-mono text-gray-700 dark:text-gray-300 break-all">{driver.driverId}</p>
           </div>
           {profile?.phone && (
-            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg px-3 py-2">
+            <div className="bg-white dark:bg-gray-700/50 rounded-lg px-3 py-2">
               <p className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-0.5">Phone</p>
               <p className="text-xs text-gray-700 dark:text-gray-300">{profile.phone}</p>
             </div>
@@ -567,7 +567,7 @@ export default function DriverList({
   }
 
   return (
-    <div className="w-80 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
+    <div className="w-80 bg-gray-50 dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
       <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
         <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Drivers</h2>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">

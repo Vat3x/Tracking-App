@@ -215,17 +215,14 @@ export default function HomeScreen() {
         {/* Greeting overlay */}
         <View style={[styles.greetingOverlay, { backgroundColor: colors.bgOverlay }]}>
           <View style={styles.greetingRow}>
-            <Logo size={28} />
+            <Logo size={18} />
             <Text style={[styles.greetingText, { color: colors.text }]}>
-              Hello, {userDoc?.displayName ?? "Driver"}
+              {userDoc?.displayName ?? "Driver"}
             </Text>
+            {hasCompany && (
+              <View style={styles.connectedDot} />
+            )}
           </View>
-          {hasCompany && (
-            <Text style={styles.connectedText}>Connected</Text>
-          )}
-          {!hasCompany && (
-            <Text style={styles.notConnectedText}>No company linked</Text>
-          )}
         </View>
       </View>
 
@@ -376,7 +373,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   mapContainer: {
-    flex: 1.5,
+    height: 180,
   },
   mapLoading: {
     flex: 1,
@@ -385,40 +382,36 @@ const styles = StyleSheet.create({
   },
   greetingOverlay: {
     position: "absolute",
-    top: 16,
-    left: 16,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    top: 10,
+    left: 10,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 3,
     elevation: 3,
   },
   greetingRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
   },
   greetingText: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: "600",
   },
-  connectedText: {
-    fontSize: 12,
-    color: "#22c55e",
-    fontWeight: "500",
-  },
-  notConnectedText: {
-    fontSize: 12,
-    color: "#f59e0b",
-    fontWeight: "500",
+  connectedDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#22c55e",
   },
 
   // Bottom panel
   bottomPanel: {
-    flex: 8.5,
+    flex: 1,
     paddingHorizontal: 16,
     paddingTop: 12,
   },

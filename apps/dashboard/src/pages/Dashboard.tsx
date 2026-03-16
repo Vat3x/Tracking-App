@@ -178,7 +178,7 @@ export default function Dashboard() {
   return (
     <div className="h-screen flex flex-col">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center justify-between shrink-0 z-10">
+      <header className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center justify-between shrink-0 z-10">
         <div className="flex items-center gap-2.5">
           <img src="/logo.svg" alt="LoadMind" className="w-8 h-8" />
           <div>
@@ -189,13 +189,13 @@ export default function Dashboard() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => { setTripsOpen(!tripsOpen); setInvitesOpen(false); setTripFormOpen(false); }}
-            className="h-8 px-3 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="h-8 px-3 text-sm bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             Trips
           </button>
           <button
             onClick={() => { setInvitesOpen(!invitesOpen); setTripsOpen(false); setTripFormOpen(false); }}
-            className="relative h-8 px-3 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="relative h-8 px-3 text-sm bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             Invites
             {pendingInvites > 0 && (
@@ -206,7 +206,7 @@ export default function Dashboard() {
           </button>
           <button
             onClick={() => navigate("/settings")}
-            className="h-8 px-3 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="h-8 px-3 text-sm bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             Settings
           </button>
@@ -219,7 +219,7 @@ export default function Dashboard() {
           </button>
           <button
             onClick={() => setInviteModalOpen(true)}
-            className="h-8 px-3 border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            className="h-8 px-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-300 rounded-lg shadow-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             Invite Driver
           </button>
@@ -240,13 +240,13 @@ export default function Dashboard() {
                   </div>
                   <button
                     onClick={() => { setUserMenuOpen(false); navigate("/settings"); }}
-                    className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                   >
                     Settings
                   </button>
                   <button
                     onClick={() => { setUserMenuOpen(false); handleLogout(); }}
-                    className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700"
                   >
                     Sign out
                   </button>
@@ -304,7 +304,7 @@ export default function Dashboard() {
               className="absolute inset-0 bg-black/10 z-20"
               onClick={() => setTripsOpen(false)}
             />
-            <div className="absolute left-0 top-0 bottom-0 w-80 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 shadow-xl z-30 flex flex-col">
+            <div className="absolute left-0 top-0 bottom-0 w-80 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 shadow-xl z-30 flex flex-col">
               <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Trips</h2>
                 <div className="flex items-center gap-2">
@@ -463,7 +463,7 @@ export default function Dashboard() {
               className="absolute inset-0 bg-black/10 z-20"
               onClick={() => setInvitesOpen(false)}
             />
-            <div className="absolute left-0 top-0 bottom-0 w-96 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 shadow-xl z-30 flex flex-col">
+            <div className="absolute left-0 top-0 bottom-0 w-96 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 shadow-xl z-30 flex flex-col">
               <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                   Tracking Requests
