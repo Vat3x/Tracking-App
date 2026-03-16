@@ -50,7 +50,9 @@ function App() {
       />
       <Route path="/auth/action" element={<AuthAction />} />
       <Route path="/invite/:inviteId" element={<InviteLanding />} />
+      <Route path="/tracker/invite/:inviteId" element={<InviteLanding />} />
       <Route path="/track/:linkId" element={<TrackingPage />} />
+      <Route path="/tracker/track/:linkId" element={<TrackingPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </>
