@@ -72,11 +72,11 @@ export default function Settings() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950 p-6">
+      <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-gray-950 p-6">
         <div className="max-w-lg mx-auto space-y-5">
 
           {/* Profile card with avatar */}
-          <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+          <section className="bg-white dark:bg-gray-900 rounded-xl shadow-sm ring-1 ring-gray-100 dark:ring-gray-700 p-5">
             <div className="flex items-center gap-4 mb-5">
               <div className="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
                 <span className="text-lg font-bold text-white">{initials}</span>
@@ -107,7 +107,7 @@ export default function Settings() {
           </section>
 
           {/* Company */}
-          <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+          <section className="bg-white dark:bg-gray-900 rounded-xl shadow-sm ring-1 ring-gray-100 dark:ring-gray-700 p-5">
             <div className="flex items-center gap-2 mb-4">
               <Building2 className="w-4 h-4 text-gray-400" />
               <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Company</h2>
@@ -148,7 +148,7 @@ export default function Settings() {
           </section>
 
           {/* Appearance */}
-          <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+          <section className="bg-white dark:bg-gray-900 rounded-xl shadow-sm ring-1 ring-gray-100 dark:ring-gray-700 p-5">
             <div className="flex items-center gap-2 mb-4">
               <Palette className="w-4 h-4 text-gray-400" />
               <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Appearance</h2>
@@ -185,7 +185,7 @@ export default function Settings() {
           </section>
 
           {/* Account */}
-          <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+          <section className="bg-white dark:bg-gray-900 rounded-xl shadow-sm ring-1 ring-gray-100 dark:ring-gray-700 p-5">
             <div className="flex items-center gap-2 mb-4">
               <LogOut className="w-4 h-4 text-gray-400" />
               <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Account</h2>
