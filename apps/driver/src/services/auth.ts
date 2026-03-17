@@ -42,6 +42,29 @@ export async function logout(): Promise<void> {
   await signOut(auth);
 }
 
+const FUNCTIONS_URL = "https://us-central1-tracking-app-f6ad7.cloudfunctions.net";
+
+export async function deleteAccount(): Promise<void> {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Not authenticated");
+
+  const token = await user.getIdToken();
+  const res = await fetch(`${FUNCTIONS_URL}/deleteAccount`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Failed to delete account");
+  }
+
+  await signOut(auth);
+}
+
 export async function getUserDoc(uid: string): Promise<User | null> {
   const snap = await getDoc(doc(db, COLLECTIONS.USERS, uid));
   if (!snap.exists()) return null;

@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Linking } from "react-native";
 import { useRouter } from "expo-router";
 import Constants from "expo-constants";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../src/services/firebase";
-import { logout } from "../../src/services/auth";
+import { logout, deleteAccount } from "../../src/services/auth";
 import { useAuthStore } from "../../src/stores/auth";
 import { clearFcmToken } from "../../src/services/notifications";
 import { COLLECTIONS } from "@nexus/shared";
@@ -23,6 +23,7 @@ export default function SettingsScreen() {
   const { userDoc, reset } = useAuthStore();
   const { colors, isDark, preference, setPreference } = useTheme();
   const [companyName, setCompanyName] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!userDoc?.companyId) return;
@@ -47,6 +48,43 @@ export default function SettingsScreen() {
         },
       },
     ]);
+  }
+
+  function handleDeleteAccount() {
+    Alert.alert(
+      "Delete Account",
+      "This will permanently delete your account and all associated data. This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete Account",
+          style: "destructive",
+          onPress: () => {
+            Alert.alert("Are you sure?", "Your account, trip history, and location data will be permanently removed.", [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Delete Forever",
+                style: "destructive",
+                onPress: async () => {
+                  setDeleting(true);
+                  try {
+                    if (userDoc?.id) {
+                      await clearFcmToken(userDoc.id).catch(() => {});
+                    }
+                    await deleteAccount();
+                    reset();
+                    router.replace("/(auth)/login");
+                  } catch (err) {
+                    Alert.alert("Error", "Failed to delete account. Please try again.");
+                    setDeleting(false);
+                  }
+                },
+              },
+            ]);
+          },
+        },
+      ]
+    );
   }
 
   const appVersion = Constants.expoConfig?.version ?? "1.0.0";
@@ -113,15 +151,31 @@ export default function SettingsScreen() {
           <Text style={[styles.label, { color: colors.textMuted }]}>Version</Text>
           <Text style={[styles.value, { color: colors.text }]}>{appVersion}</Text>
         </View>
+        <View style={[styles.divider, { backgroundColor: colors.divider }]} />
+        <TouchableOpacity
+          style={styles.row}
+          onPress={() => Linking.openURL("https://load-mind.com/privacy")}
+        >
+          <Text style={[styles.value, { color: "#1a73e8" }]}>Privacy Policy</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Account Section */}
-      <View style={{ marginTop: 24, paddingBottom: 40 }}>
+      <View style={{ marginTop: 24, gap: 12, paddingBottom: 40 }}>
         <TouchableOpacity
           style={[styles.logoutButton, { backgroundColor: isDark ? "#450a0a" : "#fee2e2" }]}
           onPress={handleLogout}
         >
           <Text style={[styles.logoutText, { color: isDark ? "#fca5a5" : "#dc2626" }]}>Sign Out</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.logoutButton, { backgroundColor: isDark ? "#7f1d1d" : "#dc2626" }]}
+          onPress={handleDeleteAccount}
+          disabled={deleting}
+        >
+          <Text style={[styles.logoutText, { color: "#fff" }]}>
+            {deleting ? "Deleting..." : "Delete Account"}
+          </Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

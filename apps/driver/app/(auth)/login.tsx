@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  Linking,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { loginWithEmail, registerDriver, getUserDoc } from "../../src/services/auth";
@@ -525,6 +526,16 @@ export default function LoginScreen() {
             )}
           </>
         )}
+
+        <Text style={[styles.policyText, { color: colors.textMuted }]}>
+          By signing in, you agree to our{" "}
+          <Text
+            style={styles.policyLink}
+            onPress={() => Linking.openURL("https://load-mind.com/privacy")}
+          >
+            Privacy Policy
+          </Text>
+        </Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -723,5 +734,14 @@ const styles = StyleSheet.create({
   switchText: {
     color: "#1a73e8",
     fontSize: 14,
+  },
+  policyText: {
+    fontSize: 12,
+    textAlign: "center",
+    marginTop: 24,
+  },
+  policyLink: {
+    color: "#1a73e8",
+    textDecorationLine: "underline",
   },
 });
