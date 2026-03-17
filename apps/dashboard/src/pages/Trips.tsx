@@ -103,7 +103,7 @@ export default function Trips() {
 
   return (
     <div className="h-screen flex flex-col">
-      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center justify-between shrink-0">
+      <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50 px-4 py-2.5 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5">
           <img src="/logo.svg" alt="LoadMind" className="w-8 h-8" />
           <div>
