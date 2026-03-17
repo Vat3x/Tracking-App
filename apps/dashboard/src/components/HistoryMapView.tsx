@@ -294,5 +294,5 @@ export default function HistoryMapView({ history, selectedTrip }: Props) {
     }
   }, [selectedTrip, drawTripRoute, removeRouteLayers]);
 
-  return <div ref={containerRef} className="flex-1 rounded-xl overflow-hidden" />;
+  return <div ref={containerRef} className="h-full w-full" />;
 }
