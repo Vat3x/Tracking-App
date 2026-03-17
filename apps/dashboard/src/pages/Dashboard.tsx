@@ -16,7 +16,7 @@ import { useNavigate } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/services/firebase";
 import { toast } from "sonner";
-import { COLLECTIONS, type Invite, type User, type Trip, type TripStatus, getTripRouteLabel } from "@nexus/shared";
+import { COLLECTIONS, type Invite, type User, type Trip, type TripStatus, getTripRouteLabel, getStopsFromTrip } from "@nexus/shared";
 import { updateTripStatus } from "@/services/trips";
 import { createTrackingLink } from "@/services/trackingLinks";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -24,6 +24,25 @@ import ThemeToggle from "@/components/ThemeToggle";
 function formatTime(ts: number): string {
   const d = new Date(ts);
   return d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+type DatePreset = "today" | "7d" | "30d" | "all";
+
+function getDateRange(preset: DatePreset): { start: number; end: number } {
+  const now = Date.now();
+  switch (preset) {
+    case "today": {
+      const s = new Date();
+      s.setHours(0, 0, 0, 0);
+      return { start: s.getTime(), end: now };
+    }
+    case "7d":
+      return { start: now - 7 * 24 * 60 * 60 * 1000, end: now };
+    case "30d":
+      return { start: now - 30 * 24 * 60 * 60 * 1000, end: now };
+    case "all":
+      return { start: 0, end: now };
+  }
 }
 
 function InviteStatusBadge({ invite }: { invite: Invite }) {
@@ -55,6 +74,10 @@ export default function Dashboard() {
   const [tripFilter, setTripFilter] = useState<"active" | "completed" | "cancelled">("active");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [tripFormDriverId, setTripFormDriverId] = useState<string | undefined>();
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyDatePreset, setHistoryDatePreset] = useState<DatePreset>("7d");
+  const [historyTripFilter, setHistoryTripFilter] = useState<"all" | "completed" | "cancelled">("all");
+  const [selectedHistoryTripId, setSelectedHistoryTripId] = useState<string | null>(null);
   const [newDriverIds, setNewDriverIds] = useState<Set<string>>(new Set());
   const newDriverTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const knownDriverIdsRef = useRef<Set<string> | null>(null);
@@ -175,6 +198,41 @@ export default function Dashboard() {
     (i) => i.status === "pending" && i.expiresAt > Date.now()
   ).length;
 
+  // History panel computed values
+  const historyDateRange = useMemo(() => getDateRange(historyDatePreset), [historyDatePreset]);
+
+  const historyTrips = useMemo(() => {
+    if (!selectedDriverId) return [];
+    let t = trips.filter(
+      (trip) =>
+        trip.driverId === selectedDriverId &&
+        trip.createdAt >= historyDateRange.start &&
+        trip.createdAt <= historyDateRange.end
+    );
+    if (historyTripFilter === "completed") t = t.filter((trip) => trip.status === "completed");
+    if (historyTripFilter === "cancelled") t = t.filter((trip) => ["cancelled", "rejected"].includes(trip.status));
+    return t;
+  }, [trips, selectedDriverId, historyDateRange, historyTripFilter]);
+
+  const selectedHistoryTrip = useMemo(
+    () => historyTrips.find((t) => t.id === selectedHistoryTripId) ?? null,
+    [historyTrips, selectedHistoryTripId]
+  );
+
+  const handleViewHistory = useCallback((driverId: string) => {
+    selectDriver(driverId);
+    setHistoryOpen(true);
+    setTripsOpen(false);
+    setInvitesOpen(false);
+    setTripFormOpen(false);
+    setSelectedHistoryTripId(null);
+  }, [selectDriver]);
+
+  // Clear selected history trip when driver changes
+  useEffect(() => {
+    setSelectedHistoryTripId(null);
+  }, [selectedDriverId]);
+
   return (
     <div className="h-screen flex flex-col">
       {/* Header */}
@@ -205,7 +263,7 @@ export default function Dashboard() {
             )}
           </button>
           <button
-            onClick={() => navigate("/history")}
+            onClick={() => { setHistoryOpen(!historyOpen); setTripsOpen(false); setInvitesOpen(false); setTripFormOpen(false); setSelectedHistoryTripId(null); }}
             className="h-8 px-3 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             History
@@ -275,6 +333,7 @@ export default function Dashboard() {
             activeDriverIds={activeDriverIds}
             trips={trips}
             companyId={userDoc?.companyId ?? undefined}
+            historyTrip={historyOpen ? selectedHistoryTrip : null}
           />
         </div>
 
@@ -289,6 +348,7 @@ export default function Dashboard() {
           newDriverIds={newDriverIds}
           onRefreshProfiles={() => userDoc?.companyId && getCompanyDrivers(userDoc.companyId).then(setDriverProfiles)}
           onCreateTrip={(driverId) => { setTripFormDriverId(driverId); setTripFormOpen(true); setInvitesOpen(false); setTripsOpen(false); }}
+          onViewHistory={handleViewHistory}
         />
 
         {/* New Trip slide-over panel */}
@@ -539,6 +599,158 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
+            </div>
+          </>
+        )}
+
+        {/* History slide-over panel */}
+        {historyOpen && (
+          <>
+            <div
+              className="absolute inset-0 bg-black/10 z-20"
+              onClick={() => { setHistoryOpen(false); setSelectedHistoryTripId(null); }}
+            />
+            <div className="absolute left-0 top-0 bottom-0 w-96 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 shadow-xl z-30 flex flex-col">
+              <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">History</h2>
+                  {selectedDriverId && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {driverProfiles.get(selectedDriverId)?.displayName ?? "Driver"}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => { setHistoryOpen(false); setSelectedHistoryTripId(null); }}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg leading-none"
+                >
+                  &times;
+                </button>
+              </div>
+
+              {!selectedDriverId ? (
+                <div className="flex-1 flex items-center justify-center px-4">
+                  <div className="text-center">
+                    <p className="text-sm text-gray-400 dark:text-gray-500">Select a driver to view history</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                      GPS track and trip history will appear here
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Date range presets */}
+                  <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-700">
+                    <div className="flex items-center gap-1">
+                      {(["today", "7d", "30d", "all"] as const).map((preset) => (
+                        <button
+                          key={preset}
+                          onClick={() => { setHistoryDatePreset(preset); setSelectedHistoryTripId(null); }}
+                          className={`px-2.5 py-1 text-xs rounded-lg transition-colors ${
+                            historyDatePreset === preset
+                              ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 font-medium"
+                              : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                          }`}
+                        >
+                          {preset === "today" ? "Today" : preset === "7d" ? "7 Days" : preset === "30d" ? "30 Days" : "All"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Stats */}
+                  <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-700 flex items-center gap-4">
+                    <div>
+                      <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">{historyTrips.length}</p>
+                      <p className="text-[10px] text-gray-400 dark:text-gray-500">Trips</p>
+                    </div>
+                  </div>
+
+                  {/* Trip filter tabs */}
+                  <div className="flex items-center gap-1 px-4 py-2 border-b border-gray-100 dark:border-gray-700">
+                    {(["all", "completed", "cancelled"] as const).map((f) => (
+                      <button
+                        key={f}
+                        onClick={() => { setHistoryTripFilter(f); setSelectedHistoryTripId(null); }}
+                        className={`px-2.5 py-1 text-[11px] rounded-md transition-colors ${
+                          historyTripFilter === f
+                            ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-medium"
+                            : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                        }`}
+                      >
+                        {f === "all" ? "All" : f === "completed" ? "Completed" : "Cancelled"}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Trip list */}
+                  <div className="flex-1 overflow-y-auto">
+                    {historyTrips.length === 0 ? (
+                      <div className="px-4 py-12 text-center">
+                        <p className="text-sm text-gray-400 dark:text-gray-500">No trips found</p>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-gray-50 dark:divide-gray-700">
+                        {historyTrips.map((trip) => {
+                          const isSelected = selectedHistoryTripId === trip.id;
+                          const statusColors: Record<TripStatus, string> = {
+                            pending: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+                            accepted: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+                            rejected: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+                            in_progress: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
+                            completed: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+                            cancelled: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+                          };
+                          return (
+                            <button
+                              key={trip.id}
+                              onClick={() => setSelectedHistoryTripId(isSelected ? null : trip.id)}
+                              className={`w-full text-left px-4 py-3 transition-colors ${
+                                isSelected
+                                  ? "bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-500"
+                                  : "hover:bg-gray-50 dark:hover:bg-gray-800 border-l-2 border-transparent"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${statusColors[trip.status]}`}>
+                                  {trip.status.replace("_", " ")}
+                                </span>
+                                <span className="text-xs text-gray-400 dark:text-gray-500">
+                                  {formatTime(trip.createdAt)}
+                                </span>
+                              </div>
+                              <div className="space-y-1">
+                                {getStopsFromTrip(trip).map((stop, i) => (
+                                  <div key={i} className="flex items-center gap-1.5">
+                                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                      stop.type === "pickup" ? "bg-green-500" : "bg-red-500"
+                                    }`} />
+                                    <span className="text-xs text-gray-700 dark:text-gray-300 truncate">{stop.label}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              {trip.respondedAt && (
+                                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
+                                  Responded {formatTime(trip.respondedAt)}
+                                </p>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
+                    <button
+                      onClick={() => navigate(`/history/${selectedDriverId}`)}
+                      className="text-xs font-medium text-blue-600 hover:text-blue-700 w-full text-center"
+                    >
+                      Open full history page
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </>
         )}

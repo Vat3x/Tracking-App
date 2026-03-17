@@ -16,6 +16,8 @@ const ROUTE_TRIP_SOURCE = "route-trip";
 const ROUTE_TRIP_LAYER = "route-trip-line";
 const HISTORY_SOURCE = "history-points";
 const HISTORY_LAYER = "history-circles";
+const HISTORY_TRACK_SOURCE = "history-track";
+const HISTORY_TRACK_LAYER = "history-track-line";
 
 function getMarkerColor(current: { isOnline: boolean }, hasActiveTrip: boolean): string {
   if (!current.isOnline) return "#ef4444"; // red — inactive
@@ -46,6 +48,7 @@ interface Props {
   activeDriverIds: Set<string>;
   trips: Trip[];
   companyId: string | undefined;
+  historyTrip?: Trip | null;
 }
 
 export default function MapView({
@@ -56,6 +59,7 @@ export default function MapView({
   activeDriverIds,
   trips,
   companyId,
+  historyTrip,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -93,6 +97,8 @@ export default function MapView({
     try {
       if (map.getLayer(HISTORY_LAYER)) map.removeLayer(HISTORY_LAYER);
       if (map.getSource(HISTORY_SOURCE)) map.removeSource(HISTORY_SOURCE);
+      if (map.getLayer(HISTORY_TRACK_LAYER)) map.removeLayer(HISTORY_TRACK_LAYER);
+      if (map.getSource(HISTORY_TRACK_SOURCE)) map.removeSource(HISTORY_TRACK_SOURCE);
     } catch {
       // Style may have already removed sources/layers
     }
@@ -108,6 +114,30 @@ export default function MapView({
     if (!map.isStyleLoaded()) return;
 
     removeHistoryLayer();
+
+    // Track line connecting points chronologically
+    if (data.length >= 2) {
+      const lineCoords = data.map((e) => [e.lng, e.lat]);
+      map.addSource(HISTORY_TRACK_SOURCE, {
+        type: "geojson",
+        data: {
+          type: "Feature",
+          geometry: { type: "LineString", coordinates: lineCoords },
+          properties: {},
+        },
+      });
+      map.addLayer({
+        id: HISTORY_TRACK_LAYER,
+        type: "line",
+        source: HISTORY_TRACK_SOURCE,
+        paint: {
+          "line-color": "#6366f1",
+          "line-width": 3,
+          "line-opacity": 0.5,
+        },
+        layout: { "line-cap": "round", "line-join": "round" },
+      });
+    }
 
     const geojson: GeoJSON.FeatureCollection = {
       type: "FeatureCollection",
@@ -414,6 +444,13 @@ export default function MapView({
     const map = mapRef.current;
     if (!map) return;
 
+    // History trip overrides active trip route
+    if (historyTrip) {
+      routeDataRef.current = null;
+      removeRouteLayers();
+      return;
+    }
+
     // No driver selected → clear route
     if (!selectedDriverId) {
       routeDataRef.current = null;
@@ -492,7 +529,47 @@ export default function MapView({
     return () => {
       cancelled = true;
     };
-  }, [selectedDriverId, trips, removeRouteLayers, drawRouteFromData]);
+  }, [selectedDriverId, trips, historyTrip, removeRouteLayers, drawRouteFromData]);
+
+  // Draw OSRM route for a selected history trip
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !historyTrip) return;
+
+    const stops = getStopsFromTrip(historyTrip);
+    if (stops.length < 2) return;
+
+    const waypoints: [number, number][] = stops.map((s) => [s.lng, s.lat]);
+    let cancelled = false;
+
+    fetchRoute(waypoints).then((route) => {
+      if (cancelled || !route) return;
+
+      routeDataRef.current = {
+        status: "in_progress",
+        coords: route.coordinates,
+        stops: stops.map((s) => ({ lng: s.lng, lat: s.lat, label: s.label, type: s.type })),
+      };
+
+      if (map.isStyleLoaded()) {
+        drawRouteFromData();
+      } else {
+        map.once("idle", () => {
+          if (!cancelled) drawRouteFromData();
+        });
+      }
+
+      const bounds = new maplibregl.LngLatBounds();
+      waypoints.forEach((wp) => bounds.extend(wp));
+      map.fitBounds(bounds, { padding: 80, duration: 1000 });
+    });
+
+    return () => {
+      cancelled = true;
+      routeDataRef.current = null;
+      removeRouteLayers();
+    };
+  }, [historyTrip, removeRouteLayers, drawRouteFromData]);
 
   // Fetch and draw location history when a driver is selected
   useEffect(() => {

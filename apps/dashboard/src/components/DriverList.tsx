@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import type { DriverLocationEntry } from "@/services/locations";
 import { updateDriverName, removeDriverFromCompany } from "@/services/drivers";
 import { createTrackingLink } from "@/services/trackingLinks";
@@ -17,6 +16,7 @@ interface Props {
   newDriverIds?: Set<string>;
   onRefreshProfiles?: () => void;
   onCreateTrip?: (driverId: string) => void;
+  onViewHistory?: (driverId: string) => void;
 }
 
 function formatDist(meters: number, useMiles: boolean): string {
@@ -357,6 +357,7 @@ function DriverCard({
   activeTrip,
   onRefreshProfiles,
   onCreateTrip,
+  onViewHistory,
 }: {
   driver: DriverLocationEntry;
   profile: User | undefined;
@@ -367,9 +368,9 @@ function DriverCard({
   activeTrip: Trip | null;
   onRefreshProfiles: () => void;
   onCreateTrip: (driverId: string) => void;
+  onViewHistory: (driverId: string) => void;
 }) {
   const { userDoc } = useAuthStore();
-  const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -384,7 +385,7 @@ function DriverCard({
         break;
 
       case "history":
-        navigate(`/history/${driver.driverId}`);
+        onViewHistory(driver.driverId);
         break;
 
       case "info":
@@ -564,6 +565,7 @@ export default function DriverList({
   newDriverIds,
   onRefreshProfiles,
   onCreateTrip,
+  onViewHistory,
 }: Props) {
   const onlineDrivers = drivers.filter((d) => d.current.isOnline);
 
@@ -604,6 +606,7 @@ export default function DriverList({
                 activeTrip={getActiveTrip(driver.driverId)}
                 onRefreshProfiles={onRefreshProfiles ?? (() => {})}
                 onCreateTrip={onCreateTrip ?? (() => {})}
+                onViewHistory={onViewHistory ?? (() => {})}
               />
             ))}
           </div>
