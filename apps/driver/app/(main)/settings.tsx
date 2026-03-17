@@ -168,15 +168,12 @@ export default function SettingsScreen() {
         >
           <Text style={[styles.logoutText, { color: isDark ? "#fca5a5" : "#dc2626" }]}>Sign Out</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.logoutButton, { backgroundColor: isDark ? "#7f1d1d" : "#dc2626" }]}
+        <Text
           onPress={handleDeleteAccount}
-          disabled={deleting}
+          style={{ color: isDark ? "#ef4444" : "#dc2626", fontSize: 13, textAlign: "center", marginTop: 8 }}
         >
-          <Text style={[styles.logoutText, { color: "#fff" }]}>
-            {deleting ? "Deleting..." : "Delete Account"}
-          </Text>
-        </TouchableOpacity>
+          {deleting ? "Deleting..." : "Delete Account"}
+        </Text>
       </View>
     </ScrollView>
   );

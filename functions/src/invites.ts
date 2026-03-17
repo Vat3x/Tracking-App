@@ -24,14 +24,14 @@ export const onInviteAccepted = onDocumentUpdated("invites/{inviteId}", async (e
   // Only proceed if status changed to "accepted"
   if (before.status === "accepted" || after.status !== "accepted") return;
 
-  const { companyId, acceptedBy } = after;
+  const { companyId, companyName, acceptedBy } = after;
   if (!companyId || !acceptedBy) return;
 
   const batch = firestore.batch();
 
-  // 1. Update driver's user doc with companyId
+  // 1. Update driver's user doc with companyId + companyName
   const userRef = firestore.doc(`users/${acceptedBy}`);
-  batch.update(userRef, { companyId });
+  batch.update(userRef, { companyId, ...(companyName ? { companyName } : {}) });
 
   // 2. Add driver as company member
   const memberRef = firestore.doc(`companies/${companyId}/members/${acceptedBy}`);

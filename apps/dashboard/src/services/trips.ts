@@ -91,3 +91,21 @@ export function subscribeToCompanyTrips(
     callback(trips);
   });
 }
+
+export function subscribeToDriverTrips(
+  driverId: string,
+  callback: (trips: Trip[]) => void
+): Unsubscribe {
+  const q = query(
+    collection(db, COLLECTIONS.TRIPS),
+    where("driverId", "==", driverId),
+    orderBy("createdAt", "desc")
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const trips = snapshot.docs.map(
+      (d) => ({ id: d.id, ...d.data() }) as Trip
+    );
+    callback(trips);
+  });
+}

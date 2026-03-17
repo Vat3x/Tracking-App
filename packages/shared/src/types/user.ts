@@ -8,6 +8,7 @@ export interface User {
   // since drivers don't have these fields
   role: "dispatcher" | "driver";
   companyId: string | null;
+  companyName?: string;
   fcmToken: string | null;
   createdAt: number;
 }

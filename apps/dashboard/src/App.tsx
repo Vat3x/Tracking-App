@@ -8,6 +8,7 @@ import Register from "@/pages/Register";
 import Dashboard from "@/pages/Dashboard";
 import Trips from "@/pages/Trips";
 import Settings from "@/pages/Settings";
+import DriverHistory from "@/pages/DriverHistory";
 import InviteLanding from "@/pages/InviteLanding";
 import TrackingPage from "@/pages/TrackingPage";
 import VerifyEmail from "@/pages/VerifyEmail";
@@ -45,6 +46,22 @@ function App() {
         element={
           <ProtectedRoute>
             <Settings />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/history"
+        element={
+          <ProtectedRoute>
+            <DriverHistory />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/history/:driverId"
+        element={
+          <ProtectedRoute>
+            <DriverHistory />
           </ProtectedRoute>
         }
       />

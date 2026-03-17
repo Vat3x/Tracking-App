@@ -28,6 +28,9 @@ import { useTheme } from "../../src/hooks/useTheme";
 import { timeAgo } from "@nexus/shared";
 import { type Trip, getTripRouteLabel } from "@nexus/shared";
 import { Logo } from "../../src/components/Logo";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../../src/services/firebase";
+import { COLLECTIONS } from "@nexus/shared";
 
 export default function HomeScreen() {
   const { userDoc, firebaseUser } = useAuthStore();
@@ -47,6 +50,7 @@ export default function HomeScreen() {
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
   const [initialRegion, setInitialRegion] = useState<Region | null>(null);
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [companyName, setCompanyName] = useState<string | null>(null);
 
   // Sync identity to tracking store when user doc changes
   useEffect(() => {
@@ -54,6 +58,14 @@ export default function HomeScreen() {
       setIdentity(userDoc.companyId, userDoc.id);
     }
   }, [userDoc, setIdentity]);
+
+  // Fetch company name
+  useEffect(() => {
+    if (!userDoc?.companyId) return;
+    getDoc(doc(db, COLLECTIONS.COMPANIES, userDoc.companyId)).then((snap) => {
+      if (snap.exists()) setCompanyName(snap.data().name ?? null);
+    });
+  }, [userDoc?.companyId]);
 
   // Subscribe to driver trips (for stats)
   useEffect(() => {
@@ -223,6 +235,11 @@ export default function HomeScreen() {
               <View style={styles.connectedDot} />
             )}
           </View>
+          {userDoc?.companyName && (
+            <Text style={[styles.companyText, { color: colors.textSecondary }]}>
+              {userDoc.companyName}
+            </Text>
+          )}
         </View>
       </View>
 
@@ -284,6 +301,14 @@ export default function HomeScreen() {
           <View style={[styles.locationCard, { backgroundColor: colors.statusRowBg, borderColor: colors.borderLight }]}>
             <Text style={styles.locationIcon}>📍</Text>
             <Text style={[styles.locationText, { color: colors.textSecondary }]}>{locationLabel}</Text>
+          </View>
+        )}
+
+        {/* Company */}
+        {companyName && (
+          <View style={[styles.locationCard, { backgroundColor: colors.statusRowBg, borderColor: colors.borderLight }]}>
+            <Text style={{ fontSize: 14, color: colors.textMuted }}>🏢</Text>
+            <Text style={[styles.locationText, { color: colors.textSecondary }]}>{companyName}</Text>
           </View>
         )}
 
@@ -373,7 +398,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   mapContainer: {
-    height: 180,
+    height: 230,
   },
   mapLoading: {
     flex: 1,
@@ -407,6 +432,10 @@ const styles = StyleSheet.create({
     height: 7,
     borderRadius: 4,
     backgroundColor: "#22c55e",
+  },
+  companyText: {
+    fontSize: 11,
+    marginTop: 2,
   },
 
   // Bottom panel

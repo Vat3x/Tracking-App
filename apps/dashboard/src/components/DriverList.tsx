@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import type { DriverLocationEntry } from "@/services/locations";
 import { updateDriverName, removeDriverFromCompany } from "@/services/drivers";
 import { createTrackingLink } from "@/services/trackingLinks";
@@ -47,6 +48,7 @@ function OptionsMenu({
 
   const items = [
     { key: "assign", label: "Assign Trip" },
+    { key: "history", label: "View History" },
     { key: "info", label: "Driver Info" },
     { key: "share", label: "Share tracking link" },
     { key: "edit", label: "Edit" },
@@ -367,6 +369,7 @@ function DriverCard({
   onCreateTrip: (driverId: string) => void;
 }) {
   const { userDoc } = useAuthStore();
+  const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -378,6 +381,10 @@ function DriverCard({
     switch (action) {
       case "assign":
         onCreateTrip(driver.driverId);
+        break;
+
+      case "history":
+        navigate(`/history/${driver.driverId}`);
         break;
 
       case "info":
