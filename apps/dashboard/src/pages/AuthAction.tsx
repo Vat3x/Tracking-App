@@ -22,7 +22,7 @@ export default function AuthAction() {
   }, [mode, oobCode]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-gray-950 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 px-4">
       <div className="w-full max-w-md">
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
           {status === "loading" && (

@@ -103,7 +103,7 @@ export default function Trips() {
 
   return (
     <div className="h-screen flex flex-col">
-      <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50 px-4 py-2.5 flex items-center justify-between shrink-0">
+      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5">
           <img src="/logo.svg" alt="LoadMind" className="w-8 h-8" />
           <div>
@@ -114,13 +114,13 @@ export default function Trips() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigate("/")}
-            className="h-8 px-3 text-sm bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="h-8 px-3 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             Map
           </button>
           <button
             onClick={() => navigate("/settings")}
-            className="h-8 px-3 text-sm bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="h-8 px-3 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             Settings
           </button>
@@ -148,13 +148,13 @@ export default function Trips() {
                   </div>
                   <button
                     onClick={() => { setUserMenuOpen(false); navigate("/settings"); }}
-                    className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                   >
                     Settings
                   </button>
                   <button
                     onClick={() => { setUserMenuOpen(false); handleLogout(); }}
-                    className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-gray-50 dark:hover:bg-gray-700"
                   >
                     Sign out
                   </button>
@@ -166,7 +166,7 @@ export default function Trips() {
       </header>
 
       <div className="flex-1 overflow-hidden relative">
-      <main className="h-full overflow-y-auto bg-slate-50 dark:bg-gray-950 p-6">
+      <main className="h-full overflow-y-auto bg-gray-50 dark:bg-gray-950 p-6">
         <div className="max-w-4xl mx-auto">
           {/* Filter tabs */}
           <div className="flex items-center gap-1 mb-4">
@@ -190,7 +190,7 @@ export default function Trips() {
 
           {/* Trip list */}
           {filteredTrips.length === 0 ? (
-            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm ring-1 ring-gray-100 dark:ring-gray-700 py-16 text-center">
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl py-16 text-center">
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
                 {filter === "all" ? "No trips yet" : `No ${filter} trips`}
               </p>
@@ -227,7 +227,7 @@ export default function Trips() {
                 return (
                   <div
                     key={trip.id}
-                    className="bg-white dark:bg-gray-900 rounded-xl shadow-sm ring-1 ring-gray-100 dark:ring-gray-700 px-5 py-4"
+                    className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-5 py-4"
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div>
