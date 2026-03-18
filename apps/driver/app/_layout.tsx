@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { Alert } from "react-native";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Linking from "expo-linking";
+import * as Updates from "expo-updates";
 import { onAuthChange, getUserDoc, onUserDocChange } from "../src/services/auth";
 import { useAuthStore } from "../src/stores/auth";
 import { useThemeStore } from "../src/stores/theme";
@@ -156,6 +158,30 @@ export default function RootLayout() {
 
   useEffect(() => {
     useThemeStore.getState().init();
+  }, []);
+
+  // Check for OTA updates on launch
+  useEffect(() => {
+    if (__DEV__) return; // Skip in dev mode
+    async function checkForUpdate() {
+      try {
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          Alert.alert(
+            "Update Available",
+            "A new version has been downloaded. Restart to apply?",
+            [
+              { text: "Later", style: "cancel" },
+              { text: "Restart", onPress: () => Updates.reloadAsync() },
+            ]
+          );
+        }
+      } catch {
+        // Silently ignore update check failures
+      }
+    }
+    checkForUpdate();
   }, []);
 
   return (

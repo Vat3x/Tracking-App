@@ -95,8 +95,18 @@
       ],
       "expo-router",
       "@react-native-firebase/app",
-      "@react-native-firebase/auth"
+      "@react-native-firebase/auth",
+      "expo-updates"
     ],
+    "updates": {
+      "url": "https://u.expo.dev/551d293c-7567-4050-aef0-18ce957cb709",
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
     "extra": {
       "router": {},
       "eas": {
