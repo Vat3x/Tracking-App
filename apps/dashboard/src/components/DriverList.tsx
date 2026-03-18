@@ -425,33 +425,31 @@ function DriverCard({
         onClick={onSelect}
         role="button"
         tabIndex={0}
-        className={`relative w-full text-left px-4 py-3 transition-colors cursor-pointer ${
+        className={`relative p-3 mx-2 my-1 rounded-xl border transition-all cursor-pointer ${
           isSelected
-            ? "bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-500"
-            : "hover:bg-gray-50 dark:hover:bg-gray-800 border-l-2 border-transparent"
+            ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700 ring-1 ring-blue-200 dark:ring-blue-800"
+            : "bg-white dark:bg-gray-800/60 border-gray-100 dark:border-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600 hover:shadow-sm"
         }`}
       >
-        <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{name}</span>
+            <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{name}</span>
             {isNew && (
               <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 animate-pulse">
                 New
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span
-              className={`w-2 h-2 rounded-full ${
-                !c.isOnline ? "bg-red-500" : hasActiveTrip ? "bg-yellow-500" : "bg-green-500"
-              }`}
-            />
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <span className={`w-2 h-2 rounded-full ${
+              !c.isOnline ? "bg-red-500" : hasActiveTrip ? "bg-yellow-500" : "bg-green-500"
+            }`} />
             <span
               onClick={(e) => {
                 e.stopPropagation();
                 setMenuOpen(!menuOpen);
               }}
-              className="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-400 dark:text-gray-500 cursor-pointer"
+              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-pointer transition-colors"
             >
               <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
                 <circle cx="8" cy="3" r="1.5" />
@@ -461,8 +459,12 @@ function DriverCard({
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-2 text-[11px] text-gray-400 dark:text-gray-500">
-          <span className={!c.isOnline ? "text-red-400" : hasActiveTrip ? "text-yellow-500" : "text-green-500"}>
+
+        {/* Status + stats row */}
+        <div className="flex items-center gap-2 mt-1.5 text-[11px] text-gray-400 dark:text-gray-500">
+          <span className={`font-medium ${
+            !c.isOnline ? "text-red-400" : hasActiveTrip ? "text-yellow-500" : "text-green-500"
+          }`}>
             {!c.isOnline ? "Offline" : hasActiveTrip ? "In Transit" : "Active"}
           </span>
           <span>·</span>
@@ -477,7 +479,7 @@ function DriverCard({
               const pickup = getFirstPickup(activeTrip);
               const dropoff = getLastDropoff(activeTrip);
               return (
-              <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 space-y-1">
+              <div className="mt-2.5 pt-2.5 border-t border-gray-100 dark:border-gray-700/50 space-y-1.5">
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs font-medium text-gray-700 dark:text-gray-200">Active Trip</span>
                   <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
@@ -577,14 +579,14 @@ export default function DriverList({
 
   return (
     <div className="w-80 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+      <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Drivers</h2>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+        <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
           {onlineDrivers.length} online
-        </p>
+        </span>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950 py-1">
         {onlineDrivers.length === 0 ? (
           <div className="px-4 py-12 text-center">
             <p className="text-sm text-gray-400 dark:text-gray-500">No drivers online</p>
@@ -593,7 +595,7 @@ export default function DriverList({
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-50 dark:divide-gray-800">
+          <div>
             {onlineDrivers.map((driver) => (
               <DriverCard
                 key={driver.driverId}
