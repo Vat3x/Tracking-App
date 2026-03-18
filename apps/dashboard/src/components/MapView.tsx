@@ -73,6 +73,8 @@ export default function MapView({
   const historyPopupRef = useRef<maplibregl.Popup | null>(null);
   const driversRef = useRef(drivers);
   driversRef.current = drivers;
+  const sidebarWidthRef = useRef(sidebarWidth);
+  sidebarWidthRef.current = sidebarWidth;
   const theme = useThemeStore((s) => s.theme);
 
   // Remove route layers, sources, and markers from map
@@ -275,6 +277,7 @@ export default function MapView({
     map.addControl(new maplibregl.NavigationControl(), "top-right");
 
     map.on("click", () => {
+      if (sidebarWidthRef.current > 0) return;
       onSelectDriver(null);
       popupRef.current?.remove();
     });
