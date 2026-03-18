@@ -5,7 +5,7 @@ import {
   onAuthStateChanged,
   type User as FirebaseUser,
 } from "firebase/auth";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import { COLLECTIONS, type User } from "@nexus/shared";
 
@@ -73,4 +73,14 @@ export async function getUserDoc(uid: string): Promise<User | null> {
 
 export function onAuthChange(callback: (user: FirebaseUser | null) => void) {
   return onAuthStateChanged(auth, callback);
+}
+
+export function onUserDocChange(uid: string, callback: (user: User | null) => void) {
+  return onSnapshot(doc(db, COLLECTIONS.USERS, uid), (snap) => {
+    if (!snap.exists()) {
+      callback(null);
+      return;
+    }
+    callback({ id: snap.id, ...snap.data() } as User);
+  });
 }

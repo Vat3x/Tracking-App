@@ -32,7 +32,7 @@ export const onInviteAccepted = onDocumentUpdated("invites/{inviteId}", async (e
   // 1. Update driver's user doc with companyId + companyName
   // Use set+merge so it works even if the user doc doesn't exist yet (phone auth edge case)
   const userRef = firestore.doc(`users/${acceptedBy}`);
-  batch.set(userRef, { companyId, ...(companyName ? { companyName } : {}) }, { merge: true });
+  batch.set(userRef, { companyId, role: "driver", ...(companyName ? { companyName } : {}) }, { merge: true });
 
   // 2. Add driver as company member
   const memberRef = firestore.doc(`companies/${companyId}/members/${acceptedBy}`);

@@ -3,7 +3,7 @@ import { Slot, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Linking from "expo-linking";
-import { onAuthChange, getUserDoc } from "../src/services/auth";
+import { onAuthChange, getUserDoc, onUserDocChange } from "../src/services/auth";
 import { useAuthStore } from "../src/stores/auth";
 import { useThemeStore } from "../src/stores/theme";
 import {
@@ -25,16 +25,27 @@ function extractInviteId(url: string): string | null {
 function AuthGate() {
   const router = useRouter();
   const segments = useSegments();
-  const { firebaseUser, loading, setFirebaseUser, setUserDoc, setLoading } =
+  const { firebaseUser, loading, setFirebaseUser, setUserDoc, setLoading, setPendingInviteId } =
     useAuthStore();
 
   // Handle auth state
+  const userDocUnsubRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
     const unsubscribe = onAuthChange(async (user) => {
+      // Clean up previous user doc listener
+      userDocUnsubRef.current?.();
+      userDocUnsubRef.current = null;
+
       if (user) {
         setFirebaseUser({ uid: user.uid, email: user.email });
+        // Initial fetch for fast load
         const userDoc = await getUserDoc(user.uid);
         setUserDoc(userDoc);
+        // Real-time listener for subsequent changes (e.g. driver removal)
+        userDocUnsubRef.current = onUserDocChange(user.uid, (doc) => {
+          setUserDoc(doc);
+        });
       } else {
         setFirebaseUser(null);
         setUserDoc(null);
@@ -42,7 +53,10 @@ function AuthGate() {
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      userDocUnsubRef.current?.();
+    };
   }, [setFirebaseUser, setUserDoc, setLoading]);
 
   // Initialize push notifications when authenticated
@@ -84,17 +98,15 @@ function AuthGate() {
       const inviteId = extractInviteId(event.url);
       if (inviteId) {
         if (firebaseUserRef.current) {
-          // Authenticated: show consent screen
+          // Authenticated: push consent screen on top
           router.push({
             pathname: "/(auth)/accept-invite",
             params: { id: inviteId },
           });
         } else {
-          // Not authenticated: go directly to login with invite params
-          router.replace({
-            pathname: "/(auth)/login",
-            params: { inviteId },
-          });
+          // Not authenticated: set inviteId in store so the login screen
+          // reacts immediately (router.replace to same route won't update params)
+          setPendingInviteId(inviteId);
         }
       }
     });
@@ -109,8 +121,10 @@ function AuthGate() {
 
     const inAuthGroup = segments[0] === "(auth)";
     const onAcceptInvite = (segments as string[])[1] === "accept-invite";
+    const onInviteRoute = segments[0] === "invite";
 
-    if (!firebaseUser && !inAuthGroup) {
+    // Don't redirect away from invite route — let invite/[id].tsx handle it
+    if (!firebaseUser && !inAuthGroup && !onInviteRoute) {
       if (!initialUrlProcessed.current) {
         initialUrlProcessed.current = true;
         // Check if cold-started via invite link

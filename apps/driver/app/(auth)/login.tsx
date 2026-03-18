@@ -27,12 +27,15 @@ type PhoneStep = "idle" | "sending" | "otp" | "verifying" | "name" | "saving";
 export default function LoginScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
-  const { inviteId, inviteCompanyName } = useLocalSearchParams<{
+  const params = useLocalSearchParams<{
     inviteId?: string;
     inviteCompanyName?: string;
   }>();
-  const { setFirebaseUser, setUserDoc } = useAuthStore();
+  const { setFirebaseUser, setUserDoc, pendingInviteId, setPendingInviteId } = useAuthStore();
 
+  // Prefer route param, fall back to store (warm-start deep link sets store)
+  const inviteId = params.inviteId || pendingInviteId;
+  const inviteCompanyName = params.inviteCompanyName;
   const hasInvite = !!inviteId;
 
   // Auth method toggle — default to email registration when coming from invite
@@ -56,6 +59,14 @@ export default function LoginScreen() {
   const [newUserName, setNewUserName] = useState("");
   const [resendCooldown, setResendCooldown] = useState(0);
 
+  // Switch to email + register when invite arrives via warm-start deep link
+  useEffect(() => {
+    if (pendingInviteId) {
+      setAuthMethod("email");
+      setIsRegister(true);
+    }
+  }, [pendingInviteId]);
+
   // Resend cooldown timer
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -78,6 +89,7 @@ export default function LoginScreen() {
     if (!inviteId) return;
     try {
       await acceptInvite(inviteId, uid);
+      setPendingInviteId(null);
       // Poll until cloud function sets companyId (up to 10s)
       for (let i = 0; i < 7; i++) {
         await new Promise((r) => setTimeout(r, 1500));

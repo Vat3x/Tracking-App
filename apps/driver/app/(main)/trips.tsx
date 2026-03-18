@@ -22,6 +22,7 @@ import { fetchRoute, type RouteResult } from "../../src/services/routing";
 import { useTheme } from "../../src/hooks/useTheme";
 import { getStatusColors } from "../../src/constants/statusColors";
 import { type Trip, type TripStatus, getStopsFromTrip } from "@nexus/shared";
+import TripMap from "../../src/components/TripMap";
 
 // Error boundary
 class TripsErrorBoundary extends Component<
@@ -80,11 +81,13 @@ function formatDistance(meters: number, useMiles: boolean): string {
   return meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1)} km`;
 }
 
-function handleNavigateExternal(trip: Trip) {
+function handleNavigateExternal(trip: Trip, stopIndex?: number) {
   const stops = getStopsFromTrip(trip);
   const currentIdx = trip.currentStopIndex ?? 0;
   let target: { lat: number; lng: number } | undefined;
-  if (trip.status === "accepted") {
+  if (stopIndex != null && stopIndex < stops.length) {
+    target = stops[stopIndex];
+  } else if (trip.status === "accepted") {
     target = stops[0]; // first pickup
   } else if (currentIdx < stops.length) {
     target = stops[currentIdx];
@@ -119,6 +122,7 @@ function ActiveTripNavView({
   const [route, setRoute] = useState<RouteResult | null>(null);
   const [routeLoading, setRouteLoading] = useState(false);
   const [initialRegion, setInitialRegion] = useState<Region | null>(null);
+  const [selectedStopIndex, setSelectedStopIndex] = useState<number | null>(null);
 
   const isAccepted = trip.status === "accepted";
   const isInProgress = trip.status === "in_progress";
@@ -126,6 +130,11 @@ function ActiveTripNavView({
   const currentIdx = trip.currentStopIndex ?? 0;
   const allStopsCompleted = currentIdx >= stops.length;
   const useMiles = trip.country === "us";
+
+  // Auto-clear selection when currentStopIndex changes
+  useEffect(() => {
+    setSelectedStopIndex(null);
+  }, [trip.currentStopIndex]);
 
   // Set initial region
   useEffect(() => {
@@ -177,7 +186,11 @@ function ActiveTripNavView({
 
         let waypoints: [number, number][] = [];
 
-        if (isAccepted) {
+        // If a specific stop is selected, route driver → that stop only
+        if (selectedStopIndex != null && selectedStopIndex < stops.length) {
+          if (driverCoord) waypoints.push(driverCoord);
+          waypoints.push([stops[selectedStopIndex].lng, stops[selectedStopIndex].lat]);
+        } else if (isAccepted) {
           if (driverCoord) waypoints.push(driverCoord);
           stops.forEach((s) => waypoints.push([s.lng, s.lat]));
         } else {
@@ -217,7 +230,7 @@ function ActiveTripNavView({
 
     loadRoute();
     return () => { cancelled = true; };
-  }, [trip.id, trip.status, trip.currentStopIndex]);
+  }, [trip.id, trip.status, trip.currentStopIndex, selectedStopIndex]);
 
   const routeCoords = route?.coordinates.map(([lng, lat]) => ({
     latitude: lat,
@@ -225,6 +238,10 @@ function ActiveTripNavView({
   })) ?? [];
 
   function getNextTargetLabel(): string {
+    if (selectedStopIndex != null && selectedStopIndex < stops.length) {
+      const s = stops[selectedStopIndex];
+      return `${s.type === "pickup" ? "Pickup" : "Drop-off"}: ${s.label ?? "Unknown"}`;
+    }
     if (isAccepted) return stops[0]?.label ?? "Pickup";
     if (isInProgress && currentIdx < stops.length) {
       const stop = stops[currentIdx];
@@ -234,6 +251,10 @@ function ActiveTripNavView({
   }
 
   function getNextTargetType(): string {
+    if (selectedStopIndex != null && selectedStopIndex < stops.length) {
+      const s = stops[selectedStopIndex];
+      return `Selected: ${s.type === "pickup" ? "Pickup" : "Drop-off"} ${selectedStopIndex + 1}`;
+    }
     if (isAccepted) return "Next: Pickup";
     if (isInProgress && currentIdx < stops.length) {
       const stop = stops[currentIdx];
@@ -243,6 +264,7 @@ function ActiveTripNavView({
   }
 
   function getNextStopNote(): string | undefined {
+    if (selectedStopIndex != null && selectedStopIndex < stops.length) return stops[selectedStopIndex]?.note;
     if (isAccepted) return stops[0]?.note;
     if (isInProgress && currentIdx < stops.length) return stops[currentIdx]?.note;
     return undefined;
@@ -264,30 +286,34 @@ function ActiveTripNavView({
           {routeCoords.length > 1 && (
             <Polyline
               coordinates={routeCoords}
-              strokeColor="#3b82f6"
+              strokeColor={selectedStopIndex != null ? "#f97316" : "#3b82f6"}
               strokeWidth={5}
-              lineDashPattern={isAccepted ? [10, 5] : undefined}
+              lineDashPattern={isAccepted && selectedStopIndex == null ? [10, 5] : undefined}
             />
           )}
           {routeCoords.length <= 1 && straightLineCoords.length > 1 && (
             <Polyline
               coordinates={straightLineCoords}
-              strokeColor="#3b82f6"
+              strokeColor={selectedStopIndex != null ? "#f97316" : "#3b82f6"}
               strokeWidth={4}
               lineDashPattern={[10, 8]}
             />
           )}
           {stops.map((stop, i) => {
             const completed = isInProgress && i < currentIdx;
+            const isSelected = selectedStopIndex === i;
             const color = stop.type === "pickup" ? "#22c55e" : "#ef4444";
             return (
               <Marker
                 key={`stop-${i}`}
                 coordinate={{ latitude: stop.lat, longitude: stop.lng }}
-                pinColor={completed ? "#22c55e" : color}
+                pinColor={isSelected ? "#f97316" : completed ? "#22c55e" : color}
                 title={`${stop.type === "pickup" ? "Pickup" : "Drop-off"} ${i + 1}${completed ? " (Done)" : ""}`}
                 description={stop.label}
                 opacity={completed ? 0.5 : 1}
+                onPress={() => {
+                  if (!completed) setSelectedStopIndex(isSelected ? null : i);
+                }}
               />
             );
           })}
@@ -311,7 +337,7 @@ function ActiveTripNavView({
           </Text>
         </View>
         <TouchableOpacity style={[styles.backToListBtn, { backgroundColor: colors.bgOverlayStrong }]} onPress={onShowList}>
-          <Text style={styles.backToListText}>All Trips</Text>
+          <Text style={[styles.backToListText, { color: isDark ? "#fff" : "#3b82f6" }]}>All Trips</Text>
         </TouchableOpacity>
       </View>
 
@@ -359,9 +385,22 @@ function ActiveTripNavView({
               </View>
             )}
           </View>
-          <TouchableOpacity style={[styles.gmapsBtn, { backgroundColor: isDark ? colors.bgCard : "#fff" }]} onPress={() => handleNavigateExternal(trip)}>
-            <Text style={styles.gmapsBtnText}>Google Maps</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: "row", gap: 6 }}>
+            {selectedStopIndex != null && (
+              <TouchableOpacity
+                style={[styles.gmapsBtn, { backgroundColor: isDark ? colors.bgCard : "#fff", borderColor: "#9ca3af" }]}
+                onPress={() => setSelectedStopIndex(null)}
+              >
+                <Text style={[styles.gmapsBtnText, { color: "#6b7280" }]}>Back</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={[styles.gmapsBtn, { backgroundColor: isDark ? colors.bgCard : "#fff" }]}
+              onPress={() => handleNavigateExternal(trip, selectedStopIndex ?? undefined)}
+            >
+              <Text style={styles.gmapsBtnText}>Google Maps</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {isAccepted && (
@@ -411,8 +450,15 @@ function TripCard({
   const stops = getStopsFromTrip(trip);
   const currentIdx = trip.currentStopIndex ?? 0;
   const isInProgress = trip.status === "in_progress";
+  const isActive = trip.status === "accepted" || isInProgress;
   const hasStops = stops.length > 0;
   const allStopsCompleted = currentIdx >= stops.length;
+  const [selectedStopIndex, setSelectedStopIndex] = useState<number | null>(null);
+
+  // Auto-clear selection when currentStopIndex changes
+  useEffect(() => {
+    setSelectedStopIndex(null);
+  }, [trip.currentStopIndex]);
 
   return (
     <View style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.borderLight }]}>
@@ -430,11 +476,16 @@ function TripCard({
           const isCompleted = isInProgress && i < currentIdx;
           const isCurrent = isInProgress && i === currentIdx;
           const isPickup = stop.type === "pickup";
+          const isSelected = selectedStopIndex === i;
           const dotColor = isCompleted ? "#22c55e" : isCurrent ? "#3b82f6" : isPickup ? "#22c55e" : "#ef4444";
-          return (
+
+          const stopContent = (
             <View key={i}>
               {i > 0 && <View style={[styles.routeLine, { backgroundColor: colors.routeLine }]} />}
-              <View style={styles.routePoint}>
+              <View style={[
+                styles.routePoint,
+                isSelected && { backgroundColor: isDark ? "#1e293b" : "#eff6ff", borderRadius: 8, paddingHorizontal: 6, paddingVertical: 4, marginHorizontal: -6 },
+              ]}>
                 <View style={[styles.dot, { backgroundColor: dotColor }]} />
                 <View style={styles.routeInfo}>
                   <Text style={[styles.routeLabel, { color: colors.textMuted }]}>
@@ -452,11 +503,37 @@ function TripCard({
                     </View>
                   )}
                 </View>
+                {isSelected && (
+                  <TouchableOpacity
+                    style={styles.stopNavBtn}
+                    onPress={() => handleNavigateExternal(trip, i)}
+                  >
+                    <Text style={styles.stopNavBtnText}>Navigate</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           );
+
+          if (isActive && !isCompleted) {
+            return (
+              <TouchableOpacity
+                key={i}
+                activeOpacity={0.7}
+                onPress={() => setSelectedStopIndex(isSelected ? null : i)}
+              >
+                {stopContent}
+              </TouchableOpacity>
+            );
+          }
+          return stopContent;
         })}
       </View>
+
+      {/* Inline map — shows route to selected stop or default route */}
+      {isActive && (
+        <TripMap trip={trip} selectedStopIndex={selectedStopIndex} />
+      )}
 
       {(trip.status === "accepted" || trip.status === "in_progress") && onShowDirections && (
         <TouchableOpacity style={styles.directionsBtn} onPress={onShowDirections}>
@@ -978,5 +1055,16 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "600",
     fontSize: 14,
+  },
+  stopNavBtn: {
+    backgroundColor: "#3b82f6",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  stopNavBtnText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 11,
   },
 });

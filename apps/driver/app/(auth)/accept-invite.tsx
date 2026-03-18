@@ -60,8 +60,13 @@ export default function AcceptInviteScreen() {
     setAccepting(true);
     try {
       await acceptInvite(invite.id, firebaseUser.uid);
-      await new Promise((r) => setTimeout(r, 2000));
-      const updatedUser = await getUserDoc(firebaseUser.uid);
+      // Poll until cloud function sets companyId (up to ~10s)
+      let updatedUser = null;
+      for (let i = 0; i < 7; i++) {
+        await new Promise((r) => setTimeout(r, 1500));
+        updatedUser = await getUserDoc(firebaseUser.uid);
+        if (updatedUser?.companyId) break;
+      }
       if (updatedUser) setUserDoc(updatedUser);
 
       Alert.alert(

@@ -19,6 +19,7 @@ export interface CreateTripInput {
   assignedBy: string;
   stops: TripStop[];
   country?: string;
+  freeDropoff?: boolean;
 }
 
 export async function createTrip(input: CreateTripInput): Promise<string> {
@@ -31,6 +32,7 @@ export async function createTrip(input: CreateTripInput): Promise<string> {
     status: "pending",
     stops: input.stops,
     ...(input.country && { country: input.country }),
+    ...(input.freeDropoff && { freeDropoff: true }),
     createdAt: Date.now(),
     updatedAt: Date.now(),
     respondedAt: null,

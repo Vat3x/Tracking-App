@@ -34,6 +34,7 @@ export interface Trip {
   /** @deprecated Legacy field — use stops[] */
   destination?: GeoPoint;
   country?: string;
+  freeDropoff?: boolean;
   currentStopIndex?: number;
   createdAt: number;
   updatedAt: number;

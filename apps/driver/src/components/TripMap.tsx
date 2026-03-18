@@ -30,9 +30,10 @@ class MapErrorBoundary extends Component<
 
 interface Props {
   trip: Trip;
+  selectedStopIndex?: number | null;
 }
 
-function TripMapInner({ trip }: Props) {
+function TripMapInner({ trip, selectedStopIndex }: Props) {
   const { colors, mapStyle } = useTheme();
   const mapRef = useRef<MapView>(null);
   const mountedRef = useRef(true);
@@ -72,11 +73,19 @@ function TripMapInner({ trip }: Props) {
           });
           if (cancelled) return;
 
-          const relevantStops = isInProgress ? stops.slice(currentIdx) : stops;
-          waypoints = [
-            [loc.coords.longitude, loc.coords.latitude],
-            ...relevantStops.map((s) => [s.lng, s.lat] as [number, number]),
-          ];
+          const driverCoord: [number, number] = [loc.coords.longitude, loc.coords.latitude];
+
+          // If a specific stop is selected, route driver → that stop only
+          if (selectedStopIndex != null && selectedStopIndex < stops.length) {
+            const targetStop = stops[selectedStopIndex];
+            waypoints = [driverCoord, [targetStop.lng, targetStop.lat]];
+          } else {
+            const relevantStops = isInProgress ? stops.slice(currentIdx) : stops;
+            waypoints = [
+              driverCoord,
+              ...relevantStops.map((s) => [s.lng, s.lat] as [number, number]),
+            ];
+          }
         } else {
           waypoints = stops.map((s) => [s.lng, s.lat] as [number, number]);
         }
@@ -103,7 +112,7 @@ function TripMapInner({ trip }: Props) {
 
     loadRoute();
     return () => { cancelled = true; };
-  }, [trip.id, trip.status, trip.currentStopIndex]);
+  }, [trip.id, trip.status, trip.currentStopIndex, selectedStopIndex]);
 
   if (loading) {
     return (
@@ -145,6 +154,10 @@ function TripMapInner({ trip }: Props) {
   };
 
   const getEtaLabel = () => {
+    if (selectedStopIndex != null && selectedStopIndex < stops.length) {
+      const s = stops[selectedStopIndex];
+      return `ETA to ${s.type === "pickup" ? "pickup" : "drop-off"} ${selectedStopIndex + 1}`;
+    }
     if (isAccepted) return "ETA to pickup";
     if (isInProgress && currentIdx < stops.length) {
       const nextStop = stops[currentIdx];
@@ -171,9 +184,9 @@ function TripMapInner({ trip }: Props) {
       >
         <Polyline
           coordinates={routeCoords}
-          strokeColor={isAccepted ? "#eab308" : "#3b82f6"}
+          strokeColor={selectedStopIndex != null ? "#f97316" : isAccepted ? "#eab308" : "#3b82f6"}
           strokeWidth={4}
-          lineDashPattern={isAccepted ? [10, 5] : undefined}
+          lineDashPattern={isAccepted && selectedStopIndex == null ? [10, 5] : undefined}
         />
 
         {stops.map((stop, i) => {
@@ -200,10 +213,10 @@ function TripMapInner({ trip }: Props) {
   );
 }
 
-export default function TripMap({ trip }: Props) {
+export default function TripMap({ trip, selectedStopIndex }: Props) {
   return (
     <MapErrorBoundary>
-      <TripMapInner trip={trip} />
+      <TripMapInner trip={trip} selectedStopIndex={selectedStopIndex} />
     </MapErrorBoundary>
   );
 }

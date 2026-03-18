@@ -18,6 +18,7 @@ export async function sendVerificationCode(
   phoneNumber: string
 ): Promise<string> {
   const confirmation = await nativeAuth().signInWithPhoneNumber(phoneNumber);
+  if (!confirmation.verificationId) throw new Error("No verification ID returned");
   return confirmation.verificationId;
 }
 

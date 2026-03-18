@@ -46,6 +46,7 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar, defa
     emptyStop("pickup"),
     emptyStop("dropoff"),
   ]);
+  const [freeDropoff, setFreeDropoff] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -150,6 +151,7 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar, defa
           ...(s.note.trim() && { note: s.note.trim() }),
         })),
         country,
+        ...(freeDropoff && { freeDropoff: true }),
       });
       toast.success("Trip created");
       handleClose();
@@ -165,6 +167,7 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar, defa
     setDriverId(defaultDriverId ?? "");
     setCountry("us");
     setStops([emptyStop("pickup"), emptyStop("dropoff")]);
+    setFreeDropoff(false);
     setError("");
     onClose();
   }
@@ -344,6 +347,19 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar, defa
             >
               + Add Stop
             </button>
+
+            {/* Free drop-off checkbox */}
+            <label className="flex items-center gap-2.5 mt-3 cursor-pointer select-none group">
+              <input
+                type="checkbox"
+                checked={freeDropoff}
+                onChange={(e) => setFreeDropoff(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:bg-gray-800 cursor-pointer"
+              />
+              <span className="text-xs text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors">
+                Free drop-off order (driver chooses route)
+              </span>
+            </label>
           </div>
 
           <div className="flex gap-3 pt-3">

@@ -59,7 +59,7 @@ export const removeDriver = onRequest({ cors: true }, async (req, res) => {
   if (hasFirestoreDoc) {
     // Atomic Firestore updates
     const batch = firestore.batch();
-    batch.update(firestore.doc(`users/${driverId}`), { companyId: null });
+    batch.update(firestore.doc(`users/${driverId}`), { companyId: null, companyName: null });
     batch.delete(firestore.doc(`companies/${companyId}/members/${driverId}`));
     await batch.commit();
   }

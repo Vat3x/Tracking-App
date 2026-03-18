@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Linking } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Linking, TextInput } from "react-native";
 import { useRouter } from "expo-router";
 import Constants from "expo-constants";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "../../src/services/firebase";
 import { logout, deleteAccount } from "../../src/services/auth";
 import { useAuthStore } from "../../src/stores/auth";
@@ -24,6 +24,9 @@ export default function SettingsScreen() {
   const { colors, isDark, preference, setPreference } = useTheme();
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState(userDoc?.displayName ?? "");
+  const [savingName, setSavingName] = useState(false);
 
   useEffect(() => {
     if (!userDoc?.companyId) return;
@@ -31,6 +34,20 @@ export default function SettingsScreen() {
       if (snap.exists()) setCompanyName(snap.data().name ?? null);
     });
   }, [userDoc?.companyId]);
+
+  async function handleSaveName() {
+    const trimmed = nameInput.trim();
+    if (!trimmed || !userDoc?.id) return;
+    setSavingName(true);
+    try {
+      await updateDoc(doc(db, COLLECTIONS.USERS, userDoc.id), { displayName: trimmed });
+      setEditingName(false);
+    } catch {
+      Alert.alert("Error", "Failed to update name.");
+    } finally {
+      setSavingName(false);
+    }
+  }
 
   async function handleLogout() {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
@@ -96,13 +113,54 @@ export default function SettingsScreen() {
       <View style={[styles.card, { backgroundColor: colors.bgCard }]}>
         <View style={styles.row}>
           <Text style={[styles.label, { color: colors.textMuted }]}>Name</Text>
-          <Text style={[styles.value, { color: colors.text }]}>{userDoc?.displayName ?? "—"}</Text>
+          {editingName ? (
+            <View style={styles.editRow}>
+              <TextInput
+                style={[styles.nameInput, { color: colors.text, borderColor: colors.border }]}
+                value={nameInput}
+                onChangeText={setNameInput}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={handleSaveName}
+              />
+              <TouchableOpacity onPress={handleSaveName} disabled={savingName || !nameInput.trim()}>
+                <Text style={{ color: "#1a73e8", fontSize: 15, fontWeight: "600" }}>
+                  {savingName ? "..." : "Save"}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => { setEditingName(false); setNameInput(userDoc?.displayName ?? ""); }}>
+                <Text style={{ color: colors.textMuted, fontSize: 15 }}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.editRow} onPress={() => { setNameInput(userDoc?.displayName ?? ""); setEditingName(true); }}>
+              <Text style={[styles.value, { color: colors.text, flex: 1 }]}>{userDoc?.displayName ?? "—"}</Text>
+              <Text style={{ color: "#1a73e8", fontSize: 13 }}>Edit</Text>
+            </TouchableOpacity>
+          )}
         </View>
         <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-        <View style={styles.row}>
-          <Text style={[styles.label, { color: colors.textMuted }]}>{userDoc?.email ? "Email" : "Phone"}</Text>
-          <Text style={[styles.value, { color: colors.text }]}>{userDoc?.email ?? userDoc?.phone ?? "—"}</Text>
-        </View>
+        {userDoc?.phone ? (
+          <View style={styles.row}>
+            <Text style={[styles.label, { color: colors.textMuted }]}>Phone</Text>
+            <Text style={[styles.value, { color: colors.text }]}>{userDoc.phone}</Text>
+          </View>
+        ) : null}
+        {userDoc?.email ? (
+          <>
+            {userDoc?.phone ? <View style={[styles.divider, { backgroundColor: colors.divider }]} /> : null}
+            <View style={styles.row}>
+              <Text style={[styles.label, { color: colors.textMuted }]}>Email</Text>
+              <Text style={[styles.value, { color: colors.text }]}>{userDoc.email}</Text>
+            </View>
+          </>
+        ) : null}
+        {!userDoc?.phone && !userDoc?.email ? (
+          <View style={styles.row}>
+            <Text style={[styles.label, { color: colors.textMuted }]}>Contact</Text>
+            <Text style={[styles.value, { color: colors.text }]}>—</Text>
+          </View>
+        ) : null}
       </View>
 
       {/* Company Section */}
@@ -213,6 +271,17 @@ const styles = StyleSheet.create({
   },
   value: {
     fontSize: 16,
+  },
+  editRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  nameInput: {
+    flex: 1,
+    fontSize: 16,
+    borderBottomWidth: 1,
+    paddingVertical: 4,
   },
   themeRow: {
     flexDirection: "row",
