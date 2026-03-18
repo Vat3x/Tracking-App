@@ -574,7 +574,7 @@ export default function Dashboard() {
                   <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
                     <button
                       onClick={() => navigate(`/history/${selectedDriverId}`)}
-                      className="text-xs font-medium text-blue-600 hover:text-blue-700 w-full text-center"
+                      className="w-full h-9 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
                     >
                       Open full history page
                     </button>
