@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuthStore } from "@/stores/auth";
 import { useDriversStore } from "@/stores/drivers";
 import { subscribeToCompanyTrips, updateTripStatus } from "@/services/trips";
@@ -6,12 +6,13 @@ import { getCompanyDrivers } from "@/services/drivers";
 import { subscribeToCompanyLocations } from "@/services/locations";
 import TripModal from "@/components/TripModal";
 import EditTripModal from "@/components/EditTripModal";
+import HistoryMapView from "@/components/HistoryMapView";
 import { useTripNotifications } from "@/hooks/useTripNotifications";
 import { useNavigate } from "react-router-dom";
 import { logout } from "@/services/auth";
 import { toast } from "sonner";
 import { createTrackingLink } from "@/services/trackingLinks";
-import { type Trip, type TripStatus, type User, distanceMeters, getStopsFromTrip, getFirstPickup, getLastDropoff } from "@nexus/shared";
+import { type Trip, type TripStatus, type User, getStopsFromTrip } from "@nexus/shared";
 import ThemeToggle from "@/components/ThemeToggle";
 
 const STATUS_CONFIG: Record<TripStatus, { label: string; bg: string; text: string }> = {
@@ -37,42 +38,34 @@ function formatTime(ts: number): string {
   return d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function formatDistance(meters: number, useMiles: boolean): string {
-  if (useMiles) {
-    const miles = meters / 1609.344;
-    return miles < 0.1 ? `${Math.round(meters * 3.28084)} ft` : `${miles.toFixed(1)} mi`;
-  }
-  return meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1)} km`;
-}
+type StatusFilter = "all" | "active" | "completed" | "cancelled";
 
 export default function Trips() {
   const { userDoc } = useAuthStore();
-  const { drivers, setDrivers } = useDriversStore();
+  const { setDrivers } = useDriversStore();
   const navigate = useNavigate();
 
   const [trips, setTrips] = useState<Trip[]>([]);
   const [driverProfiles, setDriverProfiles] = useState<Map<string, User>>(new Map());
   const [tripModalOpen, setTripModalOpen] = useState(false);
-  const [filter, setFilter] = useState<"all" | "active" | "completed" | "cancelled">("all");
+  const [filter, setFilter] = useState<StatusFilter>("all");
+  const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
+  const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
-  // Toast notifications for trip status changes
   useTripNotifications(trips, driverProfiles);
 
-  // Subscribe to trips
   useEffect(() => {
     if (!userDoc?.companyId) return;
     return subscribeToCompanyTrips(userDoc.companyId, setTrips);
   }, [userDoc?.companyId]);
 
-  // Load driver profiles
   useEffect(() => {
     if (!userDoc?.companyId) return;
     getCompanyDrivers(userDoc.companyId).then(setDriverProfiles);
   }, [userDoc?.companyId]);
 
-  // Subscribe to driver locations (for TripModal driver list)
   useEffect(() => {
     if (!userDoc?.companyId) return;
     return subscribeToCompanyLocations(userDoc.companyId, setDrivers);
@@ -94,15 +87,28 @@ export default function Trips() {
     }
   }
 
-  const filteredTrips = trips.filter((t) => {
-    if (filter === "active") return ["pending", "accepted", "in_progress"].includes(t.status);
-    if (filter === "completed") return t.status === "completed";
-    if (filter === "cancelled") return ["cancelled", "rejected"].includes(t.status);
-    return true;
-  });
+  const driverList = useMemo(
+    () => Array.from(driverProfiles.entries()).sort((a, b) => a[1].displayName.localeCompare(b[1].displayName)),
+    [driverProfiles]
+  );
+
+  const filteredTrips = useMemo(() => {
+    let t = trips;
+    if (selectedDriverId) t = t.filter((trip) => trip.driverId === selectedDriverId);
+    if (filter === "active") t = t.filter((trip) => ["pending", "accepted", "in_progress"].includes(trip.status));
+    else if (filter === "completed") t = t.filter((trip) => trip.status === "completed");
+    else if (filter === "cancelled") t = t.filter((trip) => ["cancelled", "rejected"].includes(trip.status));
+    return t;
+  }, [trips, selectedDriverId, filter]);
+
+  const selectedTrip = useMemo(
+    () => filteredTrips.find((t) => t.id === selectedTripId) ?? null,
+    [filteredTrips, selectedTripId]
+  );
 
   return (
     <div className="h-screen flex flex-col">
+      {/* Header */}
       <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5">
           <img src="/logo.svg" alt="LoadMind" className="w-8 h-8" />
@@ -171,145 +177,164 @@ export default function Trips() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-hidden relative">
-      <main className="h-full overflow-y-auto bg-gray-50 dark:bg-gray-950 p-6">
-        <div className="max-w-4xl mx-auto">
-          {/* Filter tabs */}
-          <div className="flex items-center gap-1 mb-4">
+      {/* Main content: left panel + map */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left panel */}
+        <div className="w-96 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col shrink-0">
+          {/* Driver selector */}
+          <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Driver</label>
+            <select
+              value={selectedDriverId ?? ""}
+              onChange={(e) => {
+                setSelectedDriverId(e.target.value || null);
+                setSelectedTripId(null);
+              }}
+              className="w-full h-9 px-3 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All drivers</option>
+              {driverList.map(([id, profile]) => (
+                <option key={id} value={id}>{profile.displayName}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Status filter tabs */}
+          <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-700 flex items-center gap-1">
             {(["all", "active", "completed", "cancelled"] as const).map((f) => (
               <button
                 key={f}
-                onClick={() => setFilter(f)}
-                className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                onClick={() => { setFilter(f); setSelectedTripId(null); }}
+                className={`px-2.5 py-1 text-xs rounded-lg transition-colors ${
                   filter === f
-                    ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-medium shadow-sm border border-gray-200 dark:border-gray-700"
+                    ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-medium"
                     : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                 }`}
               >
                 {f.charAt(0).toUpperCase() + f.slice(1)}
               </button>
             ))}
-            <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">
-              {filteredTrips.length} trip{filteredTrips.length !== 1 ? "s" : ""}
+            <span className="text-[10px] text-gray-400 dark:text-gray-500 ml-auto">
+              {filteredTrips.length}
             </span>
           </div>
 
           {/* Trip list */}
-          {filteredTrips.length === 0 ? (
-            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl py-16 text-center">
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                {filter === "all" ? "No trips yet" : `No ${filter} trips`}
-              </p>
-              <button
-                onClick={() => setTripModalOpen(true)}
-                className="text-sm font-medium text-blue-600 hover:text-blue-700"
-              >
-                Create first trip
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {filteredTrips.map((trip) => {
-                const driverName =
-                  driverProfiles.get(trip.driverId ?? "")?.displayName ??
-                  (trip.driverId ? `Driver ${trip.driverId.slice(0, 6)}` : "Unassigned");
-                const isActive = ["pending", "accepted", "in_progress"].includes(trip.status);
-
-                const useMiles = trip.country === "us";
-                const pickup = getFirstPickup(trip);
-                const dropoff = getLastDropoff(trip);
-                let distanceLabel: string | null = null;
-                if (trip.status === "accepted" && trip.driverId && pickup) {
-                  const driverLoc = drivers.find((d) => d.driverId === trip.driverId);
-                  if (driverLoc) {
-                    const m = distanceMeters(driverLoc.current.lat, driverLoc.current.lng, pickup.lat, pickup.lng);
-                    distanceLabel = `${formatDistance(m, useMiles)} to pickup`;
-                  }
-                } else if (trip.status === "in_progress" && pickup && dropoff) {
-                  const m = distanceMeters(pickup.lat, pickup.lng, dropoff.lat, dropoff.lng);
-                  distanceLabel = `${formatDistance(m, useMiles)} trip distance`;
-                }
-
-                return (
-                  <div
-                    key={trip.id}
-                    className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-5 py-4"
+          <div className="flex-1 overflow-y-auto">
+            {filteredTrips.length === 0 ? (
+              <div className="px-4 py-12 text-center">
+                <p className="text-sm text-gray-400 dark:text-gray-500 mb-3">
+                  {trips.length === 0 ? "No trips yet" : `No ${filter === "all" ? "" : filter + " "}trips`}
+                </p>
+                {trips.length === 0 && (
+                  <button
+                    onClick={() => setTripModalOpen(true)}
+                    className="text-sm font-medium text-blue-600 hover:text-blue-700"
                   >
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{driverName}</span>
+                    Create first trip
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50 dark:divide-gray-800">
+                {filteredTrips.map((trip) => {
+                  const isSelected = selectedTripId === trip.id;
+                  const driverName =
+                    driverProfiles.get(trip.driverId ?? "")?.displayName ??
+                    (trip.driverId ? `Driver ${trip.driverId.slice(0, 6)}` : "Unassigned");
+                  const isActive = ["pending", "accepted", "in_progress"].includes(trip.status);
+
+                  return (
+                    <button
+                      key={trip.id}
+                      onClick={() => setSelectedTripId(isSelected ? null : trip.id)}
+                      className={`w-full text-left px-4 py-3 transition-colors ${
+                        isSelected
+                          ? "bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-500"
+                          : "hover:bg-gray-50 dark:hover:bg-gray-800 border-l-2 border-transparent"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{driverName}</span>
                           <StatusBadge status={trip.status} />
                         </div>
-                        <p className="text-xs text-gray-400 dark:text-gray-500">
-                          Created {formatTime(trip.createdAt)}
-                          {trip.respondedAt && <> · Responded {formatTime(trip.respondedAt)}</>}
-                        </p>
-                      </div>
-                      {isActive && (
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={async () => {
-                              if (!trip.driverId || !userDoc?.companyId || !userDoc?.id) return;
-                              try {
-                                const { url, saved } = createTrackingLink(trip.id, userDoc.companyId, trip.driverId, userDoc.id);
-                                await navigator.clipboard.writeText(url);
-                                toast.success("Tracking link copied to clipboard");
-                                saved.catch((err) => console.error("Failed to save tracking link:", err));
-                              } catch (err: any) {
-                                toast.error(`Failed: ${err?.message || err}`);
-                              }
-                            }}
-                            className="text-xs text-green-500 hover:text-green-700 dark:hover:text-green-400"
-                          >
-                            Share
-                          </button>
-                          <button
-                            onClick={() => setEditingTrip(trip)}
-                            className="text-xs text-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleCancel(trip.id)}
-                            className="text-xs text-gray-400 hover:text-red-500"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Route stops */}
-                    <div className="space-y-2">
-                      {getStopsFromTrip(trip).map((stop, i) => (
-                        <div key={i} className="flex items-start gap-2">
-                          <div className={`w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0 ${
-                            stop.type === "pickup" ? "bg-green-500" : "bg-red-500"
-                          }`} />
-                          <div className="min-w-0">
-                            <p className="text-sm text-gray-900 dark:text-gray-100 truncate">{stop.label}</p>
-                            {stop.note && (
-                              <p className="text-[11px] text-gray-400 dark:text-gray-500 truncate">{stop.note}</p>
-                            )}
+                        {isActive && (
+                          <div className="flex items-center gap-2 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={async () => {
+                                if (!trip.driverId || !userDoc?.companyId || !userDoc?.id) return;
+                                try {
+                                  const { url, saved } = createTrackingLink(trip.id, userDoc.companyId, trip.driverId, userDoc.id);
+                                  await navigator.clipboard.writeText(url);
+                                  toast.success("Tracking link copied");
+                                  saved.catch((err) => console.error("Failed to save tracking link:", err));
+                                } catch (err: any) {
+                                  toast.error(`Failed: ${err?.message || err}`);
+                                }
+                              }}
+                              className="text-[10px] text-green-500 hover:text-green-700 dark:hover:text-green-400"
+                            >
+                              Share
+                            </button>
+                            <button
+                              onClick={() => setEditingTrip(trip)}
+                              className="text-[10px] text-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleCancel(trip.id)}
+                              className="text-[10px] text-gray-400 hover:text-red-500"
+                            >
+                              Cancel
+                            </button>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                    {distanceLabel && (
-                      <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
-                        <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400">
-                          {distanceLabel}
-                        </span>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                      <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1.5">
+                        {formatTime(trip.createdAt)}
+                        {trip.respondedAt && <> · Responded {formatTime(trip.respondedAt)}</>}
+                      </p>
+                      <div className="space-y-1">
+                        {getStopsFromTrip(trip).map((stop, i) => (
+                          <div key={i} className="flex items-center gap-1.5">
+                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                              stop.type === "pickup" ? "bg-green-500" : "bg-red-500"
+                            }`} />
+                            <span className="text-xs text-gray-700 dark:text-gray-300 truncate">{stop.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+            <button
+              onClick={() => navigate("/")}
+              className="text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            >
+              Back to Map
+            </button>
+            <button
+              onClick={() => setTripModalOpen(true)}
+              className="text-xs font-medium text-blue-600 hover:text-blue-700"
+            >
+              + New Trip
+            </button>
+          </div>
         </div>
-      </main>
+
+        {/* Map */}
+        <div className="flex-1 relative">
+          <HistoryMapView history={[]} selectedTrip={selectedTrip} />
+        </div>
+      </div>
 
       {tripModalOpen && (
         <TripModal
@@ -327,7 +352,6 @@ export default function Trips() {
           onClose={() => setEditingTrip(null)}
         />
       )}
-      </div>
     </div>
   );
 }
