@@ -49,6 +49,7 @@ interface Props {
   trips: Trip[];
   companyId: string | undefined;
   historyTrip?: Trip | null;
+  sidebarWidth?: number;
 }
 
 export default function MapView({
@@ -60,6 +61,7 @@ export default function MapView({
   trips,
   companyId,
   historyTrip,
+  sidebarWidth = 0,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -523,13 +525,13 @@ export default function MapView({
       // Fit map to show the route segment
       const bounds = new maplibregl.LngLatBounds();
       waypoints.forEach((wp) => bounds.extend(wp));
-      map.fitBounds(bounds, { padding: 80, duration: 1000 });
+      map.fitBounds(bounds, { padding: { top: 80, right: 80, bottom: 80, left: sidebarWidth + 80 }, duration: 1000 });
     });
 
     return () => {
       cancelled = true;
     };
-  }, [selectedDriverId, trips, historyTrip, removeRouteLayers, drawRouteFromData]);
+  }, [selectedDriverId, trips, historyTrip, sidebarWidth, removeRouteLayers, drawRouteFromData]);
 
   // Draw OSRM route for a selected history trip
   useEffect(() => {
@@ -561,7 +563,7 @@ export default function MapView({
 
       const bounds = new maplibregl.LngLatBounds();
       waypoints.forEach((wp) => bounds.extend(wp));
-      map.fitBounds(bounds, { padding: 80, duration: 1000 });
+      map.fitBounds(bounds, { padding: { top: 80, right: 80, bottom: 80, left: sidebarWidth + 80 }, duration: 1000 });
     });
 
     return () => {
@@ -569,7 +571,7 @@ export default function MapView({
       routeDataRef.current = null;
       removeRouteLayers();
     };
-  }, [historyTrip, removeRouteLayers, drawRouteFromData]);
+  }, [historyTrip, sidebarWidth, removeRouteLayers, drawRouteFromData]);
 
   // Fetch and draw location history when a driver is selected
   useEffect(() => {

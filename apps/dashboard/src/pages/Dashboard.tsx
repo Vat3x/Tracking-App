@@ -334,6 +334,7 @@ export default function Dashboard() {
             trips={trips}
             companyId={userDoc?.companyId ?? undefined}
             historyTrip={historyOpen ? selectedHistoryTrip : null}
+            sidebarWidth={historyOpen || tripsOpen || invitesOpen ? 384 : 0}
           />
         </div>
 
@@ -605,11 +606,6 @@ export default function Dashboard() {
 
         {/* History slide-over panel */}
         {historyOpen && (
-          <>
-            <div
-              className="absolute inset-0 bg-black/10 z-20"
-              onClick={() => { setHistoryOpen(false); setSelectedHistoryTripId(null); }}
-            />
             <div className="absolute left-0 top-0 bottom-0 w-96 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 shadow-xl z-30 flex flex-col">
               <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
                 <div>
@@ -752,7 +748,6 @@ export default function Dashboard() {
                 </>
               )}
             </div>
-          </>
         )}
       </div>
 
