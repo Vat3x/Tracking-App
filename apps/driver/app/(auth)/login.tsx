@@ -201,6 +201,8 @@ export default function LoginScreen() {
       } else if (hasInvite) {
         setPhoneStep("name");
       } else {
+        // Sign out the orphaned Firebase Auth user (no Firestore doc, no invite)
+        await auth.signOut();
         Alert.alert(
           "No Account Found",
           "Please use an invite link from your dispatcher to register."

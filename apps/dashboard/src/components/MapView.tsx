@@ -315,7 +315,7 @@ export default function MapView({
       if (!map) return;
 
       const profile = driverProfiles.get(driver.driverId);
-      const name = profile?.displayName ?? driver.driverId.slice(0, 8);
+      const name = profile?.displayName || profile?.phone || driver.driverId.slice(0, 8);
       const c = driver.current;
       popupRef.current?.remove();
 

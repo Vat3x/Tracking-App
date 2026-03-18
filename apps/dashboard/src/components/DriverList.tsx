@@ -95,7 +95,7 @@ function DriverInfoModal({
   onClose: () => void;
 }) {
   const c = driver.current;
-  const name = profile?.displayName ?? `Driver ${driver.driverId.slice(0, 6)}`;
+  const name = profile?.displayName || profile?.phone || `Driver ${driver.driverId.slice(0, 6)}`;
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center" onClick={onClose}>
@@ -376,7 +376,7 @@ function DriverCard({
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const c = driver.current;
-  const name = profile?.displayName ?? `Driver ${driver.driverId.slice(0, 6)}`;
+  const name = profile?.displayName || profile?.phone || `Driver ${driver.driverId.slice(0, 6)}`;
 
   async function handleAction(action: string) {
     switch (action) {

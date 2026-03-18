@@ -48,7 +48,7 @@ function tripStopToData(s: TripStop): StopData {
 
 export default function EditTripModal({ trip, driverProfile, onClose }: Props) {
   const country = trip.country ?? "us";
-  const driverName = driverProfile?.displayName ?? `Driver ${trip.driverId?.slice(0, 6) ?? "—"}`;
+  const driverName = driverProfile?.displayName || driverProfile?.phone || `Driver ${trip.driverId?.slice(0, 6) ?? "—"}`;
   const driverPhone = driverProfile?.phone ?? "";
 
   const [stops, setStops] = useState<StopData[]>(() =>

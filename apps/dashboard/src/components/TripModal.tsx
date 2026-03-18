@@ -105,7 +105,7 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar, defa
     const profile = driverProfiles.get(d.driverId);
     driverOptions.push({
       id: d.driverId,
-      name: profile?.displayName ?? `Driver ${d.driverId.slice(0, 6)}`,
+      name: profile?.displayName || profile?.phone || `Driver ${d.driverId.slice(0, 6)}`,
     });
   });
 

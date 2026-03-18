@@ -23,6 +23,14 @@
           }
         },
         {
+          "client_id": "463711773961-gppd92s008ln6ns6abi8ue4cn7sgt1p9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.nexus.tracking.driver",
+            "certificate_hash": "00fa43af3deb93985d63af7a6ad56eaa71b0b325"
+          }
+        },
+        {
           "client_id": "463711773961-jroe7ak3abns20jeussd83e6lt9crqt3.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
