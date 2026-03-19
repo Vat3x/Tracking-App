@@ -13,7 +13,7 @@ import {
   Linking,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { loginWithEmail, registerDriver, getUserDoc } from "../../src/services/auth";
+import { loginWithEmail, registerDriver, resetPassword, getUserDoc } from "../../src/services/auth";
 import { sendVerificationCode, verifyOtpAndSignIn, createPhoneUser } from "../../src/services/phoneAuth";
 import { acceptInvite } from "../../src/services/invites";
 import { Logo } from "../../src/components/Logo";
@@ -163,6 +163,28 @@ export default function LoginScreen() {
       }
     } finally {
       setEmailLoading(false);
+    }
+  }
+
+  async function handleForgotPassword() {
+    const resetEmail = email.trim();
+    if (!resetEmail) {
+      Alert.alert("Error", "Please enter your email address first.");
+      return;
+    }
+    try {
+      await resetPassword(resetEmail);
+      Alert.alert("Email Sent", "Check your email for a password reset link.");
+    } catch (err: any) {
+      if (err.code === "auth/user-not-found") {
+        Alert.alert("Error", "No account found with this email.");
+      } else if (err.code === "auth/invalid-email") {
+        Alert.alert("Error", "Please enter a valid email address.");
+      } else if (err.code === "auth/too-many-requests") {
+        Alert.alert("Error", "Too many attempts. Please try again later.");
+      } else {
+        Alert.alert("Error", "Failed to send reset email. Please try again.");
+      }
     }
   }
 
@@ -512,6 +534,15 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
 
+            {!isRegister && (
+              <TouchableOpacity
+                style={styles.forgotButton}
+                onPress={handleForgotPassword}
+              >
+                <Text style={styles.forgotText}>Forgot Password?</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               style={[styles.button, emailLoading && styles.buttonDisabled]}
               onPress={isRegister ? handleRegister : handleLogin}
@@ -740,6 +771,14 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  forgotButton: {
+    alignSelf: "flex-end",
+    marginBottom: 4,
+  },
+  forgotText: {
+    color: "#1a73e8",
+    fontSize: 14,
   },
   switchButton: {
     marginTop: 16,

@@ -102,7 +102,10 @@
       "url": "https://u.expo.dev/551d293c-7567-4050-aef0-18ce957cb709",
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 0
+      "fallbackToCacheTimeout": 0,
+      "requestHeaders": {
+        "expo-channel-name": "production"
+      }
     },
     "runtimeVersion": {
       "policy": "fingerprint"
