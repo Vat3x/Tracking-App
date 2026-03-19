@@ -340,13 +340,13 @@ export default function HomeScreen() {
         {activeTrip && (
           <View style={[styles.activeTripCard, { backgroundColor: colors.activeTripBg, borderColor: colors.activeTripBorder }]}>
             <View style={styles.activeTripHeader}>
-              <View style={[styles.activeTripBadge, activeTrip.status === "accepted" ? styles.badgeAccepted : styles.badgeInProgress]}>
-                <Text style={styles.activeTripBadgeText}>
+              <View style={[styles.activeTripBadge, { backgroundColor: activeTrip.status === "accepted" ? (isDark ? "#1e3a5f" : "#dbeafe") : (isDark ? "#312e81" : "#e0e7ff") }]}>
+                <Text style={[styles.activeTripBadgeText, { color: isDark ? "#c7d2fe" : "#3730a3" }]}>
                   {activeTrip.status === "accepted" ? "ACCEPTED" : "IN PROGRESS"}
                 </Text>
               </View>
             </View>
-            <Text style={styles.activeTripLabel}>
+            <Text style={[styles.activeTripLabel, { color: isDark ? "#93c5fd" : "#1e40af" }]}>
               {getTripRouteLabel(activeTrip)}
             </Text>
             <Text style={[styles.activeTripHint, { color: colors.textSecondary }]}>Open Trips tab to manage</Text>
@@ -548,22 +548,14 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 6,
   },
-  badgeAccepted: {
-    backgroundColor: "#dbeafe",
-  },
-  badgeInProgress: {
-    backgroundColor: "#e0e7ff",
-  },
   activeTripBadgeText: {
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 0.5,
-    color: "#3730a3",
   },
   activeTripLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#1e40af",
     marginBottom: 4,
   },
   activeTripHint: {

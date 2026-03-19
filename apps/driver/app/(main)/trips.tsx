@@ -327,14 +327,19 @@ function ActiveTripNavView({
       {/* TOP OVERLAY */}
       <View style={styles.topOverlay}>
         <View style={[styles.navStatusOverlay, { backgroundColor: colors.bgOverlayStrong }]}>
-          <View style={[styles.navBadge, isAccepted ? styles.badgeAccepted : styles.badgeInProgress]}>
-            <Text style={styles.navBadgeText}>
+          <View style={[styles.navBadge, { backgroundColor: isAccepted ? (isDark ? "#1e3a5f" : "#dbeafe") : (isDark ? "#312e81" : "#e0e7ff") }]}>
+            <Text style={[styles.navBadgeText, { color: isDark ? "#c7d2fe" : "#3730a3" }]}>
               {isAccepted ? "ACCEPTED" : "IN PROGRESS"}
             </Text>
           </View>
           <Text style={[styles.navStatusTarget, { color: colors.text }]} numberOfLines={1}>
             {getNextTargetLabel()}
           </Text>
+          {trip.freeDropoff && (
+            <View style={[styles.freeDropoffBadge, { backgroundColor: isDark ? "#1e3a5f" : "#dbeafe" }]}>
+              <Text style={[styles.freeDropoffBadgeText, { color: isDark ? "#93c5fd" : "#1d4ed8" }]}>Any order</Text>
+            </View>
+          )}
         </View>
         <TouchableOpacity style={[styles.backToListBtn, { backgroundColor: colors.bgOverlayStrong }]} onPress={onShowList}>
           <Text style={[styles.backToListText, { color: isDark ? "#fff" : "#3b82f6" }]}>All Trips</Text>
@@ -503,13 +508,8 @@ function TripCard({
                     </View>
                   )}
                 </View>
-                {isSelected && (
-                  <TouchableOpacity
-                    style={styles.stopNavBtn}
-                    onPress={() => handleNavigateExternal(trip, i)}
-                  >
-                    <Text style={styles.stopNavBtnText}>Navigate</Text>
-                  </TouchableOpacity>
+                {isActive && !isCompleted && !isSelected && (
+                  <Text style={[styles.tapHint, { color: colors.textMuted }]}>Tap</Text>
                 )}
               </View>
             </View>
@@ -529,6 +529,15 @@ function TripCard({
           return stopContent;
         })}
       </View>
+
+      {/* Free drop-off indicator */}
+      {trip.freeDropoff && (
+        <View style={[styles.freeDropoffBanner, { backgroundColor: isDark ? "#1e3a5f" : "#eff6ff", borderColor: isDark ? "#2563eb" : "#93c5fd" }]}>
+          <Text style={[styles.freeDropoffText, { color: isDark ? "#93c5fd" : "#1d4ed8" }]}>
+            Free drop-off order — deliver in any order
+          </Text>
+        </View>
+      )}
 
       {/* Inline map — shows route to selected stop or default route */}
       {isActive && (
@@ -1056,15 +1065,31 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontSize: 14,
   },
-  stopNavBtn: {
-    backgroundColor: "#3b82f6",
+  tapHint: {
+    fontSize: 10,
+    fontWeight: "500",
+    letterSpacing: 0.3,
+  },
+  freeDropoffBanner: {
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
+    borderWidth: 1,
+    marginBottom: 10,
   },
-  stopNavBtnText: {
-    color: "#fff",
+  freeDropoffText: {
+    fontSize: 12,
     fontWeight: "600",
-    fontSize: 11,
+    textAlign: "center",
+  },
+  freeDropoffBadge: {
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  freeDropoffBadgeText: {
+    fontSize: 9,
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
 });

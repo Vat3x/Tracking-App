@@ -8,6 +8,7 @@ import * as Updates from "expo-updates";
 import { onAuthChange, getUserDoc, onUserDocChange } from "../src/services/auth";
 import { useAuthStore } from "../src/stores/auth";
 import { useThemeStore } from "../src/stores/theme";
+import * as Notifications from "expo-notifications";
 import {
   registerForPushNotifications,
   setupNotificationListeners,
@@ -158,6 +159,11 @@ export default function RootLayout() {
 
   useEffect(() => {
     useThemeStore.getState().init();
+  }, []);
+
+  // Clear badge count on app open
+  useEffect(() => {
+    Notifications.setBadgeCountAsync(0);
   }, []);
 
   // Check for OTA updates on launch
