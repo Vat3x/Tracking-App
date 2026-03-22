@@ -7,7 +7,7 @@ export interface Company {
   address: string;
   fleetSize: string;
   referralSource: string;
-  mcNumber?: string;
+  mcDotNumber: string;
 }
 
 export interface CompanySettings {

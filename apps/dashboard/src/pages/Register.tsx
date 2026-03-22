@@ -43,8 +43,7 @@ export default function Register() {
   const [fleetSize, setFleetSize] = useState("");
   const [referralSource, setReferralSource] = useState("");
 
-  // Optional
-  const [mcNumber, setMcNumber] = useState("");
+  const [mcDotNumber, setMcDotNumber] = useState("");
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -71,7 +70,7 @@ export default function Register() {
         password,
         displayName,
         companyName,
-        { phone, position, address, fleetSize, referralSource, mcNumber: mcNumber || undefined }
+        { phone, position, address, fleetSize, referralSource, mcDotNumber }
       );
       const userDoc = await getUserDoc(user.uid);
 
@@ -236,7 +235,21 @@ export default function Register() {
                     placeholder="Owner, Dispatcher, Manager…"
                   />
                 </div>
-                <div>
+                <div className="sm:col-span-2">
+                  <label htmlFor="mcDotNumber" className={labelClass}>
+                    MC# or DOT# <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="mcDotNumber"
+                    type="text"
+                    required
+                    value={mcDotNumber}
+                    onChange={(e) => setMcDotNumber(e.target.value)}
+                    className={inputClass}
+                    placeholder="MC-123456 or DOT-789012"
+                  />
+                </div>
+                <div className="sm:col-span-2">
                   <label htmlFor="fleetSize" className={labelClass}>
                     Fleet Size <span className="text-red-500">*</span>
                   </label>
@@ -254,7 +267,7 @@ export default function Register() {
                     ))}
                   </select>
                 </div>
-                <div>
+                <div className="sm:col-span-2">
                   <label htmlFor="referralSource" className={labelClass}>
                     How did you hear about us? <span className="text-red-500">*</span>
                   </label>
@@ -271,19 +284,6 @@ export default function Register() {
                       </option>
                     ))}
                   </select>
-                </div>
-                <div className="sm:col-span-2">
-                  <label htmlFor="mcNumber" className={labelClass}>
-                    MC# <span className="text-xs text-gray-400 dark:text-gray-500 font-normal">(optional)</span>
-                  </label>
-                  <input
-                    id="mcNumber"
-                    type="text"
-                    value={mcNumber}
-                    onChange={(e) => setMcNumber(e.target.value)}
-                    className={inputClass}
-                    placeholder="MC-123456"
-                  />
                 </div>
               </div>
             </fieldset>
