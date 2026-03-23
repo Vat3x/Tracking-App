@@ -1,8 +1,11 @@
-import { useState, type FormEvent } from "react";
+import { useState, useRef, type FormEvent } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import ReCAPTCHA from "react-google-recaptcha";
 import { registerDispatcher, getUserDoc } from "@/services/auth";
 import { useAuthStore } from "@/stores/auth";
 import { Loader2, Crown } from "lucide-react";
+
+const RECAPTCHA_SITE_KEY = "6LfFEJUsAAAAACyTCMKgV8TqDV1lHESOrg3e3QOP";
 
 const FLEET_SIZE_OPTIONS = [
   { value: "", label: "Select fleet size" },
@@ -53,6 +56,9 @@ export default function Register() {
 
   const [mcDotNumber, setMcDotNumber] = useState("");
 
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -67,6 +73,11 @@ export default function Register() {
 
     if (password.length < 6) {
       setError("Password must be at least 6 characters.");
+      return;
+    }
+
+    if (!recaptchaToken) {
+      setError("Please complete the CAPTCHA verification.");
       return;
     }
 
@@ -86,6 +97,8 @@ export default function Register() {
       setUserDoc(userDoc);
       navigate("/verify-email");
     } catch (err: any) {
+      recaptchaRef.current?.reset();
+      setRecaptchaToken(null);
       if (err.code === "auth/email-already-in-use") {
         setError("An account with this email already exists.");
       } else if (err.code === "auth/weak-password") {
@@ -303,9 +316,19 @@ export default function Register() {
               </div>
             </fieldset>
 
+            <div className="flex justify-center">
+              <ReCAPTCHA
+                ref={recaptchaRef}
+                sitekey={RECAPTCHA_SITE_KEY}
+                onChange={(token) => setRecaptchaToken(token)}
+                onExpired={() => setRecaptchaToken(null)}
+                theme="dark"
+              />
+            </div>
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !recaptchaToken}
               className="w-full py-2 px-4 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
