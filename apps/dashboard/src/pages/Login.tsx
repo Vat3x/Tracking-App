@@ -108,11 +108,15 @@ export default function Login() {
             </button>
           </form>
 
+          <Link
+            to="/register"
+            className="block w-full mt-3 py-2 px-4 text-center text-sm font-medium rounded-md border border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+          >
+            Register your company
+          </Link>
+
           <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
-            Don't have an account?{" "}
-            <Link to="/register" className="text-blue-600 hover:text-blue-700 font-medium">
-              Register your company
-            </Link>
+            Already have an account? Sign in above
           </p>
         </div>
       </div>
