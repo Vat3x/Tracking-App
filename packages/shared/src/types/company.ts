@@ -8,6 +8,7 @@ export interface Company {
   fleetSize: string;
   referralSource: string;
   mcDotNumber: string;
+  requestedPlan?: string;
 }
 
 export interface CompanySettings {

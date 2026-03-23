@@ -24,6 +24,7 @@ function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/tracker/register" element={<Register />} />
       <Route path="/verify-email" element={<VerifyEmail />} />
       <Route
         path="/"
@@ -66,6 +67,7 @@ function App() {
         }
       />
       <Route path="/auth/action" element={<AuthAction />} />
+      <Route path="/tracker/auth/action" element={<AuthAction />} />
       <Route path="/invite/:inviteId" element={<InviteLanding />} />
       <Route path="/tracker/invite/:inviteId" element={<InviteLanding />} />
       <Route path="/track/:linkId" element={<TrackingPage />} />

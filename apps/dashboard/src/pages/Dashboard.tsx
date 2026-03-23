@@ -17,6 +17,7 @@ import { db } from "@/services/firebase";
 import { toast } from "sonner";
 import { COLLECTIONS, type Invite, type User, type Trip, type TripStatus, getStopsFromTrip } from "@nexus/shared";
 import ThemeToggle from "@/components/ThemeToggle";
+import { Crown, Loader2 } from "lucide-react";
 
 function formatTime(ts: number): string {
   const d = new Date(ts);
@@ -54,7 +55,7 @@ function InviteStatusBadge({ invite }: { invite: Invite }) {
 }
 
 export default function Dashboard() {
-  const { userDoc } = useAuthStore();
+  const { userDoc, firebaseUser } = useAuthStore();
   const { drivers, selectedDriverId, setDrivers, selectDriver } = useDriversStore();
   const navigate = useNavigate();
 
@@ -66,6 +67,9 @@ export default function Dashboard() {
   const [driverProfiles, setDriverProfiles] = useState<Map<string, User>>(new Map());
   const [trips, setTrips] = useState<Trip[]>([]);
   const [companyName, setCompanyName] = useState("My Company");
+  const [companyPlan, setCompanyPlan] = useState<string | null>(null);
+  const [requestedPlan, setRequestedPlan] = useState<string | null>(null);
+  const [subscribing, setSubscribing] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [tripFormDriverId, setTripFormDriverId] = useState<string | undefined>();
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -83,7 +87,11 @@ export default function Dashboard() {
   useEffect(() => {
     if (!userDoc?.companyId) return;
     getDoc(doc(db, COLLECTIONS.COMPANIES, userDoc.companyId)).then((snap) => {
-      if (snap.exists()) setCompanyName(snap.data().name ?? "My Company");
+      if (snap.exists()) {
+        setCompanyName(snap.data().name ?? "My Company");
+        setCompanyPlan(snap.data().plan ?? null);
+        setRequestedPlan(snap.data().requestedPlan ?? null);
+      }
     });
   }, [userDoc?.companyId]);
 
@@ -150,6 +158,44 @@ export default function Dashboard() {
     }
     knownDriverIdsRef.current = currentIds;
   }, [drivers]);
+
+  const PLAN_LABELS: Record<string, string> = {
+    starter: "Starter — $39/mo",
+    growth: "Growth — $99/mo",
+    business: "Business — $189/mo",
+  };
+
+  async function handleSubscribe() {
+    if (!firebaseUser || !requestedPlan) return;
+    setSubscribing(true);
+    try {
+      const plansRes = await fetch("https://admin-panel-be9fc.web.app/api/public/plans");
+      const plans = await plansRes.json();
+      const matchedPlan = plans.find(
+        (p: any) => p.product === "tracker" && p.name.toLowerCase() === requestedPlan.toLowerCase()
+      );
+      if (!matchedPlan) { alert("Plan not found. Please contact support."); setSubscribing(false); return; }
+
+      const res = await fetch("https://admin-panel-be9fc.web.app/api/public/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: firebaseUser.uid,
+          email: firebaseUser.email,
+          planId: matchedPlan.id,
+          product: "tracker",
+          returnUrl: `${window.location.origin}/settings`,
+        }),
+      });
+      const data = await res.json();
+      if (data.checkout_url) window.location.href = data.checkout_url;
+      else alert(data.message || "Failed to start checkout");
+    } catch {
+      alert("Failed to start checkout. Please try again.");
+    } finally {
+      setSubscribing(false);
+    }
+  }
 
   async function handleLogout() {
     if (!window.confirm("Are you sure you want to sign out?")) return;
@@ -590,6 +636,40 @@ export default function Dashboard() {
         onClose={() => setInviteModalOpen(false)}
         companyName={companyName}
       />
+
+      {/* Purchase overlay — shown when user has requestedPlan but no active plan */}
+      {!companyPlan && requestedPlan && (
+        <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full p-8 text-center">
+            <div className="mx-auto w-14 h-14 bg-blue-50 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-5">
+              <Crown className="w-7 h-7 text-blue-600 dark:text-blue-400" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+              Complete Your Subscription
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+              You selected the <strong className="text-gray-900 dark:text-gray-100">{PLAN_LABELS[requestedPlan] || requestedPlan}</strong> plan. Complete your purchase to start using LoadMind Tracker.
+            </p>
+            <button
+              onClick={handleSubscribe}
+              disabled={subscribing}
+              className="w-full h-11 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+            >
+              {subscribing ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
+              ) : (
+                "Subscribe & Pay"
+              )}
+            </button>
+            <button
+              onClick={handleLogout}
+              className="w-full mt-3 h-10 text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );

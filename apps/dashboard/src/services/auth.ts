@@ -29,6 +29,7 @@ export async function registerDispatcher(
     fleetSize: string;
     referralSource: string;
     mcDotNumber: string;
+    requestedPlan?: string;
   }
 ): Promise<{ user: FirebaseUser; companyId: string }> {
   // 1. Create Firebase Auth user
@@ -49,6 +50,7 @@ export async function registerDispatcher(
       fleetSize: extra.fleetSize,
       referralSource: extra.referralSource,
       mcDotNumber: extra.mcDotNumber,
+      ...(extra.requestedPlan ? { requestedPlan: extra.requestedPlan } : {}),
     };
     await setDoc(companyRef, company);
 

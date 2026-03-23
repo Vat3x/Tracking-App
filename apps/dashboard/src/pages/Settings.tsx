@@ -6,21 +6,31 @@ import { logout } from "@/services/auth";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/services/firebase";
 import { COLLECTIONS } from "@nexus/shared";
-import { Moon, Sun, User, Building2, Palette, Shield, Users, MapPin, LogOut } from "lucide-react";
+import { Moon, Sun, User, Building2, Palette, Shield, Users, MapPin, LogOut, Crown, Loader2, CreditCard } from "lucide-react";
 
 export default function Settings() {
   const { userDoc, firebaseUser } = useAuthStore();
   const { theme, toggle } = useThemeStore();
   const navigate = useNavigate();
   const [companyName, setCompanyName] = useState<string | null>(null);
+  const [companyPlan, setCompanyPlan] = useState<string | null>(null);
+  const [requestedPlan, setRequestedPlan] = useState<string | null>(null);
+  const [maskedCard, setMaskedCard] = useState<string | null>(null);
   const [driverCount, setDriverCount] = useState<number | null>(null);
   const [tripCount, setTripCount] = useState<number | null>(null);
+  const [subscribing, setSubscribing] = useState(false);
+
+  const API_BASE = "https://admin-panel-be9fc.web.app";
 
   useEffect(() => {
     if (!userDoc?.companyId) return;
     getDoc(doc(db, COLLECTIONS.COMPANIES, userDoc.companyId)).then((snap) => {
       if (snap.exists()) {
-        setCompanyName(snap.data().name ?? null);
+        const data = snap.data();
+        setCompanyName(data.name ?? null);
+        setCompanyPlan(data.plan ?? null);
+        setRequestedPlan(data.requestedPlan ?? null);
+        setMaskedCard(data.flittMaskedCard ?? null);
       }
     });
     // Fetch driver count
@@ -32,6 +42,46 @@ export default function Settings() {
       query(collection(db, COLLECTIONS.TRIPS), where("companyId", "==", userDoc.companyId))
     ).then((snap) => setTripCount(snap.size));
   }, [userDoc?.companyId]);
+
+  async function handleSubscribe() {
+    if (!firebaseUser || !requestedPlan) return;
+    setSubscribing(true);
+    try {
+      // Fetch plans from API to find the planId
+      const plansRes = await fetch(`${API_BASE}/api/public/plans`);
+      const plans = await plansRes.json();
+      const matchedPlan = plans.find(
+        (p: any) => p.product === "tracker" && p.name.toLowerCase() === requestedPlan.toLowerCase()
+      );
+      if (!matchedPlan) {
+        alert("Plan not found. Please contact support.");
+        setSubscribing(false);
+        return;
+      }
+
+      const res = await fetch(`${API_BASE}/api/public/subscribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: firebaseUser.uid,
+          email: firebaseUser.email,
+          planId: matchedPlan.id,
+          product: "tracker",
+          returnUrl: `${window.location.origin}/settings`,
+        }),
+      });
+      const data = await res.json();
+      if (data.checkout_url) {
+        window.location.href = data.checkout_url;
+      } else {
+        alert(data.message || "Failed to start checkout");
+      }
+    } catch {
+      alert("Failed to start checkout. Please try again.");
+    } finally {
+      setSubscribing(false);
+    }
+  }
 
   async function handleLogout() {
     if (!window.confirm("Are you sure you want to sign out?")) return;
@@ -152,6 +202,64 @@ export default function Settings() {
                 </div>
               </div>
             </div>
+          </section>
+
+          {/* Plan */}
+          <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Crown className="w-4 h-4 text-gray-400" />
+              <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Plan</h2>
+            </div>
+
+            {companyPlan ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 capitalize">{companyPlan}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">Active subscription</p>
+                  </div>
+                  <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400">
+                    Active
+                  </span>
+                </div>
+                {maskedCard && (
+                  <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
+                    <CreditCard className="w-3 h-3" />
+                    {maskedCard}
+                  </div>
+                )}
+              </div>
+            ) : requestedPlan ? (
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    You selected the <strong className="capitalize">{requestedPlan}</strong> plan during registration.
+                  </p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    Complete payment to activate your subscription.
+                  </p>
+                </div>
+                <button
+                  onClick={handleSubscribe}
+                  disabled={subscribing}
+                  className="w-full py-2.5 px-4 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                >
+                  {subscribing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Redirecting to payment...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="w-4 h-4" />
+                      Subscribe & Pay
+                    </>
+                  )}
+                </button>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 dark:text-gray-400">Free plan — no active subscription</p>
+            )}
           </section>
 
           {/* Appearance */}

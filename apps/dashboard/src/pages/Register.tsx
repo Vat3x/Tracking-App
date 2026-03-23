@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { registerDispatcher, getUserDoc } from "@/services/auth";
 import { useAuthStore } from "@/stores/auth";
-import { Loader2 } from "lucide-react";
+import { Loader2, Crown } from "lucide-react";
 
 const FLEET_SIZE_OPTIONS = [
   { value: "", label: "Select fleet size" },
@@ -27,8 +27,16 @@ const inputClass =
 const labelClass =
   "block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1";
 
+const PLAN_LABELS: Record<string, string> = {
+  starter: "Starter — $39/mo",
+  growth: "Growth — $99/mo",
+  business: "Business — $189/mo",
+};
+
 export default function Register() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const requestedPlan = searchParams.get("plan") || "";
   const { setFirebaseUser, setUserDoc } = useAuthStore();
 
   // Required
@@ -70,7 +78,7 @@ export default function Register() {
         password,
         displayName,
         companyName,
-        { phone, position, address, fleetSize, referralSource, mcDotNumber }
+        { phone, position, address, fleetSize, referralSource, mcDotNumber, requestedPlan: requestedPlan || undefined }
       );
       const userDoc = await getUserDoc(user.uid);
 
@@ -100,6 +108,13 @@ export default function Register() {
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
             Register your company and start tracking
           </p>
+
+          {requestedPlan && PLAN_LABELS[requestedPlan] && (
+            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
+              <Crown className="w-4 h-4 shrink-0" />
+              Selected plan: <strong>{PLAN_LABELS[requestedPlan]}</strong>
+            </div>
+          )}
 
           {error && (
             <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-sm text-red-700 dark:text-red-400">
