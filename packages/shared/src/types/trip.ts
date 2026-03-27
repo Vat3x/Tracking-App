@@ -27,6 +27,7 @@ export interface Trip {
   companyId: string;
   driverId: string | null;
   assignedBy: string;
+  name?: string;
   status: TripStatus;
   stops: TripStop[];
   /** @deprecated Legacy field — use stops[] */

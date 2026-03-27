@@ -17,6 +17,7 @@ export interface CreateTripInput {
   companyId: string;
   driverId: string;
   assignedBy: string;
+  name?: string;
   stops: TripStop[];
   country?: string;
   freeDropoff?: boolean;
@@ -29,6 +30,7 @@ export async function createTrip(input: CreateTripInput): Promise<string> {
     companyId: input.companyId,
     driverId: input.driverId,
     assignedBy: input.assignedBy,
+    ...(input.name?.trim() && { name: input.name.trim() }),
     status: "pending",
     stops: input.stops,
     ...(input.country && { country: input.country }),
