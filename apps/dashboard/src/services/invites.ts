@@ -16,7 +16,7 @@ import {
 } from "@nexus/shared";
 
 export function generateInviteLink(inviteId: string): string {
-  return `https://load-mind.com/tracker/invite/${inviteId}`;
+  return `https://tracking-app-f6ad7.web.app/invite/${inviteId}`;
 }
 
 export async function createInvite(
