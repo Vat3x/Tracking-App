@@ -15,52 +15,46 @@
     .btn-secondary { display: inline-block; background: transparent; color: #1a73e8; border: 1.5px solid #1a73e8; padding: 12px 28px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 14px; margin-top: 12px; }
     .small { font-size: 13px; color: #999; margin-top: 16px; }
   </style>
-  <script>
-    const path = window.location.pathname;
-    const inviteId = path.split('/invite/')[1];
-    const ua = navigator.userAgent || '';
-    const isIOS = /iPhone|iPad|iPod/.test(ua);
-    const isAndroid = /Android/.test(ua);
-
-    // Try to open the app via custom scheme (works if app is installed)
-    if (inviteId) {
-      window.location.href = 'nexustracking://invite/' + inviteId;
-    }
-
-    // After the page renders, show the right store button
-    window.addEventListener('DOMContentLoaded', function () {
-      var primaryBtn = document.getElementById('primary-btn');
-      var secondaryBtn = document.getElementById('secondary-btn');
-
-      if (isIOS) {
-        primaryBtn.href = 'https://apps.apple.com/us/app/loadmind-tracker/id6760754995';
-        primaryBtn.textContent = 'Get on the App Store';
-        secondaryBtn.href = 'https://play.google.com/store/apps/details?id=com.nexus.tracking.driver';
-        secondaryBtn.textContent = 'Get on Google Play';
-        secondaryBtn.style.display = 'inline-block';
-      } else if (isAndroid) {
-        primaryBtn.href = 'https://play.google.com/store/apps/details?id=com.nexus.tracking.driver';
-        primaryBtn.textContent = 'Get on Google Play';
-        // hide secondary on Android
-      } else {
-        // Desktop — show both
-        primaryBtn.href = 'https://apps.apple.com/us/app/loadmind-tracker/id6760754995';
-        primaryBtn.textContent = 'Download on the App Store';
-        secondaryBtn.href = 'https://play.google.com/store/apps/details?id=com.nexus.tracking.driver';
-        secondaryBtn.textContent = 'Get on Google Play';
-        secondaryBtn.style.display = 'inline-block';
-      }
-    });
-  </script>
 </head>
 <body>
   <div class="card">
     <h1>LoadMind Tracker</h1>
-    <p>You've been invited to connect with a dispatcher. Open this link on your phone with the LoadMind Tracker app installed.</p>
-    <a id="primary-btn" class="btn" href="https://play.google.com/store/apps/details?id=com.nexus.tracking.driver">Get the App</a>
-    <br>
-    <a id="secondary-btn" class="btn-secondary" href="#" style="display:none;">Get on Google Play</a>
-    <p class="small">If you already have the app, it should open automatically.</p>
+    <p>You've been invited to connect with a dispatcher. Download the app to accept your invite.</p>
+    <div id="store-btns">
+      <!-- populated by JS below -->
+      <a class="btn" href="https://play.google.com/store/apps/details?id=com.nexus.tracking.driver">Get the App</a>
+    </div>
+    <p class="small">If you already have the app installed, it will open automatically.</p>
   </div>
+  <script>
+    var ua = navigator.userAgent || '';
+    var isIOS = /iPhone|iPad|iPod/.test(ua);
+    var isAndroid = /Android/.test(ua);
+    var path = window.location.pathname;
+    var inviteId = path.split('/invite/')[1] || '';
+
+    var appStore = 'https://apps.apple.com/us/app/loadmind-tracker/id6760754995';
+    var playStore = 'https://play.google.com/store/apps/details?id=com.nexus.tracking.driver';
+
+    var container = document.getElementById('store-btns');
+
+    if (isIOS) {
+      // Universal Links open the app if installed; if not, show App Store button
+      container.innerHTML =
+        '<a class="btn" href="' + appStore + '">Download on the App Store</a>';
+    } else if (isAndroid) {
+      // intent:// URL opens app if installed, falls back to Play Store automatically
+      var intentUrl = 'intent://invite/' + inviteId +
+        '#Intent;scheme=nexustracking;package=com.nexus.tracking.driver;' +
+        'S.browser_fallback_url=' + encodeURIComponent(playStore) + ';end';
+      container.innerHTML =
+        '<a class="btn" href="' + intentUrl + '">Get on Google Play</a>';
+    } else {
+      // Desktop — show both
+      container.innerHTML =
+        '<a class="btn" href="' + appStore + '">Download on the App Store</a>' +
+        '<br><a class="btn-secondary" href="' + playStore + '">Get on Google Play</a>';
+    }
+  </script>
 </body>
 </html>
