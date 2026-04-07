@@ -1,0 +1,16 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": ["C4NDHLSR79.com.nexus.tracking.driver"],
+        "components": [
+          {
+            "/": "/invite/*",
+            "comment": "Matches invite deep links"
+          }
+        ]
+      }
+    ]
+  }
+}

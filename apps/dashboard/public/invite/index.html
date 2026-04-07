@@ -12,23 +12,54 @@
     p { font-size: 15px; color: #666; line-height: 1.6; margin-bottom: 24px; }
     .btn { display: inline-block; background: #1a73e8; color: #fff; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 16px; }
     .btn:hover { background: #1557b0; }
+    .btn-secondary { display: inline-block; background: transparent; color: #1a73e8; border: 1.5px solid #1a73e8; padding: 12px 28px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 14px; margin-top: 12px; }
     .small { font-size: 13px; color: #999; margin-top: 16px; }
   </style>
   <script>
-    // Try to open the app with the invite deep link
     const path = window.location.pathname;
     const inviteId = path.split('/invite/')[1];
+    const ua = navigator.userAgent || '';
+    const isIOS = /iPhone|iPad|iPod/.test(ua);
+    const isAndroid = /Android/.test(ua);
+
+    // Try to open the app via custom scheme (works if app is installed)
     if (inviteId) {
-      // Try custom scheme first
       window.location.href = 'nexustracking://invite/' + inviteId;
     }
+
+    // After the page renders, show the right store button
+    window.addEventListener('DOMContentLoaded', function () {
+      var primaryBtn = document.getElementById('primary-btn');
+      var secondaryBtn = document.getElementById('secondary-btn');
+
+      if (isIOS) {
+        primaryBtn.href = 'https://apps.apple.com/us/app/loadmind-tracker/id6760754995';
+        primaryBtn.textContent = 'Get on the App Store';
+        secondaryBtn.href = 'https://play.google.com/store/apps/details?id=com.nexus.tracking.driver';
+        secondaryBtn.textContent = 'Get on Google Play';
+        secondaryBtn.style.display = 'inline-block';
+      } else if (isAndroid) {
+        primaryBtn.href = 'https://play.google.com/store/apps/details?id=com.nexus.tracking.driver';
+        primaryBtn.textContent = 'Get on Google Play';
+        // hide secondary on Android
+      } else {
+        // Desktop — show both
+        primaryBtn.href = 'https://apps.apple.com/us/app/loadmind-tracker/id6760754995';
+        primaryBtn.textContent = 'Download on the App Store';
+        secondaryBtn.href = 'https://play.google.com/store/apps/details?id=com.nexus.tracking.driver';
+        secondaryBtn.textContent = 'Get on Google Play';
+        secondaryBtn.style.display = 'inline-block';
+      }
+    });
   </script>
 </head>
 <body>
   <div class="card">
     <h1>LoadMind Tracker</h1>
     <p>You've been invited to connect with a dispatcher. Open this link on your phone with the LoadMind Tracker app installed.</p>
-    <a class="btn" href="https://play.google.com/store/apps/details?id=com.nexus.tracking.driver">Get the App</a>
+    <a id="primary-btn" class="btn" href="https://play.google.com/store/apps/details?id=com.nexus.tracking.driver">Get the App</a>
+    <br>
+    <a id="secondary-btn" class="btn-secondary" href="#" style="display:none;">Get on Google Play</a>
     <p class="small">If you already have the app, it should open automatically.</p>
   </div>
 </body>
