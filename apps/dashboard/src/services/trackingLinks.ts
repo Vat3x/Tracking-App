@@ -7,7 +7,7 @@ import { db } from "./firebase";
 import { COLLECTIONS, TRACKING_LINK_EXPIRY_DAYS } from "@nexus/shared";
 
 export function generateTrackingUrl(linkId: string): string {
-  return `https://load-mind.com/tracker/track/${linkId}`;
+  return `https://tracking.load-mind.com/track/${linkId}`;
 }
 
 /**

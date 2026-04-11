@@ -3,12 +3,14 @@ import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { Resend } from "resend";
 import { defineSecret } from "firebase-functions/params";
+import * as nodemailer from "nodemailer";
 
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 
 const resendApiKey = defineSecret("RESEND_API_KEY");
+const gmailAppPassword = defineSecret("GMAIL_APP_PASSWORD");
 const firestore = admin.firestore();
 
 /** Helper: build the branded verification email HTML */
@@ -68,7 +70,7 @@ function buildVerificationHtml(displayName: string, verificationLink: string): s
 /** Helper: send a verification email via Resend */
 async function sendVerificationEmail(email: string, displayName: string, apiKey: string): Promise<void> {
   const verificationLink = await admin.auth().generateEmailVerificationLink(email, {
-    url: "https://load-mind.com/tracker/auth/action",
+    url: "https://tracking.load-mind.com/auth/action",
   });
 
   const resend = new Resend(apiKey);
@@ -95,12 +97,128 @@ export const onDispatcherCreated = onDocumentCreated(
     const displayName = data.displayName || "there";
     if (!email) return;
 
+    // Skip if email is already verified (e.g., account created via admin panel)
+    const userId = event.params.userId;
+    const userRecord = await admin.auth().getUser(userId);
+    if (userRecord.emailVerified) {
+      console.log(`onDispatcherCreated: Skipping verification for ${email} — already verified`);
+      return;
+    }
+
     try {
       await sendVerificationEmail(email, displayName, resendApiKey.value());
       console.log(`onDispatcherCreated: Verification email sent to ${email}`);
     } catch (err) {
       console.error(`onDispatcherCreated: Failed to send verification email to ${email}:`, err);
     }
+  }
+);
+
+/** Helper: build the branded password reset email HTML */
+function buildPasswordResetHtml(resetLink: string): string {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:system-ui,-apple-system,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+          <tr>
+            <td style="background:#1a73e8;padding:28px 32px;text-align:center;">
+              <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:-0.5px;">LoadMind Tracker</h1>
+              <p style="margin:6px 0 0;color:rgba(255,255,255,0.8);font-size:13px;font-weight:400;">Fleet Tracking Platform</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px;">
+              <h2 style="margin:0 0 8px;font-size:18px;color:#111827;">Reset your password</h2>
+              <p style="margin:0 0 24px;font-size:15px;color:#4b5563;line-height:1.6;">
+                Tap the button below to reset your LoadMind Tracker password. This link expires in 1 hour.
+              </p>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="${resetLink}" style="display:inline-block;padding:12px 32px;background:#2563eb;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;border-radius:8px;">
+                      Reset Password
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:24px 0 0;font-size:13px;color:#9ca3af;line-height:1.5;">
+                If you didn't request a password reset, you can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 32px;border-top:1px solid #e5e7eb;text-align:center;">
+              <p style="margin:0;font-size:12px;color:#9ca3af;">
+                LoadMind Tracker &mdash; Fleet Tracking Platform
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+/**
+ * Callable function: send a branded password reset email via Namecheap SMTP.
+ */
+export const sendPasswordReset = onCall(
+  { secrets: [gmailAppPassword] },
+  async (request) => {
+    const email = request.data?.email?.trim();
+    if (!email) {
+      throw new HttpsError("invalid-argument", "Email is required");
+    }
+
+    // Verify the user exists in Firebase Auth
+    try {
+      await admin.auth().getUserByEmail(email);
+    } catch {
+      // Don't reveal whether the email exists — silently succeed
+      return { success: true };
+    }
+
+    // Generate Firebase password reset link
+    let resetLink: string;
+    try {
+      resetLink = await admin.auth().generatePasswordResetLink(email, {
+        url: "https://tracking.load-mind.com/auth/action",
+      });
+    } catch (err: any) {
+      console.error(`sendPasswordReset: generatePasswordResetLink failed for ${email}:`, err.code, err.message);
+      throw new HttpsError("internal", "Failed to generate reset link");
+    }
+    // Firebase sometimes appends a stray period before the query string — strip it
+    resetLink = resetLink.replace(/\.(?=\?)/, "");
+
+    // Send via Gmail SMTP
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: "vatomikaberidze@gmail.com",
+        pass: gmailAppPassword.value(),
+      },
+    });
+
+    await transporter.sendMail({
+      from: '"LoadMind Tracker" <vatomikaberidze@gmail.com>',
+      to: email,
+      subject: "Reset your LoadMind Tracker password",
+      html: buildPasswordResetHtml(resetLink),
+    });
+
+    return { success: true };
   }
 );
 
