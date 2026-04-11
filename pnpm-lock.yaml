@@ -126,6 +126,9 @@ importers:
       expo-battery:
         specifier: ^55.0.8
         version: 55.0.9(expo@55.0.7)(react@19.2.0)
+      expo-clipboard:
+        specifier: ^55.0.12
+        version: 55.0.12(expo@55.0.7)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)
       expo-constants:
         specifier: ^55.0.7
         version: 55.0.8(expo@55.0.7)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(typescript@5.9.3)
@@ -147,6 +150,9 @@ importers:
       expo-status-bar:
         specifier: ~55.0.4
         version: 55.0.4(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)
+      expo-system-ui:
+        specifier: ^55.0.14
+        version: 55.0.14(expo@55.0.7)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))
       expo-task-manager:
         specifier: ^55.0.9
         version: 55.0.10(expo@55.0.7)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))
@@ -193,12 +199,21 @@ importers:
 
   functions:
     dependencies:
+      '@smart-pay-chain/otp':
+        specifier: ^2.1.7
+        version: 2.1.7
+      '@types/nodemailer':
+        specifier: ^7.0.11
+        version: 7.0.11
       firebase-admin:
         specifier: ^13.0.0
         version: 13.7.0
       firebase-functions:
-        specifier: ^6.3.0
-        version: 6.6.0(firebase-admin@13.7.0)
+        specifier: ^7.2.3
+        version: 7.2.3(firebase-admin@13.7.0)
+      nodemailer:
+        specifier: ^8.0.4
+        version: 8.0.4
       resend:
         specifier: ^6.9.3
         version: 6.9.4
@@ -1778,6 +1793,9 @@ packages:
   '@react-native/normalize-colors@0.83.2':
     resolution: {integrity: sha512-gkZAb9LoVVzNuYzzOviH7DiPTXQoZPHuiTH2+O2+VWNtOkiznjgvqpwYAhg58a5zfRq5GXlbBdf5mzRj5+3Y5Q==}
 
+  '@react-native/normalize-colors@0.83.4':
+    resolution: {integrity: sha512-9ezxaHjxqTkTOLg62SGg7YhFaE+fxa/jlrWP0nwf7eGFHlGOiTAaRR2KUfiN3K05e+EMbEhgcH/c7bgaXeGyJw==}
+
   '@react-native/virtualized-lists@0.83.2':
     resolution: {integrity: sha512-N7mRjHLW/+KWxMp9IHRWyE3VIkeG1m3PnZJAGEFLCN8VFb7e4VfI567o7tE/HYcdcXCylw+Eqhlciz8gDeQ71g==}
     engines: {node: '>= 20.19.4'}
@@ -1970,6 +1988,10 @@ packages:
   '@sinonjs/fake-timers@10.3.0':
     resolution: {integrity: sha512-V4BG07kuYSUkTCSBHG8G8TNhM+F19jXFWnQtzj+we8DrkpSBCee9Z3Ms8yiGer/dlmhe35/Xdgyo3/0rQKg7YA==}
 
+  '@smart-pay-chain/otp@2.1.7':
+    resolution: {integrity: sha512-kMUUZjFV5uKEiK/eOaaqF0TMePiS7a0s4sO6Wqk3/2ttv7g/LxPhPkUeE/FJtFwoJTQyROi7+CM+ybHLtjXpjQ==}
+    engines: {node: '>=16.0.0'}
+
   '@stablelib/base64@1.0.1':
     resolution: {integrity: sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ==}
 
@@ -2152,6 +2174,9 @@ packages:
 
   '@types/node@24.12.0':
     resolution: {integrity: sha512-GYDxsZi3ChgmckRT9HPU0WEhKLP08ev/Yfcq2AstjrDASOYCSXeyjDsHg4v5t4jOj7cyDX3vmprafKlWIG9MXQ==}
+
+  '@types/nodemailer@7.0.11':
+    resolution: {integrity: sha512-E+U4RzR2dKrx+u3N4DlsmLaDC6mMZOM/TPROxA0UAPiTgI0y4CEFBmZE+coGWTjakDriRsXG368lNk1u9Q0a2g==}
 
   '@types/qs@6.15.0':
     resolution: {integrity: sha512-JawvT8iBVWpzTrz3EGw9BTQFg3BQNmwERdKE22vlTxawwtbyUSlMppvZYKLZzB5zgACXdXxbD3m1bXaMqP/9ow==}
@@ -2397,6 +2422,9 @@ packages:
 
   asynckit@0.4.0:
     resolution: {integrity: sha512-Oei9OH4tRh0YqU3GxhX79dM/mwVgvbZJaSNaRk+bshkj0S5cfHcgYakreBjrHwatXKbz+IoIdYLxrKim2MjW0Q==}
+
+  axios@1.14.0:
+    resolution: {integrity: sha512-3Y8yrqLSwjuzpXuZ0oIYZ/XGgLwUIBU3uLvbcpb0pidD9ctpShJd43KSlEEkVQg6DS0G9NKyzOvBfUtDKEyHvQ==}
 
   babel-jest@29.7.0:
     resolution: {integrity: sha512-BrvGY3xZSwEcCzKvKsCi2GgHqDqsYkOP4/by5xCgIwGXQxIEh+8ew3gmrE1y7XRR6LHZIj6yLYnUi/mm2KXKBg==}
@@ -2977,6 +3005,13 @@ packages:
       expo: '*'
       react: '*'
 
+  expo-clipboard@55.0.12:
+    resolution: {integrity: sha512-DaLjhidJvpkAovzrMUv9LN9OZhiBpwqBOTFeTStRSLiMSwX4QWS0wjqRE2A0v8YnIgjSPrZxLXHLmRJ6TEceow==}
+    peerDependencies:
+      expo: '*'
+      react: '*'
+      react-native: '*'
+
   expo-constants@55.0.8:
     resolution: {integrity: sha512-fhB+8EePHyHu2fVHFRObKV7QL4RCQc6OfJyNn34f6/KEoA3e0q/iCL24IUW2RoIYq+sdNHl09MjDU0Hhh1Ec4A==}
     peerDependencies:
@@ -3120,6 +3155,16 @@ packages:
       react: '*'
       react-native: '*'
 
+  expo-system-ui@55.0.14:
+    resolution: {integrity: sha512-FsBXzWp8l9jE1t96mt9JL25Tfjqftk7csPyzO3lokFD7STvc04p7Kwyjrhr/3l4PdZ0QkRXf3JdebVlzn5ctJw==}
+    peerDependencies:
+      expo: '*'
+      react-native: '*'
+      react-native-web: '*'
+    peerDependenciesMeta:
+      react-native-web:
+        optional: true
+
   expo-task-manager@55.0.10:
     resolution: {integrity: sha512-QjlVPiBqiDaALssZAQ9w14quELKQ9DBdV4sfmH6rICUbDvSBFiH91HbGxROXcQEDrU8lrVDObJQBxrJK9ucaaw==}
     peerDependencies:
@@ -3249,12 +3294,22 @@ packages:
     resolution: {integrity: sha512-o3qS8zCJbApe7aKzkO2Pa380t9cHISqeSd3blqYTtOuUUUua3qZTLwNWgGUOss3td6wbzrZhiHIj3c8+fC046Q==}
     engines: {node: '>=18'}
 
-  firebase-functions@6.6.0:
-    resolution: {integrity: sha512-wwfo6JF+N7HUExVs5gUFgkgVGHDEog9O+qtouh7IuJWk8TBQ+KwXEgRiXbatSj7EbTu3/yYnHuzh3XExbfF6wQ==}
-    engines: {node: '>=14.10.0'}
+  firebase-functions@7.2.3:
+    resolution: {integrity: sha512-myrnxuvmfAQYsaat2Crv1k2qpb2BuRUVRfr1V/nVLNO4sObgd06NT08TsVF3PA6EkxyUsOKXmcvmGFiJC0R2fQ==}
+    engines: {node: '>=18.0.0'}
     hasBin: true
     peerDependencies:
+      '@apollo/server': ^5.2.0
+      '@as-integrations/express4': ^1.1.2
       firebase-admin: ^11.10.0 || ^12.0.0 || ^13.0.0
+      graphql: ^16.12.0
+    peerDependenciesMeta:
+      '@apollo/server':
+        optional: true
+      '@as-integrations/express4':
+        optional: true
+      graphql:
+        optional: true
 
   firebase@12.10.0:
     resolution: {integrity: sha512-tAjHnEirksqWpa+NKDUSUMjulOnsTcsPC1X1rQ+gwPtjlhJS572na91CwaBXQJHXharIrfj7sw/okDkXOsphjA==}
@@ -3269,12 +3324,25 @@ packages:
   flow-enums-runtime@0.0.6:
     resolution: {integrity: sha512-3PYnM29RFXwvAN6Pc/scUfkI7RwhQ/xqyLUyPNlXUp9S40zI8nup9tUSrTLSVnWGBN38FNiGWbwZOB6uR4OGdw==}
 
+  follow-redirects@1.15.11:
+    resolution: {integrity: sha512-deG2P0JfjrTxl50XGCDyfI97ZGVCxIpfKYmfyrQ54n5FO/0gfIES8C/Psl6kWVDolizcaaxZJnTS0QSMxvnsBQ==}
+    engines: {node: '>=4.0'}
+    peerDependencies:
+      debug: '*'
+    peerDependenciesMeta:
+      debug:
+        optional: true
+
   fontfaceobserver@2.3.0:
     resolution: {integrity: sha512-6FPvD/IVyT4ZlNe7Wcn5Fb/4ChigpucKYSvD6a+0iMoLn2inpo711eyIcKjmDtE5XNcgAkSH9uN/nfAeZzHEfg==}
 
   form-data@2.5.5:
     resolution: {integrity: sha512-jqdObeR2rxZZbPSGL+3VckHMYtu+f9//KXBsVny6JSX/pa38Fy+bGjuG8eW/H6USNQWhLi8Num++cU2yOCNz4A==}
     engines: {node: '>= 0.12'}
+
+  form-data@4.0.5:
+    resolution: {integrity: sha512-8RipRLol37bNs2bhoV67fiTEvdTrbMUYcFTiy3+wuuOnUog2QBHCZWXDRijWQfAkhBj2Uf5UnVaiWwA5vdd82w==}
+    engines: {node: '>= 6'}
 
   formdata-polyfill@4.0.10:
     resolution: {integrity: sha512-buewHzMvYL29jdeQTVILecSaZKnt/RJWjoZCF5OW60Z67/GmSLBkOFM7qh1PI3zFNtJbaZL5eQu1vLfazOwj4g==}
@@ -4183,6 +4251,10 @@ packages:
   node-releases@2.0.36:
     resolution: {integrity: sha512-TdC8FSgHz8Mwtw9g5L4gR/Sh9XhSP/0DEkQxfEFXOpiul5IiHgHan2VhYYb6agDSfp4KuvltmGApc8HMgUrIkA==}
 
+  nodemailer@8.0.4:
+    resolution: {integrity: sha512-k+jf6N8PfQJ0Fe8ZhJlgqU5qJU44Lpvp2yvidH3vp1lPnVQMgi4yEEMPXg5eJS1gFIJTVq1NHBk7Ia9ARdSBdQ==}
+    engines: {node: '>=6.0.0'}
+
   normalize-path@3.0.0:
     resolution: {integrity: sha512-6eZs5Ls3WtCisHWp9S2GUy8dqkpGi4BVSz3GaqiE6ezub0512ESztXUwUB6C6IKbQkY2Pnb/mD4WYojCRwcwLA==}
     engines: {node: '>=0.10.0'}
@@ -4397,6 +4469,10 @@ packages:
   proxy-addr@2.0.7:
     resolution: {integrity: sha512-llQsMLSUDUPT44jdrU/O37qlnifitDP+ZwrmmZcoSKyLKvtZxpyV0n2/bD/N4tBAAZ/gJEdZU7KMraoK1+XYAg==}
     engines: {node: '>= 0.10'}
+
+  proxy-from-env@2.1.0:
+    resolution: {integrity: sha512-cJ+oHTW1VAEa8cJslgmUZrc+sjRKgAKl3Zyse6+PV38hZe/V6Z14TbCuXcan9F9ghlz4QrFr2c92TNF82UkYHA==}
+    engines: {node: '>=10'}
 
   punycode@2.3.1:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
@@ -7377,6 +7453,8 @@ snapshots:
 
   '@react-native/normalize-colors@0.83.2': {}
 
+  '@react-native/normalize-colors@0.83.4': {}
+
   '@react-native/virtualized-lists@0.83.2(@types/react@19.2.14)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)':
     dependencies:
       invariant: 2.2.4
@@ -7545,6 +7623,12 @@ snapshots:
   '@sinonjs/fake-timers@10.3.0':
     dependencies:
       '@sinonjs/commons': 3.0.1
+
+  '@smart-pay-chain/otp@2.1.7':
+    dependencies:
+      axios: 1.14.0
+    transitivePeerDependencies:
+      - debug
 
   '@stablelib/base64@1.0.1': {}
 
@@ -7728,6 +7812,10 @@ snapshots:
   '@types/node@24.12.0':
     dependencies:
       undici-types: 7.16.0
+
+  '@types/nodemailer@7.0.11':
+    dependencies:
+      '@types/node': 24.12.0
 
   '@types/qs@6.15.0': {}
 
@@ -8020,8 +8108,15 @@ snapshots:
       retry: 0.13.1
     optional: true
 
-  asynckit@0.4.0:
-    optional: true
+  asynckit@0.4.0: {}
+
+  axios@1.14.0:
+    dependencies:
+      follow-redirects: 1.15.11
+      form-data: 4.0.5
+      proxy-from-env: 2.1.0
+    transitivePeerDependencies:
+      - debug
 
   babel-jest@29.7.0(@babel/core@7.29.0):
     dependencies:
@@ -8331,7 +8426,6 @@ snapshots:
   combined-stream@1.0.8:
     dependencies:
       delayed-stream: 1.0.0
-    optional: true
 
   commander@12.1.0: {}
 
@@ -8440,8 +8534,7 @@ snapshots:
 
   define-lazy-prop@2.0.0: {}
 
-  delayed-stream@1.0.0:
-    optional: true
+  delayed-stream@1.0.0: {}
 
   depd@2.0.0: {}
 
@@ -8533,7 +8626,6 @@ snapshots:
       get-intrinsic: 1.3.0
       has-tostringtag: 1.0.2
       hasown: 2.0.2
-    optional: true
 
   esbuild@0.27.4:
     optionalDependencies:
@@ -8690,6 +8782,12 @@ snapshots:
     dependencies:
       expo: 55.0.7(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.6)(react-dom@19.2.4(react@19.2.0))(react-native-webview@13.16.1(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)(typescript@5.9.3)
       react: 19.2.0
+
+  expo-clipboard@55.0.12(expo@55.0.7)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0):
+    dependencies:
+      expo: 55.0.7(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.6)(react-dom@19.2.4(react@19.2.0))(react-native-webview@13.16.1(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)(typescript@5.9.3)
+      react: 19.2.0
+      react-native: 0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0)
 
   expo-constants@55.0.8(expo@55.0.7)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(typescript@5.9.3):
     dependencies:
@@ -8858,6 +8956,15 @@ snapshots:
       react: 19.2.0
       react-native: 0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0)
       sf-symbols-typescript: 2.2.0
+
+  expo-system-ui@55.0.14(expo@55.0.7)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0)):
+    dependencies:
+      '@react-native/normalize-colors': 0.83.4
+      debug: 4.4.3
+      expo: 55.0.7(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.6)(react-dom@19.2.4(react@19.2.0))(react-native-webview@13.16.1(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)(typescript@5.9.3)
+      react-native: 0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0)
+    transitivePeerDependencies:
+      - supports-color
 
   expo-task-manager@55.0.10(expo@55.0.7)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0)):
     dependencies:
@@ -9080,7 +9187,7 @@ snapshots:
       - encoding
       - supports-color
 
-  firebase-functions@6.6.0(firebase-admin@13.7.0):
+  firebase-functions@7.2.3(firebase-admin@13.7.0):
     dependencies:
       '@types/cors': 2.8.19
       '@types/express': 4.17.25
@@ -9166,6 +9273,8 @@ snapshots:
 
   flow-enums-runtime@0.0.6: {}
 
+  follow-redirects@1.15.11: {}
+
   fontfaceobserver@2.3.0: {}
 
   form-data@2.5.5:
@@ -9177,6 +9286,14 @@ snapshots:
       mime-types: 2.1.35
       safe-buffer: 5.2.1
     optional: true
+
+  form-data@4.0.5:
+    dependencies:
+      asynckit: 0.4.0
+      combined-stream: 1.0.8
+      es-set-tostringtag: 2.1.0
+      hasown: 2.0.2
+      mime-types: 2.1.35
 
   formdata-polyfill@4.0.10:
     dependencies:
@@ -9357,7 +9474,6 @@ snapshots:
   has-tostringtag@1.0.2:
     dependencies:
       has-symbols: 1.1.0
-    optional: true
 
   hasown@2.0.2:
     dependencies:
@@ -10311,6 +10427,8 @@ snapshots:
 
   node-releases@2.0.36: {}
 
+  nodemailer@8.0.4: {}
+
   normalize-path@3.0.0: {}
 
   npm-package-arg@11.0.3:
@@ -10527,6 +10645,8 @@ snapshots:
     dependencies:
       forwarded: 0.2.0
       ipaddr.js: 1.9.1
+
+  proxy-from-env@2.1.0: {}
 
   punycode@2.3.1: {}
 
