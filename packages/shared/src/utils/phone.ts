@@ -18,8 +18,9 @@ export function sanitizeOtp(input: string): string {
   return input.replace(/\D/g, "").slice(0, 6);
 }
 
-/** Country dialing codes — sorted alphabetically by country name */
+/** Country dialing codes — US/CA first, then sorted alphabetically by country name */
 export const COUNTRY_CODES = [
+  { code: "+1",    label: "US +1"   },  // United States
   { code: "+93",   label: "AF +93"  },  // Afghanistan
   { code: "+355",  label: "AL +355" },  // Albania
   { code: "+213",  label: "DZ +213" },  // Algeria
@@ -48,7 +49,6 @@ export const COUNTRY_CODES = [
   { code: "+257",  label: "BI +257" },  // Burundi
   { code: "+855",  label: "KH +855" },  // Cambodia
   { code: "+237",  label: "CM +237" },  // Cameroon
-  { code: "+1",    label: "US/CA +1"},  // Canada / USA
   { code: "+238",  label: "CV +238" },  // Cape Verde
   { code: "+236",  label: "CF +236" },  // Central African Republic
   { code: "+235",  label: "TD +235" },  // Chad
@@ -102,7 +102,7 @@ export const COUNTRY_CODES = [
   { code: "+1876", label: "JM +1876"},  // Jamaica
   { code: "+81",   label: "JP +81"  },  // Japan
   { code: "+962",  label: "JO +962" },  // Jordan
-  { code: "+7",    label: "KZ +7"   },  // Kazakhstan
+  { code: "+7",    label: "KZ/RU +7" },  // Kazakhstan / Russia
   { code: "+254",  label: "KE +254" },  // Kenya
   { code: "+686",  label: "KI +686" },  // Kiribati
   { code: "+383",  label: "XK +383" },  // Kosovo
@@ -157,7 +157,6 @@ export const COUNTRY_CODES = [
   { code: "+351",  label: "PT +351" },  // Portugal
   { code: "+974",  label: "QA +974" },  // Qatar
   { code: "+40",   label: "RO +40"  },  // Romania
-  { code: "+7",    label: "RU +7"   },  // Russia
   { code: "+250",  label: "RW +250" },  // Rwanda
   { code: "+966",  label: "SA +966" },  // Saudi Arabia
   { code: "+221",  label: "SN +221" },  // Senegal
