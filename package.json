@@ -6,7 +6,7 @@
     "dev:driver": "turbo run dev --filter=@nexus/driver",
     "build": "turbo run build",
     "build:dashboard": "turbo run build --filter=@nexus/dashboard",
-    "build:functions": "cd functions && npm run build",
+    "build:functions": "pnpm --filter @nexus/functions run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "clean": "turbo run clean",
