@@ -7,6 +7,7 @@ import { doc, getDoc, collection, query, where, getDocs } from "firebase/firesto
 import { db } from "@/services/firebase";
 import { COLLECTIONS } from "@nexus/shared";
 import { Moon, Sun, User, Building2, Palette, Shield, Users, MapPin, LogOut, Crown, Loader2, CreditCard } from "lucide-react";
+import PaymentModal from "@/components/PaymentModal";
 
 export default function Settings() {
   const { userDoc, firebaseUser } = useAuthStore();
@@ -19,6 +20,7 @@ export default function Settings() {
   const [driverCount, setDriverCount] = useState<number | null>(null);
   const [tripCount, setTripCount] = useState<number | null>(null);
   const [subscribing, setSubscribing] = useState(false);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
   const API_BASE = "https://admin-panel-be9fc.web.app";
 
@@ -67,12 +69,12 @@ export default function Settings() {
           email: firebaseUser.email,
           planId: matchedPlan.id,
           product: "tracker",
-          returnUrl: `${window.location.origin}/settings`,
+          returnUrl: "https://load-mind.com/checkout/return",
         }),
       });
       const data = await res.json();
       if (data.checkout_url) {
-        window.location.href = data.checkout_url;
+        setCheckoutUrl(data.checkout_url);
       } else {
         alert(data.message || "Failed to start checkout");
       }
@@ -97,6 +99,24 @@ export default function Settings() {
     .toUpperCase();
 
   return (
+    <>
+    {checkoutUrl && (
+      <PaymentModal
+        checkoutUrl={checkoutUrl}
+        onClose={() => setCheckoutUrl(null)}
+        onComplete={() => {
+          setCheckoutUrl(null);
+          if (userDoc?.companyId) {
+            getDoc(doc(db, COLLECTIONS.COMPANIES, userDoc.companyId)).then((snap) => {
+              if (snap.exists()) {
+                setCompanyPlan(snap.data().plan ?? null);
+                setRequestedPlan(snap.data().requestedPlan ?? null);
+              }
+            });
+          }
+        }}
+      />
+    )}
     <div className="h-screen flex flex-col">
       <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5">
@@ -320,5 +340,6 @@ export default function Settings() {
         </div>
       </main>
     </div>
+    </>
   );
 }

@@ -1,43 +1,36 @@
-import {
-  PhoneAuthProvider,
-  signInWithCredential,
-  type User as FirebaseUser,
-} from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
-import { auth, db } from "./firebase";
-import { COLLECTIONS, type User } from "@nexus/shared";
 import nativeAuth from "@react-native-firebase/auth";
+import type { FirebaseAuthTypes } from "@react-native-firebase/auth";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { signInWithCustomToken as jsSignInWithCustomToken } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import { app, auth, db } from "./firebase";
+import { COLLECTIONS, type User } from "@nexus/shared";
 
-// ---------------------------------------------------------------------------
-// Send verification code using native SDK (Play Integrity + reCAPTCHA fallback)
-// signInWithPhoneNumber handles the full Android flow gracefully, including
-// reCAPTCHA fallback for debug/sideloaded builds.
-// ---------------------------------------------------------------------------
+const functions = getFunctions(app);
 
-export async function sendVerificationCode(
-  phoneNumber: string
-): Promise<string> {
-  const confirmation = await nativeAuth().signInWithPhoneNumber(phoneNumber);
-  if (!confirmation.verificationId) throw new Error("No verification ID returned");
-  return confirmation.verificationId;
+export async function sendVerificationCode(phoneNumber: string): Promise<string | null> {
+  const sendOtp = httpsCallable<{ phone: string }, { success: boolean; requestId?: string }>(functions, "sendOtp");
+  const result = await sendOtp({ phone: phoneNumber });
+  return result.data.requestId ?? null;
 }
-
-// ---------------------------------------------------------------------------
-// Phone OTP verification — runs on the React Native side (Firebase JS SDK)
-// ---------------------------------------------------------------------------
 
 export async function verifyOtpAndSignIn(
-  verificationId: string,
-  otpCode: string
-): Promise<FirebaseUser> {
-  const credential = PhoneAuthProvider.credential(verificationId, otpCode);
-  const result = await signInWithCredential(auth, credential);
-  return result.user;
-}
+  phoneNumber: string,
+  otpCode: string,
+  requestId?: string | null
+): Promise<FirebaseAuthTypes.User> {
+  const verifyOtp = httpsCallable<
+    { phone: string; code: string; requestId?: string },
+    { customToken: string }
+  >(functions, "verifyOtp");
 
-// ---------------------------------------------------------------------------
-// Create Firestore user doc for new phone-auth users
-// ---------------------------------------------------------------------------
+  const result = await verifyOtp({ phone: phoneNumber, code: otpCode, requestId: requestId ?? undefined });
+  const { customToken } = result.data;
+
+  await jsSignInWithCustomToken(auth, customToken);
+  const credential = await nativeAuth().signInWithCustomToken(customToken);
+  return credential.user;
+}
 
 export async function createPhoneUser(
   uid: string,

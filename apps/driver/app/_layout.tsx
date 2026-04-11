@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Alert } from "react-native";
 import { Slot, useRouter, useSegments } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { StatusBar } from "expo-status-bar";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Linking from "expo-linking";
 import * as Updates from "expo-updates";
-import { onAuthChange, getUserDoc, onUserDocChange } from "../src/services/auth";
+import { onAuthChange, onUserDocChange } from "../src/services/auth";
 import { useAuthStore } from "../src/stores/auth";
 import { useThemeStore } from "../src/stores/theme";
 import * as Notifications from "expo-notifications";
@@ -28,35 +29,43 @@ function extractInviteId(url: string): string | null {
 function AuthGate() {
   const router = useRouter();
   const segments = useSegments();
-  const { firebaseUser, loading, setFirebaseUser, setUserDoc, setLoading, setPendingInviteId } =
+  const { firebaseUser, userDoc, loading, setFirebaseUser, setUserDoc, setLoading, setPendingInviteId } =
     useAuthStore();
 
   // Handle auth state
   const userDocUnsubRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
+    // Safety timeout — if onAuthChange never fires, unblock routing after 5s
+    const timeout = setTimeout(() => setLoading(false), 5000);
+
     const unsubscribe = onAuthChange(async (user) => {
+      clearTimeout(timeout);
       // Clean up previous user doc listener
       userDocUnsubRef.current?.();
       userDocUnsubRef.current = null;
 
       if (user) {
         setFirebaseUser({ uid: user.uid, email: user.email });
-        // Initial fetch for fast load
-        const userDoc = await getUserDoc(user.uid);
-        setUserDoc(userDoc);
-        // Real-time listener for subsequent changes (e.g. driver removal)
+        // Delay setLoading(false) until first userDoc snapshot fires,
+        // otherwise the deleted-user guard fires before userDoc loads.
+        let resolved = false;
         userDocUnsubRef.current = onUserDocChange(user.uid, (doc) => {
           setUserDoc(doc);
+          if (!resolved) {
+            resolved = true;
+            setLoading(false);
+          }
         });
       } else {
         setFirebaseUser(null);
         setUserDoc(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => {
+      clearTimeout(timeout);
       unsubscribe();
       userDocUnsubRef.current?.();
     };
@@ -116,39 +125,46 @@ function AuthGate() {
     return () => sub.remove();
   }, [router]);
 
-  // Auth-based routing (handles cold start + invite links)
-  const initialUrlProcessed = useRef(false);
+  // Pre-load initial URL + onboarding flag while auth is resolving
+  // so routing is synchronous when loading flips to false (avoids OTA-restart race)
+  type StartupRoute = { pathname: string; params?: Record<string, string> };
+  const [startupRoute, setStartupRoute] = useState<StartupRoute | null>(null);
 
   useEffect(() => {
+    async function preload() {
+      const url = await Linking.getInitialURL();
+      const invId = url ? extractInviteId(url) : null;
+
+      if (invId) {
+        setStartupRoute({ pathname: "/(auth)/login", params: { inviteId: invId } });
+      } else {
+        const seen = await AsyncStorage.getItem("@onboarding_seen");
+        setStartupRoute({ pathname: seen ? "/(auth)/login" : "/(auth)/onboarding" });
+      }
+    }
+    preload();
+  }, []);
+
+  // Auth-based routing
+  useEffect(() => {
     if (loading) return;
+    // Wait until preload finished
+    if (!startupRoute) return;
 
     const inAuthGroup = segments[0] === "(auth)";
+    const inMainGroup = segments[0] === "(main)";
     const onAcceptInvite = (segments as string[])[1] === "accept-invite";
     const onInviteRoute = segments[0] === "invite";
 
-    // Don't redirect away from invite route — let invite/[id].tsx handle it
     if (!firebaseUser && !inAuthGroup && !onInviteRoute) {
-      if (!initialUrlProcessed.current) {
-        initialUrlProcessed.current = true;
-        // Check if cold-started via invite link
-        Linking.getInitialURL().then((url) => {
-          const invId = url ? extractInviteId(url) : null;
-          if (invId) {
-            router.replace({
-              pathname: "/(auth)/login",
-              params: { inviteId: invId },
-            });
-          } else {
-            router.replace("/(auth)/login");
-          }
-        });
-      } else {
-        router.replace("/(auth)/login");
-      }
-    } else if (firebaseUser && inAuthGroup && !onAcceptInvite) {
+      router.replace(startupRoute as any);
+    } else if (firebaseUser && userDoc && !inMainGroup && !onAcceptInvite && !onInviteRoute) {
       router.replace("/(main)/home");
+    } else if (firebaseUser && !userDoc && !inAuthGroup && !onAcceptInvite && !onInviteRoute) {
+      // Auth token exists but no user doc — account deleted from console
+      import("../src/services/auth").then(({ logout }) => logout().catch(() => {}));
     }
-  }, [firebaseUser, loading, segments, router]);
+  }, [firebaseUser, userDoc, loading, segments, router, startupRoute]);
 
   return <Slot />;
 }

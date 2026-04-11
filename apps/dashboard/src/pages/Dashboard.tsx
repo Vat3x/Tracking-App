@@ -17,6 +17,7 @@ import { db } from "@/services/firebase";
 import { toast } from "sonner";
 import { COLLECTIONS, type Invite, type User, type Trip, type TripStatus, getStopsFromTrip } from "@nexus/shared";
 import ThemeToggle from "@/components/ThemeToggle";
+import PaymentModal from "@/components/PaymentModal";
 import { Crown, Loader2 } from "lucide-react";
 
 function formatTime(ts: number): string {
@@ -70,6 +71,7 @@ export default function Dashboard() {
   const [companyPlan, setCompanyPlan] = useState<string | null>(null);
   const [requestedPlan, setRequestedPlan] = useState<string | null>(null);
   const [subscribing, setSubscribing] = useState(false);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [tripFormDriverId, setTripFormDriverId] = useState<string | undefined>();
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -184,12 +186,15 @@ export default function Dashboard() {
           email: firebaseUser.email,
           planId: matchedPlan.id,
           product: "tracker",
-          returnUrl: `${window.location.origin}/settings`,
+          returnUrl: "https://load-mind.com/checkout/return",
         }),
       });
       const data = await res.json();
-      if (data.checkout_url) window.location.href = data.checkout_url;
-      else alert(data.message || "Failed to start checkout");
+      if (data.checkout_url) {
+        setCheckoutUrl(data.checkout_url);
+      } else {
+        alert(data.message || "Failed to start checkout");
+      }
     } catch {
       alert("Failed to start checkout. Please try again.");
     } finally {
@@ -636,6 +641,26 @@ export default function Dashboard() {
         onClose={() => setInviteModalOpen(false)}
         companyName={companyName}
       />
+
+      {/* Flitt payment modal */}
+      {checkoutUrl && (
+        <PaymentModal
+          checkoutUrl={checkoutUrl}
+          onClose={() => setCheckoutUrl(null)}
+          onComplete={() => {
+            setCheckoutUrl(null);
+            // Re-fetch company plan to dismiss overlay
+            if (userDoc?.companyId) {
+              getDoc(doc(db, COLLECTIONS.COMPANIES, userDoc.companyId)).then((snap) => {
+                if (snap.exists()) {
+                  setCompanyPlan(snap.data().plan ?? null);
+                  setRequestedPlan(snap.data().requestedPlan ?? null);
+                }
+              });
+            }
+          }}
+        />
+      )}
 
       {/* Purchase overlay — shown when user has requestedPlan but no active plan */}
       {!companyPlan && requestedPlan && (

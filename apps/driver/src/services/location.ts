@@ -57,8 +57,8 @@ export async function startBackgroundTracking(): Promise<boolean> {
       deferredUpdatesInterval: TRACKING_INTERVAL_MS,
       showsBackgroundLocationIndicator: true, // iOS blue bar
       foregroundService: {
-        notificationTitle: "LoadMind Tracker",
-        notificationBody: "Sharing your location with your dispatcher",
+        notificationTitle: "Location tracking active",
+        notificationBody: "Your location is being shared with your employer for fleet management.",
         notificationColor: "#1a73e8",
       },
     });

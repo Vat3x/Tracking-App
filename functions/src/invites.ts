@@ -49,6 +49,53 @@ export const onInviteAccepted = onDocumentUpdated("invites/{inviteId}", async (e
 });
 
 /**
+ * Callable: accept an invite. Uses Admin SDK to bypass Firestore rules.
+ * Called by the driver app after phone OTP sign-in.
+ */
+export const acceptInviteCall = onCall({ cors: true }, async (request) => {
+  const { inviteId, driverId } = request.data as { inviteId: string; driverId: string };
+  console.log("acceptInviteCall: called", { inviteId, driverId });
+  if (!inviteId || !driverId) {
+    throw new HttpsError("invalid-argument", "inviteId and driverId are required");
+  }
+
+  const inviteRef = firestore.doc(`invites/${inviteId}`);
+  const snap = await inviteRef.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Invite not found");
+
+  const data = snap.data()!;
+  console.log("acceptInviteCall: invite data", { status: data.status, companyId: data.companyId });
+  if (data.status !== "pending") {
+    throw new HttpsError("failed-precondition", "Invite is no longer pending");
+  }
+
+  const { companyId, companyName } = data;
+
+  // Update invite status
+  await inviteRef.update({ status: "accepted", acceptedBy: driverId });
+  console.log("acceptInviteCall: invite updated");
+
+  // Link driver to company directly (don't rely on onInviteAccepted trigger)
+  const batch = firestore.batch();
+  batch.set(
+    firestore.doc(`users/${driverId}`),
+    { companyId, role: "driver", ...(companyName ? { companyName } : {}) },
+    { merge: true }
+  );
+  batch.set(
+    firestore.doc(`companies/${companyId}/members/${driverId}`),
+    { userId: driverId, role: "driver", joinedAt: Date.now() }
+  );
+  await batch.commit();
+  console.log("acceptInviteCall: driver linked to company", companyId);
+
+  await rtdb.ref(`company_members/${companyId}/${driverId}`).set(true);
+  console.log("acceptInviteCall: RTDB updated");
+
+  return { success: true };
+});
+
+/**
  * Public callable: fetch invite data by ID (no auth required).
  * Uses Admin SDK to bypass Firestore security rules.
  */

@@ -11,6 +11,7 @@ import {
   Alert,
   ScrollView,
   Linking,
+  Keyboard,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { loginWithEmail, registerDriver, resetPassword, getUserDoc } from "../../src/services/auth";
@@ -19,8 +20,8 @@ import { acceptInvite } from "../../src/services/invites";
 import { Logo } from "../../src/components/Logo";
 import { useAuthStore } from "../../src/stores/auth";
 import { useTheme } from "../../src/hooks/useTheme";
-import { auth } from "../../src/services/firebase";
-import { COUNTRY_CODES, extractDigits, isValidPhoneDigits, buildFullNumber, sanitizeOtp } from "@nexus/shared";
+import nativeAuth from "@react-native-firebase/auth";
+import { COUNTRY_CODES, isValidPhoneDigits, buildFullNumber, sanitizeOtp } from "@nexus/shared";
 
 type PhoneStep = "idle" | "sending" | "otp" | "verifying" | "name" | "saving";
 
@@ -33,13 +34,9 @@ export default function LoginScreen() {
   }>();
   const { setFirebaseUser, setUserDoc, pendingInviteId, setPendingInviteId } = useAuthStore();
 
-  // Prefer route param, fall back to store (warm-start deep link sets store)
   const inviteId = params.inviteId || pendingInviteId;
   const inviteCompanyName = params.inviteCompanyName;
   const hasInvite = !!inviteId;
-
-  // Auth method toggle — default to email registration when coming from invite
-  const [authMethod, setAuthMethod] = useState<"phone" | "email">(hasInvite ? "email" : "phone");
 
   // Email auth state — default to register when coming from invite link
   const [isRegister, setIsRegister] = useState(hasInvite);
@@ -49,20 +46,28 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
 
+  // Forgot password inline flow
+  const [forgotMode, setForgotMode] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetSent, setResetSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState("");
+
   // Phone auth state
   const [phoneNumber, setPhoneNumber] = useState("");
   const [countryCode, setCountryCode] = useState("+1");
   const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [countrySearch, setCountrySearch] = useState("");
   const [otpCode, setOtpCode] = useState("");
-  const [verificationId, setVerificationId] = useState<string | null>(null);
+  const [otpPhone, setOtpPhone] = useState<string | null>(null);
+  const [otpRequestId, setOtpRequestId] = useState<string | null>(null);
   const [phoneStep, setPhoneStep] = useState<PhoneStep>("idle");
   const [newUserName, setNewUserName] = useState("");
   const [resendCooldown, setResendCooldown] = useState(0);
 
-  // Switch to email + register when invite arrives via warm-start deep link
+  // Switch to register mode when invite arrives via warm-start deep link
   useEffect(() => {
     if (pendingInviteId) {
-      setAuthMethod("email");
       setIsRegister(true);
     }
   }, [pendingInviteId]);
@@ -74,30 +79,18 @@ export default function LoginScreen() {
     return () => clearTimeout(timer);
   }, [resendCooldown]);
 
-  // Reset phone state when switching tabs
-  useEffect(() => {
-    if (authMethod === "phone") {
-      setPhoneStep("idle");
-      setOtpCode("");
-      setVerificationId(null);
-      setNewUserName("");
-      setResendCooldown(0);
-    }
-  }, [authMethod]);
-
   async function tryAcceptInvite(uid: string) {
     if (!inviteId) return;
     try {
       await acceptInvite(inviteId, uid);
       setPendingInviteId(null);
-      // Poll until cloud function sets companyId (up to 10s)
       for (let i = 0; i < 7; i++) {
         await new Promise((r) => setTimeout(r, 1500));
         const doc = await getUserDoc(uid);
         if (doc?.companyId) return;
       }
-    } catch {
-      // non-fatal
+    } catch (err: any) {
+      console.error("tryAcceptInvite failed:", err?.code, err?.message);
     }
   }
 
@@ -166,25 +159,36 @@ export default function LoginScreen() {
     }
   }
 
-  async function handleForgotPassword() {
-    const resetEmail = email.trim();
-    if (!resetEmail) {
-      Alert.alert("Error", "Please enter your email address first.");
+  function openForgotMode() {
+    setResetEmail(email.trim());
+    setResetSent(false);
+    setResetError("");
+    setForgotMode(true);
+  }
+
+  async function handleSendReset() {
+    const trimmed = resetEmail.trim();
+    if (!trimmed) {
+      setResetError("Please enter your email address.");
       return;
     }
+    setResetError("");
+    setResetLoading(true);
     try {
-      await resetPassword(resetEmail);
-      Alert.alert("Email Sent", "Check your email for a password reset link.");
+      await resetPassword(trimmed);
+      setResetSent(true);
     } catch (err: any) {
-      if (err.code === "auth/user-not-found") {
-        Alert.alert("Error", "No account found with this email.");
+      if (err.code === "auth/user-not-found" || err.code === "auth/invalid-credential") {
+        setResetError("No account found with this email.");
       } else if (err.code === "auth/invalid-email") {
-        Alert.alert("Error", "Please enter a valid email address.");
+        setResetError("Please enter a valid email address.");
       } else if (err.code === "auth/too-many-requests") {
-        Alert.alert("Error", "Too many attempts. Please try again later.");
+        setResetError("Too many attempts. Please try again later.");
       } else {
-        Alert.alert("Error", "Failed to send reset email. Please try again.");
+        setResetError("Failed to send reset email. Please try again.");
       }
+    } finally {
+      setResetLoading(false);
     }
   }
 
@@ -198,27 +202,29 @@ export default function LoginScreen() {
     const fullNumber = buildFullNumber(countryCode, phoneNumber);
     setPhoneStep("sending");
     try {
-      const vId = await sendVerificationCode(fullNumber);
-      setVerificationId(vId);
+      const requestId = await sendVerificationCode(fullNumber);
+      setOtpPhone(fullNumber);
+      setOtpRequestId(requestId);
       setPhoneStep("otp");
       setResendCooldown(30);
     } catch (err: any) {
       setPhoneStep("idle");
+      console.error("sendVerificationCode error:", err?.code, err?.message);
       let msg = "Failed to send verification code.";
       if (err.code === "auth/too-many-requests") msg = "Too many attempts. Please try again later.";
       if (err.code === "auth/invalid-phone-number") msg = "Invalid phone number format.";
-      Alert.alert("Error", msg);
+      Alert.alert("Error", `${msg}\n\n${err?.code ?? "unknown"}`);
     }
   }
 
   async function handleVerifyOtp() {
-    if (!verificationId || otpCode.length !== 6) {
+    if (!otpPhone || otpCode.length !== 6) {
       Alert.alert("Error", "Please enter the 6-digit code.");
       return;
     }
     setPhoneStep("verifying");
     try {
-      const user = await verifyOtpAndSignIn(verificationId, otpCode);
+      const user = await verifyOtpAndSignIn(otpPhone, otpCode, otpRequestId);
       const userDoc = await getUserDoc(user.uid);
 
       if (userDoc) {
@@ -233,26 +239,28 @@ export default function LoginScreen() {
         setUserDoc(finalDoc);
         router.replace("/(main)/home");
       } else if (hasInvite) {
+        Keyboard.dismiss();
         setPhoneStep("name");
       } else {
-        // Sign out the orphaned Firebase Auth user (no Firestore doc, no invite)
-        await auth.signOut();
+        await nativeAuth().signOut();
         Alert.alert(
           "No Account Found",
           "Please use an invite link from your dispatcher to register."
         );
         setPhoneStep("idle");
         setOtpCode("");
-        setVerificationId(null);
+        setOtpPhone(null);
       }
     } catch (err: any) {
       setPhoneStep("otp");
-      if (err.code === "auth/invalid-verification-code") {
+      const msg: string = err?.message || "";
+      if (msg.includes("Invalid or expired")) {
         Alert.alert("Error", "Invalid code. Please try again.");
-      } else if (err.code === "auth/code-expired") {
-        Alert.alert("Error", "Code expired. Please request a new one.");
+      } else if (msg.includes("Max verification")) {
+        Alert.alert("Error", "Too many attempts. Please request a new code.");
         setPhoneStep("idle");
         setOtpCode("");
+        setOtpPhone(null);
       } else {
         Alert.alert("Error", "Verification failed. Please try again.");
       }
@@ -266,7 +274,7 @@ export default function LoginScreen() {
     }
     setPhoneStep("saving");
     try {
-      const user = auth.currentUser;
+      const user = nativeAuth().currentUser;
       if (!user) throw new Error("No authenticated user");
 
       const fullNumber = buildFullNumber(countryCode, phoneNumber);
@@ -289,7 +297,12 @@ export default function LoginScreen() {
     handleSendOtp();
   }
 
-  const phoneLoading = phoneStep === "sending" || phoneStep === "verifying" || phoneStep === "saving";
+  // When in OTP or name step, show only that step full-screen
+  const isPhoneMultiStep =
+    phoneStep === "otp" ||
+    phoneStep === "verifying" ||
+    phoneStep === "name" ||
+    phoneStep === "saving";
 
   return (
     <KeyboardAvoidingView
@@ -300,13 +313,16 @@ export default function LoginScreen() {
         contentContainerStyle={styles.inner}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.logoRow}>
-          <Logo size={56} />
-          <View>
-            <Text style={styles.title}>LoadMind</Text>
-            <Text style={styles.titleAccent}>Tracker</Text>
+        {/* Logo */}
+        <View style={styles.logoSection}>
+          <View style={[styles.logoWrap, { backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(31,106,181,0.07)" }]}>
+            <Logo size={72} />
           </View>
+          <Text style={styles.title}>LoadMind</Text>
+          <Text style={styles.titleAccent}>TRACKER</Text>
         </View>
+
+        {/* Invite banner */}
         {hasInvite && inviteCompanyName && (
           <View style={[styles.inviteBanner, isDark && { backgroundColor: "#052e16" }]}>
             <Text style={[styles.inviteBannerText, isDark && { color: "#86efac" }]}>
@@ -314,69 +330,156 @@ export default function LoginScreen() {
             </Text>
           </View>
         )}
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          {authMethod === "phone"
-            ? phoneStep === "name"
-              ? "Set your name to continue"
-              : hasInvite
-              ? "Sign in or register with your phone"
-              : "Sign in with your phone number"
-            : isRegister
-            ? "Create your driver account"
-            : "Sign in to continue"}
-        </Text>
 
-        {/* Auth method toggle */}
-        <View style={[styles.toggleRow, { backgroundColor: colors.toggleBg }]}>
-          <TouchableOpacity
-            style={[styles.toggleBtn, authMethod === "phone" && styles.toggleActive]}
-            onPress={() => setAuthMethod("phone")}
-          >
-            <Text
-              style={[styles.toggleText, { color: colors.textSecondary }, authMethod === "phone" && styles.toggleTextActive]}
-            >
-              Phone
+        {/* Info banner — shown when no invite and idle */}
+        {!hasInvite && !isPhoneMultiStep && (
+          <View style={[styles.infoBanner, isDark && { backgroundColor: "#2d2000", borderColor: "#78500a" }]}>
+            <Text style={styles.infoBannerIcon}>💡</Text>
+            <Text style={[styles.infoBannerText, isDark && { color: "#fcd34d" }]}>
+              To create an account, ask your company for an invitation link.
             </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.toggleBtn, authMethod === "email" && styles.toggleActive]}
-            onPress={() => setAuthMethod("email")}
-          >
-            <Text
-              style={[styles.toggleText, { color: colors.textSecondary }, authMethod === "email" && styles.toggleTextActive]}
-            >
-              Email
-            </Text>
-          </TouchableOpacity>
-        </View>
+          </View>
+        )}
 
-        {/* ---- PHONE AUTH ---- */}
-        {authMethod === "phone" && (
-          <>
-            {phoneStep === "idle" || phoneStep === "sending" ? (
-              <>
-                <View style={styles.phoneRow}>
-                  <TouchableOpacity
-                    style={[styles.countryBtn, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg }]}
-                    onPress={() => setShowCountryPicker(!showCountryPicker)}
-                  >
-                    <Text style={[styles.countryBtnText, { color: colors.inputText }]}>{countryCode}</Text>
-                    <Text style={[styles.countryArrow, { color: colors.textMuted }]}>▼</Text>
-                  </TouchableOpacity>
+        {/* OTP subtitle */}
+        {(phoneStep === "otp" || phoneStep === "verifying") && (
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            Enter the 6-digit code sent to {countryCode} {phoneNumber}
+          </Text>
+        )}
+        {(phoneStep === "name" || phoneStep === "saving") && (
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            Set your name to continue
+          </Text>
+        )}
+
+        {/* Form card */}
+        <View style={[styles.formCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+
+          {isPhoneMultiStep ? (
+            /* ---- FULL-SCREEN PHONE MULTI-STEP ---- */
+            <>
+              {phoneStep === "otp" || phoneStep === "verifying" ? (
+                <>
                   <TextInput
-                    style={[styles.phoneInput, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg, color: colors.inputText }]}
-                    placeholder="Phone number"
+                    style={[styles.input, styles.otpInput, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg, color: colors.inputText }]}
+                    placeholder="000000"
                     placeholderTextColor={colors.placeholder}
-                    value={phoneNumber}
-                    onChangeText={setPhoneNumber}
-                    keyboardType="phone-pad"
+                    value={otpCode}
+                    onChangeText={(text) => setOtpCode(sanitizeOtp(text))}
+                    keyboardType="number-pad"
+                    maxLength={6}
                     autoFocus
+                    textAlign="center"
+                    textContentType="oneTimeCode"
+                    autoComplete="sms-otp"
                   />
-                </View>
 
-                {showCountryPicker && (
-                  <View style={[styles.countryList, { borderColor: colors.inputBorder, backgroundColor: colors.bgCard }]}>
-                    {COUNTRY_CODES.map((c) => (
+                  <TouchableOpacity
+                    style={[styles.button, (phoneStep === "verifying" || otpCode.length !== 6) && styles.buttonDisabled]}
+                    onPress={handleVerifyOtp}
+                    disabled={phoneStep === "verifying" || otpCode.length !== 6}
+                  >
+                    {phoneStep === "verifying" ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <Text style={styles.buttonText}>Verify</Text>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.resendBtn}
+                    onPress={handleResendOtp}
+                    disabled={resendCooldown > 0}
+                  >
+                    <Text style={[styles.resendText, resendCooldown > 0 && { color: colors.textMuted }]}>
+                      {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Resend Code"}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.switchButton}
+                    onPress={() => {
+                      setPhoneStep("idle");
+                      setOtpCode("");
+                      setOtpPhone(null);
+                      setOtpRequestId(null);
+                    }}
+                  >
+                    <Text style={styles.switchText}>Change phone number</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                /* name / saving */
+                <>
+                  <TextInput
+                    style={[styles.input, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg, color: colors.inputText }]}
+                    placeholder="Your name"
+                    placeholderTextColor={colors.placeholder}
+                    value={newUserName}
+                    onChangeText={setNewUserName}
+                    keyboardType="default"
+                    autoCapitalize="words"
+                  />
+
+                  <TouchableOpacity
+                    style={[styles.button, phoneStep === "saving" && styles.buttonDisabled]}
+                    onPress={handleSaveNewUser}
+                    disabled={phoneStep === "saving"}
+                  >
+                    {phoneStep === "saving" ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <Text style={styles.buttonText}>Continue</Text>
+                    )}
+                  </TouchableOpacity>
+                </>
+              )}
+            </>
+          ) : (
+            /* ---- COMBINED PHONE + EMAIL ---- */
+            <>
+              {/* PHONE SECTION */}
+              <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Mobile</Text>
+
+              <View style={styles.phoneRow}>
+                <TouchableOpacity
+                  style={[styles.countryBtn, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg }]}
+                  onPress={() => { setShowCountryPicker(!showCountryPicker); setCountrySearch(""); }}
+                >
+                  <Text style={[styles.countryBtnText, { color: colors.inputText }]}>{countryCode}</Text>
+                  <Text style={[styles.countryArrow, { color: colors.textMuted }]}>▼</Text>
+                </TouchableOpacity>
+                <TextInput
+                  style={[styles.phoneInput, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg, color: colors.inputText }]}
+                  placeholder="Phone number"
+                  placeholderTextColor={colors.placeholder}
+                  value={phoneNumber}
+                  onChangeText={setPhoneNumber}
+                  keyboardType="phone-pad"
+                />
+              </View>
+
+              {showCountryPicker && (
+                <View style={[styles.countryList, { borderColor: colors.inputBorder, backgroundColor: colors.bgCard }]}>
+                  <View style={[styles.countrySearchWrapper, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg }]}>
+                    <Text style={[styles.countrySearchIcon, { color: colors.placeholder }]}>🔍</Text>
+                    <TextInput
+                      style={[styles.countrySearch, { color: colors.inputText }]}
+                      placeholder="Search country or code…"
+                      placeholderTextColor={colors.placeholder}
+                      value={countrySearch}
+                      onChangeText={setCountrySearch}
+                      autoCorrect={false}
+                      autoCapitalize="none"
+                      clearButtonMode="while-editing"
+                    />
+                  </View>
+                  <ScrollView style={styles.countryScroll} keyboardShouldPersistTaps="handled">
+                    {COUNTRY_CODES.filter((c) => {
+                      const q = countrySearch.toLowerCase();
+                      return !q || c.label.toLowerCase().includes(q);
+                    }).map((c) => (
                       <TouchableOpacity
                         key={c.code + c.label}
                         style={[
@@ -387,190 +490,175 @@ export default function LoginScreen() {
                         onPress={() => {
                           setCountryCode(c.code);
                           setShowCountryPicker(false);
+                          setCountrySearch("");
                         }}
                       >
                         <Text style={[styles.countryItemText, { color: colors.text }]}>{c.label}</Text>
                       </TouchableOpacity>
                     ))}
-                  </View>
-                )}
-
-                <TouchableOpacity
-                  style={[styles.button, phoneStep === "sending" && styles.buttonDisabled]}
-                  onPress={handleSendOtp}
-                  disabled={phoneStep === "sending"}
-                >
-                  {phoneStep === "sending" ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <Text style={styles.buttonText}>Send Code</Text>
-                  )}
-                </TouchableOpacity>
-              </>
-            ) : phoneStep === "otp" || phoneStep === "verifying" ? (
-              <>
-                <Text style={[styles.otpLabel, { color: colors.textSecondary }]}>
-                  Enter the 6-digit code sent to{" "}
-                  <Text style={[styles.otpPhone, { color: colors.text }]}>
-                    {countryCode} {phoneNumber}
-                  </Text>
-                </Text>
-
-                <TextInput
-                  style={[styles.input, styles.otpInput, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg, color: colors.inputText }]}
-                  placeholder="000000"
-                  placeholderTextColor={colors.placeholder}
-                  value={otpCode}
-                  onChangeText={(text) => setOtpCode(sanitizeOtp(text))}
-                  keyboardType="number-pad"
-                  maxLength={6}
-                  autoFocus
-                  textAlign="center"
-                />
-
-                <TouchableOpacity
-                  style={[styles.button, (phoneStep === "verifying" || otpCode.length !== 6) && styles.buttonDisabled]}
-                  onPress={handleVerifyOtp}
-                  disabled={phoneStep === "verifying" || otpCode.length !== 6}
-                >
-                  {phoneStep === "verifying" ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <Text style={styles.buttonText}>Verify</Text>
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.resendBtn}
-                  onPress={handleResendOtp}
-                  disabled={resendCooldown > 0}
-                >
-                  <Text style={[styles.resendText, resendCooldown > 0 && { color: colors.textMuted }]}>
-                    {resendCooldown > 0
-                      ? `Resend code in ${resendCooldown}s`
-                      : "Resend Code"}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.switchButton}
-                  onPress={() => {
-                    setPhoneStep("idle");
-                    setOtpCode("");
-                    setVerificationId(null);
-                  }}
-                >
-                  <Text style={styles.switchText}>Change phone number</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              /* phoneStep === "name" || "saving" */
-              <>
-                <TextInput
-                  style={[styles.input, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg, color: colors.inputText }]}
-                  placeholder="Your name"
-                  placeholderTextColor={colors.placeholder}
-                  value={newUserName}
-                  onChangeText={setNewUserName}
-                  autoCapitalize="words"
-                  autoFocus
-                />
-
-                <TouchableOpacity
-                  style={[styles.button, phoneStep === "saving" && styles.buttonDisabled]}
-                  onPress={handleSaveNewUser}
-                  disabled={phoneStep === "saving"}
-                >
-                  {phoneStep === "saving" ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <Text style={styles.buttonText}>Continue</Text>
-                  )}
-                </TouchableOpacity>
-              </>
-            )}
-          </>
-        )}
-
-        {/* ---- EMAIL AUTH ---- */}
-        {authMethod === "email" && (
-          <>
-            {isRegister && (
-              <TextInput
-                style={[styles.input, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg, color: colors.inputText }]}
-                placeholder="Name"
-                placeholderTextColor={colors.placeholder}
-                value={displayName}
-                onChangeText={setDisplayName}
-                autoCapitalize="words"
-              />
-            )}
-
-            <TextInput
-              style={[styles.input, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg, color: colors.inputText }]}
-              placeholder="Email"
-              placeholderTextColor={colors.placeholder}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-
-            <View style={[styles.passwordContainer, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg }]}>
-              <TextInput
-                style={[styles.passwordInput, { color: colors.inputText }]}
-                placeholder="Password"
-                placeholderTextColor={colors.placeholder}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-              />
-              <TouchableOpacity
-                style={styles.eyeButton}
-                onPress={() => setShowPassword(!showPassword)}
-              >
-                <Text style={styles.eyeIcon}>{showPassword ? "👁" : "👁‍🗨"}</Text>
-              </TouchableOpacity>
-            </View>
-
-            {!isRegister && (
-              <TouchableOpacity
-                style={styles.forgotButton}
-                onPress={handleForgotPassword}
-              >
-                <Text style={styles.forgotText}>Forgot Password?</Text>
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              style={[styles.button, emailLoading && styles.buttonDisabled]}
-              onPress={isRegister ? handleRegister : handleLogin}
-              disabled={emailLoading}
-            >
-              {emailLoading ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.buttonText}>
-                  {isRegister ? "Create Account" : "Sign In"}
-                </Text>
+                  </ScrollView>
+                </View>
               )}
-            </TouchableOpacity>
 
-            {hasInvite && (
               <TouchableOpacity
-                style={styles.switchButton}
-                onPress={() => setIsRegister(!isRegister)}
+                style={[styles.button, phoneStep === "sending" && styles.buttonDisabled]}
+                onPress={handleSendOtp}
+                disabled={phoneStep === "sending"}
               >
-                <Text style={styles.switchText}>
-                  {isRegister
-                    ? "Already have an account? Sign in"
-                    : "Don't have an account? Register"}
-                </Text>
+                {phoneStep === "sending" ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.buttonText}>Send Code</Text>
+                )}
               </TouchableOpacity>
-            )}
-          </>
-        )}
+
+              {/* DIVIDER */}
+              <View style={styles.dividerRow}>
+                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+                <Text style={[styles.dividerText, { color: colors.textMuted }]}>or</Text>
+                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+              </View>
+
+              {/* EMAIL SECTION */}
+              <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Email</Text>
+
+              {forgotMode ? (
+                /* ---- FORGOT PASSWORD ---- */
+                <>
+                  {resetSent ? (
+                    <View style={styles.resetSuccessWrap}>
+                      <Text style={styles.resetSuccessIcon}>✉️</Text>
+                      <Text style={[styles.resetSuccessTitle, { color: colors.text }]}>Check your inbox</Text>
+                      <Text style={[styles.resetSuccessBody, { color: colors.textSecondary }]}>
+                        We sent a reset link to{"\n"}<Text style={{ color: "#1a73e8" }}>{resetEmail}</Text>
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.switchButton}
+                        onPress={() => { setForgotMode(false); setResetSent(false); }}
+                      >
+                        <Text style={styles.switchText}>← Back to Sign In</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <>
+                      <Text style={[styles.resetSubtitle, { color: colors.textSecondary }]}>
+                        Enter your email and we'll send you a reset link.
+                      </Text>
+
+                      <TextInput
+                        style={[styles.input, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg, color: colors.inputText }]}
+                        placeholder="Email"
+                        placeholderTextColor={colors.placeholder}
+                        value={resetEmail}
+                        onChangeText={(t) => { setResetEmail(t); setResetError(""); }}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        autoFocus
+                      />
+
+                      {resetError ? <Text style={styles.resetError}>{resetError}</Text> : null}
+
+                      <TouchableOpacity
+                        style={[styles.button, resetLoading && styles.buttonDisabled]}
+                        onPress={handleSendReset}
+                        disabled={resetLoading}
+                      >
+                        {resetLoading ? (
+                          <ActivityIndicator color="#fff" size="small" />
+                        ) : (
+                          <Text style={styles.buttonText}>Send Reset Link</Text>
+                        )}
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.switchButton}
+                        onPress={() => { setForgotMode(false); setResetError(""); }}
+                      >
+                        <Text style={styles.switchText}>← Back to Sign In</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </>
+              ) : (
+                /* ---- LOGIN / REGISTER ---- */
+                <>
+                  {isRegister && (
+                    <TextInput
+                      style={[styles.input, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg, color: colors.inputText }]}
+                      placeholder="Name"
+                      placeholderTextColor={colors.placeholder}
+                      value={displayName}
+                      onChangeText={setDisplayName}
+                      autoCapitalize="words"
+                    />
+                  )}
+
+                  <TextInput
+                    style={[styles.input, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg, color: colors.inputText }]}
+                    placeholder="Email"
+                    placeholderTextColor={colors.placeholder}
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+
+                  <View style={[styles.passwordContainer, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg }]}>
+                    <TextInput
+                      style={[styles.passwordInput, { color: colors.inputText }]}
+                      placeholder="Password"
+                      placeholderTextColor={colors.placeholder}
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry={!showPassword}
+                    />
+                    <TouchableOpacity
+                      style={styles.eyeButton}
+                      onPress={() => setShowPassword(!showPassword)}
+                    >
+                      <Text style={styles.eyeIcon}>{showPassword ? "👁" : "👁‍🗨"}</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {!isRegister && (
+                    <TouchableOpacity style={styles.forgotButton} onPress={openForgotMode}>
+                      <Text style={styles.forgotText}>Forgot Password?</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  <TouchableOpacity
+                    style={[styles.button, emailLoading && styles.buttonDisabled]}
+                    onPress={isRegister ? handleRegister : handleLogin}
+                    disabled={emailLoading}
+                  >
+                    {emailLoading ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <Text style={styles.buttonText}>
+                        {isRegister ? "Create Account" : "Sign In"}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+
+                  {hasInvite && (
+                    <TouchableOpacity
+                      style={styles.switchButton}
+                      onPress={() => setIsRegister(!isRegister)}
+                    >
+                      <Text style={styles.switchText}>
+                        {isRegister
+                          ? "Already have an account? Sign in"
+                          : "Don't have an account? Register"}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
+            </>
+          )}
+        </View>{/* /formCard */}
 
         <Text style={[styles.policyText, { color: colors.textMuted }]}>
           By signing in, you agree to our{" "}
@@ -593,34 +681,44 @@ const styles = StyleSheet.create({
   inner: {
     flexGrow: 1,
     justifyContent: "center",
-    paddingHorizontal: 32,
-    paddingVertical: 48,
+    paddingHorizontal: 24,
+    paddingVertical: 40,
   },
-  logoRow: {
-    flexDirection: "row",
+
+  logoSection: {
     alignItems: "center",
-    gap: 12,
-    marginBottom: 4,
+    marginBottom: 20,
+  },
+  logoWrap: {
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 12,
   },
   title: {
     fontSize: 26,
     fontWeight: "800",
     color: "#1F6AB5",
+    textAlign: "center",
   },
   titleAccent: {
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 13,
+    fontWeight: "700",
     color: "#33A15E",
-    letterSpacing: 2,
-    marginTop: -2,
+    letterSpacing: 3,
+    textAlign: "center",
+    marginTop: 1,
   },
   subtitle: {
-    fontSize: 15,
-    marginBottom: 24,
+    fontSize: 14,
+    marginBottom: 12,
+    textAlign: "center",
+    lineHeight: 20,
+    paddingHorizontal: 8,
   },
+
   inviteBanner: {
     backgroundColor: "#e8f5e9",
-    borderRadius: 8,
+    borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 14,
     marginBottom: 12,
@@ -628,36 +726,68 @@ const styles = StyleSheet.create({
   inviteBannerText: {
     fontSize: 14,
     color: "#2e7d32",
+    textAlign: "center",
   },
   inviteCompany: {
     fontWeight: "700",
   },
 
-  // Toggle
-  toggleRow: {
-    flexDirection: "row",
-    borderRadius: 8,
-    padding: 3,
-    marginBottom: 20,
-  },
-  toggleBtn: {
-    flex: 1,
+  infoBanner: {
+    backgroundColor: "#fffbeb",
+    borderWidth: 1,
+    borderColor: "#fde68a",
+    borderRadius: 10,
     paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 14,
+    flexDirection: "row",
     alignItems: "center",
-    borderRadius: 6,
+    gap: 8,
   },
-  toggleActive: {
-    backgroundColor: "#1a73e8",
+  infoBannerIcon: {
+    fontSize: 16,
   },
-  toggleText: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  toggleTextActive: {
-    color: "#fff",
+  infoBannerText: {
+    flex: 1,
+    fontSize: 13,
+    color: "#92400e",
+    lineHeight: 18,
   },
 
-  // Phone input
+  formCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    marginBottom: 10,
+  },
+
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 20,
+    gap: 10,
+  },
+  dividerLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+  },
+  dividerText: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+
   phoneRow: {
     flexDirection: "row",
     gap: 8,
@@ -693,6 +823,27 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     overflow: "hidden",
   },
+  countrySearchWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    margin: 10,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    height: 40,
+  },
+  countrySearchIcon: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  countrySearch: {
+    flex: 1,
+    height: 40,
+    fontSize: 14,
+  },
+  countryScroll: {
+    maxHeight: 200,
+  },
   countryItem: {
     paddingVertical: 10,
     paddingHorizontal: 14,
@@ -702,15 +853,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-  // OTP
-  otpLabel: {
-    fontSize: 14,
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  otpPhone: {
-    fontWeight: "600",
-  },
   otpInput: {
     fontSize: 24,
     letterSpacing: 8,
@@ -725,7 +867,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-  // Shared
   input: {
     height: 48,
     borderWidth: 1,
@@ -757,12 +898,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   button: {
-    height: 48,
+    height: 50,
     backgroundColor: "#1a73e8",
-    borderRadius: 8,
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 8,
+    marginTop: 4,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -780,6 +921,35 @@ const styles = StyleSheet.create({
     color: "#1a73e8",
     fontSize: 14,
   },
+  resetSubtitle: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  resetError: {
+    color: "#ef4444",
+    fontSize: 13,
+    marginBottom: 8,
+    marginTop: -4,
+  },
+  resetSuccessWrap: {
+    alignItems: "center",
+    paddingVertical: 16,
+    gap: 8,
+  },
+  resetSuccessIcon: {
+    fontSize: 48,
+    marginBottom: 8,
+  },
+  resetSuccessTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  resetSuccessBody: {
+    fontSize: 14,
+    textAlign: "center",
+    lineHeight: 22,
+  },
   switchButton: {
     marginTop: 16,
     alignItems: "center",
@@ -791,7 +961,7 @@ const styles = StyleSheet.create({
   policyText: {
     fontSize: 12,
     textAlign: "center",
-    marginTop: 24,
+    marginTop: 16,
   },
   policyLink: {
     color: "#1a73e8",

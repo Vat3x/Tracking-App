@@ -39,18 +39,15 @@
     var container = document.getElementById('store-btns');
 
     if (isIOS) {
-      // Universal Links open the app if installed; if not, show App Store button
       container.innerHTML =
         '<a class="btn" href="' + appStore + '">Download on the App Store</a>';
     } else if (isAndroid) {
-      // intent:// URL opens app if installed, falls back to Play Store automatically
       var intentUrl = 'intent://invite/' + inviteId +
         '#Intent;scheme=nexustracking;package=com.nexus.tracking.driver;' +
         'S.browser_fallback_url=' + encodeURIComponent(playStore) + ';end';
       container.innerHTML =
         '<a class="btn" href="' + intentUrl + '">Get on Google Play</a>';
     } else {
-      // Desktop — show both
       container.innerHTML =
         '<a class="btn" href="' + appStore + '">Download on the App Store</a>' +
         '<br><a class="btn-secondary" href="' + playStore + '">Get on Google Play</a>';

@@ -18,10 +18,6 @@ export async function acceptInvite(
   inviteId: string,
   driverId: string
 ): Promise<void> {
-  // Mark invite as accepted — the Cloud Function handles the rest
-  // (linking driver to company, adding to members, etc.)
-  await updateDoc(doc(db, COLLECTIONS.INVITES, inviteId), {
-    status: "accepted",
-    acceptedBy: driverId,
-  });
+  const acceptInviteCall = httpsCallable(functions, "acceptInviteCall");
+  await acceptInviteCall({ inviteId, driverId });
 }

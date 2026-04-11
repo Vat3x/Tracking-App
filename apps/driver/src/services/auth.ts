@@ -1,21 +1,18 @@
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  sendPasswordResetEmail,
-  signOut,
-  onAuthStateChanged,
-  type User as FirebaseUser,
-} from "firebase/auth";
+import nativeAuth from "@react-native-firebase/auth";
+import type { FirebaseAuthTypes } from "@react-native-firebase/auth";
 import { doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
-import { auth, db } from "./firebase";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { db, app } from "./firebase";
 import { COLLECTIONS, type User } from "@nexus/shared";
+
+type FirebaseUser = FirebaseAuthTypes.User;
 
 export async function registerDriver(
   email: string,
   password: string,
   displayName: string
 ): Promise<FirebaseUser> {
-  const credential = await createUserWithEmailAndPassword(auth, email, password);
+  const credential = await nativeAuth().createUserWithEmailAndPassword(email, password);
   const uid = credential.user.uid;
 
   const userData: Omit<User, "id"> = {
@@ -35,22 +32,24 @@ export async function loginWithEmail(
   email: string,
   password: string
 ): Promise<FirebaseUser> {
-  const credential = await signInWithEmailAndPassword(auth, email, password);
+  const credential = await nativeAuth().signInWithEmailAndPassword(email, password);
   return credential.user;
 }
 
 export async function resetPassword(email: string): Promise<void> {
-  await sendPasswordResetEmail(auth, email);
+  const functions = getFunctions(app);
+  const sendPasswordReset = httpsCallable(functions, "sendPasswordReset");
+  await sendPasswordReset({ email });
 }
 
 export async function logout(): Promise<void> {
-  await signOut(auth);
+  await nativeAuth().signOut();
 }
 
 const FUNCTIONS_URL = "https://us-central1-tracking-app-f6ad7.cloudfunctions.net";
 
 export async function deleteAccount(): Promise<void> {
-  const user = auth.currentUser;
+  const user = nativeAuth().currentUser;
   if (!user) throw new Error("Not authenticated");
 
   const token = await user.getIdToken();
@@ -67,7 +66,7 @@ export async function deleteAccount(): Promise<void> {
     throw new Error(data.error || "Failed to delete account");
   }
 
-  await signOut(auth);
+  await nativeAuth().signOut();
 }
 
 export async function getUserDoc(uid: string): Promise<User | null> {
@@ -77,7 +76,7 @@ export async function getUserDoc(uid: string): Promise<User | null> {
 }
 
 export function onAuthChange(callback: (user: FirebaseUser | null) => void) {
-  return onAuthStateChanged(auth, callback);
+  return nativeAuth().onAuthStateChanged(callback);
 }
 
 export function onUserDocChange(uid: string, callback: (user: User | null) => void) {
