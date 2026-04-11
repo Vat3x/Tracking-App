@@ -9,6 +9,8 @@ import {
   Linking,
   TouchableOpacity,
   ActivityIndicator,
+  Modal,
+  Animated,
 } from "react-native";
 import MapView, { Marker, type Region } from "react-native-maps";
 import * as Location from "expo-location";
@@ -48,9 +50,41 @@ export default function HomeScreen() {
 
   const mapRef = useRef<MapView>(null);
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
+  const [showBgDisclosure, setShowBgDisclosure] = useState(false);
+  const bgResolveRef = useRef<((granted: boolean) => void) | null>(null);
   const [initialRegion, setInitialRegion] = useState<Region | null>(null);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [companyName, setCompanyName] = useState<string | null>(null);
+
+  const spinAnim = useRef(new Animated.Value(0)).current;
+  const isRefreshing = useRef(false);
+
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshing.current) return;
+    isRefreshing.current = true;
+
+    // Spin the logo one full rotation
+    spinAnim.setValue(0);
+    Animated.timing(spinAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start(() => {
+      isRefreshing.current = false;
+    });
+
+    // Push a fresh location ping if online
+    if (isOnline) {
+      try {
+        const loc = await getCurrentLocation();
+        if (loc) await updateDriverLocation(loc);
+      } catch {
+        // silent — background task will handle next interval
+      }
+    }
+  }, [isOnline, spinAnim]);
+
+  const spin = spinAnim.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
 
   // Sync identity to tracking store when user doc changes
   useEffect(() => {
@@ -154,7 +188,11 @@ export default function HomeScreen() {
         }
         setPermissionStatus("foreground");
 
-        const hasBg = await requestBackgroundPermission();
+        // Show prominent disclosure before requesting background location
+        const hasBg = await new Promise<boolean>((resolve) => {
+          bgResolveRef.current = resolve;
+          setShowBgDisclosure(true);
+        });
         if (!hasBg) {
           Alert.alert(
             "Allow All the Time",
@@ -224,10 +262,16 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Greeting overlay */}
-        <View style={[styles.greetingOverlay, { backgroundColor: colors.bgOverlay }]}>
+        {/* Greeting overlay — tap to refresh location */}
+        <TouchableOpacity
+          style={[styles.greetingOverlay, { backgroundColor: colors.bgOverlay }]}
+          onPress={handleRefresh}
+          activeOpacity={0.75}
+        >
           <View style={styles.greetingRow}>
-            <Logo size={18} />
+            <Animated.View style={{ transform: [{ rotate: spin }] }}>
+              <Logo size={18} />
+            </Animated.View>
             <Text style={[styles.greetingText, { color: colors.text }]}>
               {userDoc?.displayName ?? "Driver"}
             </Text>
@@ -240,7 +284,7 @@ export default function HomeScreen() {
               {userDoc.companyName}
             </Text>
           )}
-        </View>
+        </TouchableOpacity>
       </View>
 
       {/* BOTTOM PANEL (~60%) */}
@@ -257,9 +301,9 @@ export default function HomeScreen() {
             </Text>
             <Text style={[styles.statusHint, { color: colors.textSecondary }]}>
               {isOnline
-                ? "Sharing location"
+                ? "Sharing location with employer"
                 : hasCompany
-                  ? "Tap to go online"
+                  ? "Enable tracking to receive jobs"
                   : "Link to company first"}
             </Text>
           </View>
@@ -389,6 +433,45 @@ export default function HomeScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Background location prominent disclosure */}
+      <Modal visible={showBgDisclosure} transparent animationType="fade">
+        <View style={styles.disclosureOverlay}>
+          <View style={[styles.disclosureCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+            <Text style={[styles.disclosureTitle, { color: colors.text }]}>Background Location Access</Text>
+            <Text style={[styles.disclosureBody, { color: colors.textSecondary }]}>
+              LoadMind Tracker collects your location data <Text style={{ fontWeight: "700", color: colors.text }}>continuously in the background</Text>, even when the app is closed or not in use.
+            </Text>
+            <Text style={[styles.disclosureBody, { color: colors.textSecondary, marginTop: 10 }]}>
+              This data is shared with your dispatcher in real time so they can monitor your route and coordinate deliveries. Location sharing only occurs while you are marked as online.
+            </Text>
+            <Text style={[styles.disclosureBody, { color: colors.textSecondary, marginTop: 10 }]}>
+              You can stop sharing at any time by toggling offline in the app.
+            </Text>
+            <TouchableOpacity
+              style={styles.disclosureButton}
+              onPress={async () => {
+                setShowBgDisclosure(false);
+                const granted = await requestBackgroundPermission();
+                bgResolveRef.current?.(granted);
+                bgResolveRef.current = null;
+              }}
+            >
+              <Text style={styles.disclosureButtonText}>Continue</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.disclosureDeny}
+              onPress={() => {
+                setShowBgDisclosure(false);
+                bgResolveRef.current?.(false);
+                bgResolveRef.current = null;
+              }}
+            >
+              <Text style={[styles.disclosureDenyText, { color: colors.textSecondary }]}>Not now</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -590,5 +673,49 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 13,
     fontWeight: "600",
+  },
+
+  // Background location disclosure modal
+  disclosureOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  disclosureCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 24,
+    width: "100%",
+  },
+  disclosureTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 12,
+  },
+  disclosureBody: {
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  disclosureButton: {
+    height: 50,
+    backgroundColor: "#1a73e8",
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 20,
+  },
+  disclosureButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  disclosureDeny: {
+    marginTop: 12,
+    alignItems: "center",
+  },
+  disclosureDenyText: {
+    fontSize: 14,
   },
 });

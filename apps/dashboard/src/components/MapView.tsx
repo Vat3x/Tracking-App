@@ -71,6 +71,7 @@ export default function MapView({
   const routeDataRef = useRef<RouteData | null>(null);
   const historyDataRef = useRef<LocationHistory[] | null>(null);
   const historyPopupRef = useRef<maplibregl.Popup | null>(null);
+  const mostRecentMarkerRef = useRef<maplibregl.Marker | null>(null);
   const driversRef = useRef(drivers);
   driversRef.current = drivers;
   const sidebarWidthRef = useRef(sidebarWidth);
@@ -108,6 +109,8 @@ export default function MapView({
     }
     historyPopupRef.current?.remove();
     historyPopupRef.current = null;
+    mostRecentMarkerRef.current?.remove();
+    mostRecentMarkerRef.current = null;
   }, []);
 
   // Draw history pins from stored historyDataRef onto the map
@@ -119,9 +122,13 @@ export default function MapView({
 
     removeHistoryLayer();
 
-    // Track line connecting points chronologically
-    if (data.length >= 2) {
-      const lineCoords = data.map((e) => [e.lng, e.lat]);
+    // Sort oldest → newest so recency index is meaningful
+    const sorted = [...data].sort((a, b) => a.timestamp - b.timestamp);
+    const total = sorted.length;
+
+    // Track line — faded older segment, solid recent
+    if (total >= 2) {
+      const lineCoords = sorted.map((e) => [e.lng, e.lat]);
       map.addSource(HISTORY_TRACK_SOURCE, {
         type: "geojson",
         data: {
@@ -135,23 +142,40 @@ export default function MapView({
         type: "line",
         source: HISTORY_TRACK_SOURCE,
         paint: {
-          "line-color": "#6366f1",
-          "line-width": 3,
-          "line-opacity": 0.5,
+          "line-color": "#818cf8",
+          "line-width": 2,
+          "line-opacity": 0.45,
+          "line-dasharray": [3, 2],
         },
         layout: { "line-cap": "round", "line-join": "round" },
       });
     }
 
+    // Inject pulse keyframes once
+    if (!document.getElementById("history-pulse-style")) {
+      const style = document.createElement("style");
+      style.id = "history-pulse-style";
+      style.textContent = `
+        @keyframes history-pulse {
+          0%   { box-shadow: 0 0 0 0   rgba(34,197,94,0.55); }
+          70%  { box-shadow: 0 0 0 10px rgba(34,197,94,0);   }
+          100% { box-shadow: 0 0 0 0   rgba(34,197,94,0);    }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
     const geojson: GeoJSON.FeatureCollection = {
       type: "FeatureCollection",
-      features: data.map((entry) => ({
+      features: sorted.map((entry, i) => ({
         type: "Feature" as const,
         geometry: { type: "Point" as const, coordinates: [entry.lng, entry.lat] },
         properties: {
           timestamp: entry.timestamp,
-          speed: entry.speed,
+          speedKmh: Math.round(entry.speed * 3.6),
           battery: Math.round(entry.batteryLevel * 100),
+          // 0 = oldest, 1 = newest
+          recency: total > 1 ? i / (total - 1) : 1,
         },
       })),
     };
@@ -162,15 +186,49 @@ export default function MapView({
       type: "circle",
       source: HISTORY_SOURCE,
       paint: {
-        "circle-radius": 5,
-        "circle-color": "#6366f1",
-        "circle-opacity": 0.7,
-        "circle-stroke-width": 1.5,
+        // Size: older = 4px, newest = 7px
+        "circle-radius": [
+          "interpolate", ["linear"], ["get", "recency"],
+          0, 4,
+          1, 7,
+        ],
+        // Color by speed: stationary=indigo, slow=blue, medium=green, fast=yellow
+        "circle-color": [
+          "step", ["get", "speedKmh"],
+          "#6366f1",      // 0 km/h — stationary
+          5,  "#3b82f6",  // 5+ km/h — slow
+          30, "#22c55e",  // 30+ km/h — moving
+          80, "#eab308",  // 80+ km/h — fast
+        ],
+        // Opacity: older = faded, newest = solid
+        "circle-opacity": [
+          "interpolate", ["linear"], ["get", "recency"],
+          0, 0.35,
+          1, 0.9,
+        ],
+        "circle-stroke-width": [
+          "interpolate", ["linear"], ["get", "recency"],
+          0, 1,
+          1, 2,
+        ],
         "circle-stroke-color": "#fff",
       },
     });
 
-    // Hover popup for history points
+    // Pulsing HTML marker at the most recent point
+    const latest = sorted[sorted.length - 1];
+    const pulseEl = document.createElement("div");
+    pulseEl.style.cssText = [
+      "width:12px", "height:12px", "border-radius:50%",
+      "background:#22c55e", "border:2px solid #fff",
+      "animation:history-pulse 1.6s ease-out infinite",
+      "pointer-events:none",
+    ].join(";");
+    mostRecentMarkerRef.current = new maplibregl.Marker({ element: pulseEl, anchor: "center" })
+      .setLngLat([latest.lng, latest.lat])
+      .addTo(map);
+
+    // Hover popup — colored speed badge
     map.on("mouseenter", HISTORY_LAYER, (e) => {
       map.getCanvas().style.cursor = "pointer";
       const feature = e.features?.[0];
@@ -179,15 +237,22 @@ export default function MapView({
       const ts = new Date(props.timestamp).toLocaleString([], {
         month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
       });
-      const speed = props.speed > 0 ? `${Math.round(props.speed * 3.6)} km/h` : "Stationary";
+      const kmh: number = props.speedKmh;
+      const speedLabel = kmh > 0 ? `${kmh} km/h` : "Stationary";
+      const speedColor =
+        kmh === 0 ? "#6366f1" : kmh < 30 ? "#3b82f6" : kmh < 80 ? "#22c55e" : "#eab308";
 
       historyPopupRef.current?.remove();
-      historyPopupRef.current = new maplibregl.Popup({ offset: 10, closeButton: false })
+      historyPopupRef.current = new maplibregl.Popup({ offset: 12, closeButton: false })
         .setLngLat(feature.geometry.coordinates as [number, number])
         .setHTML(
-          `<div style="font-size:12px;line-height:1.4">
-            <div style="font-weight:600">${ts}</div>
-            <div style="color:#6b7280">${speed} · ${props.battery}%</div>
+          `<div style="font-size:12px;line-height:1.5;min-width:110px">
+            <div style="font-weight:600;margin-bottom:4px">${ts}</div>
+            <div style="display:flex;align-items:center;gap:5px">
+              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${speedColor};flex-shrink:0"></span>
+              <span style="color:#374151">${speedLabel}</span>
+              <span style="color:#9ca3af;margin-left:auto">${props.battery}%</span>
+            </div>
           </div>`
         )
         .addTo(map);
@@ -290,6 +355,7 @@ export default function MapView({
       popupRef.current?.remove();
       routeMarkersRef.current.forEach((m) => m.remove());
       routeMarkersRef.current = [];
+      mostRecentMarkerRef.current?.remove();
       map.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -427,12 +493,12 @@ export default function MapView({
     });
   }, [drivers, onSelectDriver, showPopup, activeDriverIds]);
 
-  // Fly to selected driver
+  // Fly to driver only when selection changes (not on every location update)
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !selectedDriverId) return;
 
-    const driver = drivers.find((d) => d.driverId === selectedDriverId);
+    const driver = driversRef.current.find((d) => d.driverId === selectedDriverId);
     if (!driver) return;
 
     map.flyTo({
@@ -442,7 +508,15 @@ export default function MapView({
     });
 
     showPopup(driver);
-  }, [selectedDriverId, drivers, showPopup]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDriverId]);
+
+  // Keep popup content fresh when driver data updates
+  useEffect(() => {
+    if (!selectedDriverId) return;
+    const driver = drivers.find((d) => d.driverId === selectedDriverId);
+    if (driver) showPopup(driver);
+  }, [drivers, selectedDriverId, showPopup]);
 
   // Draw road route when a driver with an active trip is selected
   useEffect(() => {
@@ -576,12 +650,27 @@ export default function MapView({
     };
   }, [historyTrip, sidebarWidth, removeRouteLayers, drawRouteFromData]);
 
-  // Fetch and draw location history when a driver is selected
+  // Fetch and draw location history:
+  //   - active trip selected → show live ping trail
+  //   - history trip open    → show pins filtered to that trip's timeframe
+  //   - neither              → clear
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !companyId) return;
 
-    if (!selectedDriverId) {
+    const hasActiveTrip =
+      !!selectedDriverId &&
+      trips.some(
+        (t) =>
+          t.driverId === selectedDriverId &&
+          (t.status === "accepted" || t.status === "in_progress")
+      );
+
+    const driverIdToFetch = hasActiveTrip
+      ? selectedDriverId!
+      : historyTrip?.driverId ?? null;
+
+    if (!driverIdToFetch) {
       historyDataRef.current = null;
       removeHistoryLayer();
       return;
@@ -589,9 +678,17 @@ export default function MapView({
 
     let cancelled = false;
 
-    getDriverHistory(companyId, selectedDriverId).then((history) => {
+    getDriverHistory(companyId, driverIdToFetch).then((history) => {
       if (cancelled) return;
-      historyDataRef.current = history;
+
+      // When viewing a completed trip, filter pins to its timeframe
+      const filtered = historyTrip && !hasActiveTrip
+        ? history.filter(
+            (e) => e.timestamp >= historyTrip.createdAt && e.timestamp <= historyTrip.updatedAt
+          )
+        : history;
+
+      historyDataRef.current = filtered;
 
       if (map.isStyleLoaded()) {
         drawHistoryFromData();
@@ -606,7 +703,7 @@ export default function MapView({
       cancelled = true;
       removeHistoryLayer();
     };
-  }, [selectedDriverId, companyId, removeHistoryLayer, drawHistoryFromData]);
+  }, [selectedDriverId, trips, historyTrip, companyId, removeHistoryLayer, drawHistoryFromData]);
 
   // Fit bounds when drivers first load
   const hasFittedRef = useRef(false);
