@@ -143,7 +143,12 @@ export default function OnboardingScreen() {
 
   async function finish() {
     await AsyncStorage.setItem(ONBOARDING_KEY, "true");
-    router.replace("/(auth)/login");
+    const pendingInviteId = await AsyncStorage.getItem("@pending_invite_id");
+    if (pendingInviteId) {
+      router.replace({ pathname: "/(auth)/login", params: { inviteId: pendingInviteId } } as any);
+    } else {
+      router.replace("/(auth)/login");
+    }
   }
 
   function handleNext() {

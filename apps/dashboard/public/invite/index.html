@@ -46,7 +46,8 @@
         '#Intent;scheme=nexustracking;package=com.nexus.tracking.driver;' +
         'S.browser_fallback_url=' + encodeURIComponent(playStore) + ';end';
       container.innerHTML =
-        '<a class="btn" href="' + intentUrl + '">Get on Google Play</a>';
+        '<a class="btn" href="' + intentUrl + '">Open App</a>' +
+        '<br><a class="btn-secondary" href="' + playStore + '">Get on Google Play</a>';
     } else {
       container.innerHTML =
         '<a class="btn" href="' + appStore + '">Download on the App Store</a>' +

@@ -133,7 +133,18 @@ function AuthGate() {
   useEffect(() => {
     async function preload() {
       const url = await Linking.getInitialURL();
-      const invId = url ? extractInviteId(url) : null;
+      let invId = url ? extractInviteId(url) : null;
+
+      if (invId) {
+        // Save immediately so it survives an OTA restart
+        await AsyncStorage.setItem("@pending_invite_id", invId);
+      } else {
+        // Check for invite ID saved before OTA restart
+        const saved = await AsyncStorage.getItem("@pending_invite_id");
+        if (saved) {
+          invId = saved;
+        }
+      }
 
       if (invId) {
         setStartupRoute({ pathname: "/(auth)/login", params: { inviteId: invId } });
@@ -182,7 +193,7 @@ export default function RootLayout() {
     Notifications.setBadgeCountAsync(0);
   }, []);
 
-  // Check for OTA updates on launch
+  // Check for OTA updates on launch — download silently, apply on next cold start
   useEffect(() => {
     if (__DEV__) return; // Skip in dev mode
     async function checkForUpdate() {
@@ -190,14 +201,7 @@ export default function RootLayout() {
         const update = await Updates.checkForUpdateAsync();
         if (update.isAvailable) {
           await Updates.fetchUpdateAsync();
-          Alert.alert(
-            "Update Available",
-            "A new version has been downloaded. Restart to apply?",
-            [
-              { text: "Later", style: "cancel" },
-              { text: "Restart", onPress: () => Updates.reloadAsync() },
-            ]
-          );
+          // Update is ready — will be applied automatically on next app launch
         }
       } catch {
         // Silently ignore update check failures

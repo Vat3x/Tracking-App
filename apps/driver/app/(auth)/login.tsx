@@ -84,6 +84,7 @@ export default function LoginScreen() {
     try {
       await acceptInvite(inviteId, uid);
       setPendingInviteId(null);
+      await AsyncStorage.removeItem("@pending_invite_id");
       for (let i = 0; i < 7; i++) {
         await new Promise((r) => setTimeout(r, 1500));
         const doc = await getUserDoc(uid);
@@ -336,7 +337,7 @@ export default function LoginScreen() {
           <View style={[styles.infoBanner, isDark && { backgroundColor: "#2d2000", borderColor: "#78500a" }]}>
             <Text style={styles.infoBannerIcon}>💡</Text>
             <Text style={[styles.infoBannerText, isDark && { color: "#fcd34d" }]}>
-              To create an account, ask your company for an invitation link.
+              To create an account, ask your company for an invitation link. Already have one? Open it again to start registration.
             </Text>
           </View>
         )}
@@ -734,10 +735,10 @@ const styles = StyleSheet.create({
 
   infoBanner: {
     backgroundColor: "#fffbeb",
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: "#fde68a",
     borderRadius: 10,
-    paddingVertical: 10,
+    paddingVertical: 14,
     paddingHorizontal: 14,
     marginBottom: 14,
     flexDirection: "row",
@@ -749,9 +750,9 @@ const styles = StyleSheet.create({
   },
   infoBannerText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 14,
     color: "#92400e",
-    lineHeight: 18,
+    lineHeight: 20,
   },
 
   formCard: {
