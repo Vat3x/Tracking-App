@@ -5,6 +5,7 @@
         ".read": "auth != null && root.child('company_members').child($companyId).child(auth.uid).exists()",
         "$driverId": {
           "current": {
+            ".read": "auth != null && auth.token.trackingLink === true && auth.token.driverId === $driverId && auth.token.companyId === $companyId",
             ".write": "auth != null && auth.uid === $driverId",
             "isOnline": { ".validate": "newData.isBoolean()" },
             "lat": { ".validate": "newData.isNumber()" },

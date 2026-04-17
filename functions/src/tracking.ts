@@ -69,7 +69,14 @@ export const getTrackingData = onRequest({ cors: true }, async (req, res) => {
   const driverSnap = await firestore.doc(`users/${linkData.driverId}`).get();
   const driverName = driverSnap.data()?.displayName ?? "Driver";
 
-  // 6. Return sanitized response
+  // 6. Generate a short-lived custom token so the client can subscribe to RTDB directly
+  const rtdbToken = await admin.auth().createCustomToken(linkId, {
+    trackingLink: true,
+    driverId: linkData.driverId,
+    companyId: linkData.companyId,
+  });
+
+  // 7. Return sanitized response
   res.json({
     status: trip.status,
     stops: trip.stops ?? [],
@@ -86,5 +93,7 @@ export const getTrackingData = onRequest({ cors: true }, async (req, res) => {
           isOnline: location.isOnline ?? false,
         }
       : null,
+    rtdbToken,
+    rtdbPath: `locations/${linkData.companyId}/${linkData.driverId}/current`,
   });
 });

@@ -79,7 +79,7 @@ async function fetchGoogleRoute(
     const origin = `${waypoints[0][1]},${waypoints[0][0]}`;
     const destination = `${waypoints[waypoints.length - 1][1]},${waypoints[waypoints.length - 1][0]}`;
 
-    let url = `${GOOGLE_DIRECTIONS_BASE}?origin=${origin}&destination=${destination}&key=${GOOGLE_MAPS_KEY}`;
+    let url = `${GOOGLE_DIRECTIONS_BASE}?origin=${origin}&destination=${destination}&key=${GOOGLE_MAPS_KEY}&departure_time=now&traffic_model=best_guess`;
 
     if (waypoints.length > 2) {
       const intermediate = waypoints
@@ -104,7 +104,8 @@ async function fetchGoogleRoute(
     let totalDuration = 0;
     for (const leg of route.legs) {
       totalDistance += leg.distance.value;
-      totalDuration += leg.duration.value;
+      // Use traffic-aware duration when available, fall back to standard duration
+      totalDuration += (leg.duration_in_traffic?.value ?? leg.duration.value);
     }
 
     return { coordinates, distance: totalDistance, duration: totalDuration };
