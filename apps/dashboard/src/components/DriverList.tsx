@@ -17,6 +17,8 @@ interface Props {
   onRefreshProfiles?: () => void;
   onCreateTrip?: (driverId: string) => void;
   onViewHistory?: (driverId: string) => void;
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
 function formatDist(meters: number, useMiles: boolean): string {
@@ -568,6 +570,8 @@ export default function DriverList({
   onRefreshProfiles,
   onCreateTrip,
   onViewHistory,
+  mobileOpen,
+  onMobileClose,
 }: Props) {
   const onlineDrivers = drivers.filter((d) => d.current.isOnline);
 
@@ -578,12 +582,23 @@ export default function DriverList({
   }
 
   return (
-    <div className="w-80 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
+    <div className={`${mobileOpen ? "flex fixed inset-0 z-40 w-full" : "hidden"} md:relative md:flex md:w-80 bg-white dark:bg-gray-900 md:border-l border-gray-200 dark:border-gray-700 flex-col overflow-hidden`}>
       <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Drivers</h2>
-        <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
-          {onlineDrivers.length} online
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
+            {onlineDrivers.length} online
+          </span>
+          {onMobileClose && (
+            <button
+              onClick={onMobileClose}
+              className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 text-xl leading-none"
+              aria-label="Close drivers panel"
+            >
+              ×
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950 py-1">

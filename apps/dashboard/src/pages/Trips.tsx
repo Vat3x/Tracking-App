@@ -54,6 +54,7 @@ export default function Trips() {
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useTripNotifications(trips, driverProfiles);
 
@@ -119,7 +120,7 @@ export default function Trips() {
   return (
     <div className="h-screen flex flex-col">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center justify-between shrink-0">
+      <header className="relative bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5">
           <img src="/logo.svg" alt="LoadMind" className="w-8 h-8" />
           <div>
@@ -128,6 +129,7 @@ export default function Trips() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <div className="hidden md:flex items-center gap-2">
           <button
             onClick={() => navigate("/")}
             className="h-8 px-3 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors flex items-center gap-1.5"
@@ -153,6 +155,23 @@ export default function Trips() {
             className="h-8 px-3 border border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 text-sm font-medium rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
           >
             New Trip
+          </button>
+          </div>
+
+          {/* Mobile back-to-dashboard + hamburger */}
+          <button
+            onClick={() => navigate("/")}
+            className="md:hidden w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-blue-600 dark:text-blue-400"
+            aria-label="Back to dashboard"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
+            aria-label="Menu"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
           </button>
           <div className="relative ml-1">
             <button
@@ -186,12 +205,47 @@ export default function Trips() {
             )}
           </div>
         </div>
+
+        {mobileMenuOpen && (
+          <>
+            <div className="md:hidden fixed inset-0 z-40" onClick={() => setMobileMenuOpen(false)} />
+            <div className="md:hidden absolute right-2 top-14 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 py-1">
+              <button
+                onClick={() => { setMobileMenuOpen(false); setTripModalOpen(true); }}
+                className="w-full text-left px-3 py-2.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                + New Trip
+              </button>
+              <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
+              <button
+                onClick={() => { setMobileMenuOpen(false); navigate("/"); }}
+                className="w-full text-left px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Dashboard
+              </button>
+              <button
+                onClick={() => { setMobileMenuOpen(false); navigate("/history"); }}
+                className="w-full text-left px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                History
+              </button>
+              <button
+                onClick={() => { setMobileMenuOpen(false); navigate("/settings"); }}
+                className="w-full text-left px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Settings
+              </button>
+              <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
+              <div className="px-3 py-2"><ThemeToggle /></div>
+            </div>
+          </>
+        )}
       </header>
 
       {/* Main content: left panel + map */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left panel */}
-        <div className="w-96 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col shrink-0">
+        <div className={`${selectedTripId ? "hidden md:flex" : "flex"} w-full md:w-96 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex-col shrink-0`}>
           {/* Panel header */}
           <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Trips</h2>
@@ -373,7 +427,16 @@ export default function Trips() {
         </div>
 
         {/* Map */}
-        <div className="flex-1 relative">
+        <div className={`${selectedTripId ? "flex" : "hidden md:flex"} flex-1 relative`}>
+          {selectedTripId && (
+            <button
+              onClick={() => setSelectedTripId(null)}
+              className="md:hidden absolute top-3 left-3 z-20 h-9 px-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow text-sm font-medium text-gray-700 dark:text-gray-200 flex items-center gap-1.5"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+              Back
+            </button>
+          )}
           <HistoryMapView history={[]} selectedTrip={selectedTrip} />
         </div>
       </div>

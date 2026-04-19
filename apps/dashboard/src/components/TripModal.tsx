@@ -408,7 +408,7 @@ export default function TripModal({ open, onClose, driverProfiles, sidebar, defa
           className="absolute inset-0 bg-black/10 z-20"
           onClick={handleClose}
         />
-        <div className="absolute left-0 top-0 bottom-0 w-80 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 shadow-xl z-30 flex flex-col">
+        <div className="absolute left-0 top-0 bottom-0 w-full sm:w-80 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 shadow-xl z-30 flex flex-col">
           <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">New Trip</h2>
             <button

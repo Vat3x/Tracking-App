@@ -79,6 +79,8 @@ export default function Dashboard() {
   const [historyTripFilter, setHistoryTripFilter] = useState<"all" | "completed" | "cancelled">("all");
   const [selectedHistoryTripId, setSelectedHistoryTripId] = useState<string | null>(null);
   const [newDriverIds, setNewDriverIds] = useState<Set<string>>(new Set());
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [driversOpen, setDriversOpen] = useState(false);
   const newDriverTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const knownDriverIdsRef = useRef<Set<string> | null>(null);
 
@@ -280,7 +282,7 @@ export default function Dashboard() {
   return (
     <div className="h-screen flex flex-col">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center justify-between shrink-0 z-10">
+      <header className="relative bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center justify-between shrink-0 z-10">
         <div className="flex items-center gap-2.5">
           <img src="/logo.svg" alt="LoadMind" className="w-8 h-8" />
           <div>
@@ -289,6 +291,8 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* Desktop nav buttons */}
+          <div className="hidden md:flex items-center gap-2">
           <button
             onClick={() => navigate("/trips")}
             className="h-8 px-3 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
@@ -331,6 +335,24 @@ export default function Dashboard() {
           >
             Invite Driver
           </button>
+          </div>
+
+          {/* Mobile hamburger */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden relative w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
+            aria-label="Menu"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+            {pendingInvites > 0 && (
+              <span className="absolute top-1 right-1 w-4 h-4 bg-blue-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                {pendingInvites}
+              </span>
+            )}
+          </button>
+
           <div className="relative ml-1">
             <button
               onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -363,6 +385,59 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+
+        {/* Mobile menu dropdown */}
+        {mobileMenuOpen && (
+          <>
+            <div className="md:hidden fixed inset-0 z-40" onClick={() => setMobileMenuOpen(false)} />
+            <div className="md:hidden absolute right-2 top-14 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 py-1">
+              <button
+                onClick={() => { setMobileMenuOpen(false); setTripFormDriverId(undefined); setTripFormOpen(true); setInvitesOpen(false); }}
+                className="w-full text-left px-3 py-2.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                + New Trip
+              </button>
+              <button
+                onClick={() => { setMobileMenuOpen(false); setInviteModalOpen(true); }}
+                className="w-full text-left px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Invite Driver
+              </button>
+              <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
+              <button
+                onClick={() => { setMobileMenuOpen(false); navigate("/trips"); }}
+                className="w-full text-left px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Trips
+              </button>
+              <button
+                onClick={() => { setMobileMenuOpen(false); setInvitesOpen(true); setTripFormOpen(false); }}
+                className="w-full text-left px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-between"
+              >
+                <span>Invites</span>
+                {pendingInvites > 0 && (
+                  <span className="w-5 h-5 bg-blue-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                    {pendingInvites}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => { setMobileMenuOpen(false); setHistoryOpen(true); setInvitesOpen(false); setTripFormOpen(false); setSelectedHistoryTripId(null); }}
+                className="w-full text-left px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                History
+              </button>
+              <button
+                onClick={() => { setMobileMenuOpen(false); navigate("/settings"); }}
+                className="w-full text-left px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Settings
+              </button>
+              <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
+              <div className="px-3 py-2"><ThemeToggle /></div>
+            </div>
+          </>
+        )}
       </header>
 
       {/* Main content: map + driver panel */}
@@ -387,14 +462,33 @@ export default function Dashboard() {
           drivers={drivers}
           driverProfiles={driverProfiles}
           selectedDriverId={selectedDriverId}
-          onSelectDriver={selectDriver}
+          onSelectDriver={(id) => { selectDriver(id); setDriversOpen(false); }}
           activeDriverIds={activeDriverIds}
           trips={trips}
           newDriverIds={newDriverIds}
           onRefreshProfiles={() => userDoc?.companyId && getCompanyDrivers(userDoc.companyId).then(setDriverProfiles)}
-          onCreateTrip={(driverId) => { setTripFormDriverId(driverId); setTripFormOpen(true); setInvitesOpen(false); }}
-          onViewHistory={handleViewHistory}
+          onCreateTrip={(driverId) => { setTripFormDriverId(driverId); setTripFormOpen(true); setInvitesOpen(false); setDriversOpen(false); }}
+          onViewHistory={(id) => { handleViewHistory(id); setDriversOpen(false); }}
+          mobileOpen={driversOpen}
+          onMobileClose={() => setDriversOpen(false)}
         />
+
+        {/* Mobile "Drivers" FAB */}
+        {!driversOpen && !invitesOpen && !historyOpen && !tripFormOpen && (
+          <button
+            onClick={() => setDriversOpen(true)}
+            className="md:hidden fixed bottom-4 right-4 z-30 h-12 px-5 bg-blue-600 text-white text-sm font-medium rounded-full shadow-lg hover:bg-blue-700 flex items-center gap-2"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2" />
+            </svg>
+            Drivers
+            <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full bg-white/20">
+              {drivers.filter((d) => d.current.isOnline).length}
+            </span>
+          </button>
+        )}
 
         {/* New Trip slide-over panel */}
         {tripFormOpen && (
@@ -415,7 +509,7 @@ export default function Dashboard() {
               className="absolute inset-0 bg-black/10 z-20"
               onClick={() => setInvitesOpen(false)}
             />
-            <div className="absolute left-0 top-0 bottom-0 w-96 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 shadow-xl z-30 flex flex-col">
+            <div className="absolute left-0 top-0 bottom-0 w-full sm:w-96 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 shadow-xl z-30 flex flex-col">
               <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                   Tracking Requests
@@ -491,7 +585,7 @@ export default function Dashboard() {
 
         {/* History slide-over panel */}
         {historyOpen && (
-            <div className="absolute left-0 top-0 bottom-0 w-96 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 shadow-xl z-30 flex flex-col">
+            <div className="absolute left-0 top-0 bottom-0 w-full sm:w-96 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 shadow-xl z-30 flex flex-col">
               <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
                 <div>
                   <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">History</h2>

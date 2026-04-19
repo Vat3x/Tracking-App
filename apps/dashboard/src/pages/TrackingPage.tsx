@@ -444,6 +444,9 @@ export default function TrackingPage() {
       {/* Header */}
       <div style={{
         padding: "10px 16px",
+        paddingTop: "max(10px, env(safe-area-inset-top))",
+        paddingLeft: "max(16px, env(safe-area-inset-left))",
+        paddingRight: "max(16px, env(safe-area-inset-right))",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
@@ -469,7 +472,17 @@ export default function TrackingPage() {
       <div ref={mapContainerRef} style={{ flex: 1, minHeight: 0 }} />
 
       {/* Bottom panel */}
-      <div style={{ background: cardBg, borderTop: `1px solid ${borderColor}`, flexShrink: 0 }}>
+      <div style={{
+        background: cardBg,
+        borderTop: `1px solid ${borderColor}`,
+        flexShrink: 0,
+        maxHeight: "55dvh",
+        overflowY: "auto",
+        paddingBottom: "env(safe-area-inset-bottom)",
+        paddingLeft: "env(safe-area-inset-left)",
+        paddingRight: "env(safe-area-inset-right)",
+        WebkitOverflowScrolling: "touch",
+      }}>
 
         {/* Driver row */}
         <div style={{ padding: "12px 16px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -645,8 +658,10 @@ export default function TrackingPage() {
 }
 
 const pageStyle: React.CSSProperties = {
-  height: "100vh",
+  height: "100dvh",
+  maxHeight: "100dvh",
   display: "flex",
   flexDirection: "column",
   fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+  overflow: "hidden",
 };
