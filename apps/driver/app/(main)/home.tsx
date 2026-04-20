@@ -13,6 +13,7 @@ import {
   Animated,
 } from "react-native";
 import MapView, { Marker, type Region } from "react-native-maps";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 import { useAuthStore } from "../../src/stores/auth";
 import { useTrackingStore } from "../../src/stores/tracking";
@@ -58,6 +59,22 @@ export default function HomeScreen() {
 
   const spinAnim = useRef(new Animated.Value(0)).current;
   const isRefreshing = useRef(false);
+  const [showToggleHint, setShowToggleHint] = useState(false);
+
+  // Show toggle hint once for new drivers
+  useEffect(() => {
+    AsyncStorage.getItem("loadmind-toggle-hint-seen").then((v) => {
+      if (!v) setShowToggleHint(true);
+    });
+  }, []);
+
+  // Dismiss hint when driver toggles on
+  useEffect(() => {
+    if (isOnline && showToggleHint) {
+      setShowToggleHint(false);
+      AsyncStorage.setItem("loadmind-toggle-hint-seen", "1");
+    }
+  }, [isOnline, showToggleHint]);
 
   const handleRefresh = useCallback(async () => {
     if (isRefreshing.current) return;
@@ -317,6 +334,25 @@ export default function HomeScreen() {
           />
         </View>
 
+        {/* Toggle hint tooltip — shown once for new drivers */}
+        {showToggleHint && hasCompany && !isOnline && (
+          <View style={styles.hintBubble}>
+            <View style={styles.hintArrow} />
+            <Text style={styles.hintText}>
+              Tap the toggle above to start sharing your location with your dispatcher
+            </Text>
+            <TouchableOpacity
+              onPress={() => {
+                setShowToggleHint(false);
+                AsyncStorage.setItem("loadmind-toggle-hint-seen", "1");
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.hintDismiss}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Compact info row */}
         {isOnline && lastSync && (
           <View style={styles.compactInfoRow}>
@@ -543,6 +579,41 @@ const styles = StyleSheet.create({
   },
   statusHint: {
     fontSize: 12,
+  },
+  hintBubble: {
+    backgroundColor: "#2563eb",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    position: "relative",
+  },
+  hintArrow: {
+    position: "absolute",
+    top: -8,
+    right: 28,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderBottomWidth: 8,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderBottomColor: "#2563eb",
+  },
+  hintText: {
+    flex: 1,
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "500",
+    lineHeight: 18,
+  },
+  hintDismiss: {
+    color: "#bfdbfe",
+    fontSize: 12,
+    fontWeight: "600",
   },
   compactInfoRow: {
     flexDirection: "row",
