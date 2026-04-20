@@ -238,7 +238,8 @@ export default function MapView({
         month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
       });
       const kmh: number = props.speedKmh;
-      const speedLabel = kmh > 0 ? `${kmh} km/h` : "Stationary";
+      const mph = Math.round(kmh * 0.621371);
+      const speedLabel = kmh > 0 ? `${mph} mph` : "Stationary";
       const speedColor =
         kmh === 0 ? "#6366f1" : kmh < 30 ? "#3b82f6" : kmh < 80 ? "#22c55e" : "#eab308";
 
@@ -394,7 +395,7 @@ export default function MapView({
       const statusColor = !c.isOnline ? "#ef4444" : hasActiveTrip ? "#eab308" : "#22c55e";
       const statusLabel = !c.isOnline ? "Inactive" : hasActiveTrip ? "In Transit" : "Active";
       const battery = Math.round(c.batteryLevel * 100);
-      const speed = c.speed > 0 ? `${Math.round(c.speed * 3.6)} km/h` : "Stationary";
+      const speed = c.speed > 0 ? `${Math.round(c.speed * 2.237)} mph` : "Stationary";
 
       const popup = new maplibregl.Popup({ offset: 25, closeButton: false, className: "driver-popup" })
         .setLngLat([c.lng, c.lat])
@@ -409,6 +410,7 @@ export default function MapView({
                 <div class="dp-status" style="color:${statusColor}">${statusLabel} · ${timeAgo(c.timestamp)}</div>
               </div>
             </div>
+            <div class="dp-location" id="dp-loc-${driver.driverId}"></div>
             <div class="dp-cards">
               <div class="dp-card">
                 <div class="dp-label">Battery</div>
@@ -424,6 +426,21 @@ export default function MapView({
         .addTo(map);
 
       popupRef.current = popup;
+
+      // Reverse geocode to fill location label
+      fetch(`https://nominatim.openstreetmap.org/reverse?lat=${c.lat}&lon=${c.lng}&format=json&zoom=10`)
+        .then((r) => r.json())
+        .then((data) => {
+          const a = data.address;
+          if (!a) return;
+          const city = a.city || a.town || a.village || a.county || "";
+          const state = a.state || "";
+          const zip = a.postcode || "";
+          const label = [city, state].filter(Boolean).join(", ") + (zip ? ` ${zip}` : "");
+          const el = document.getElementById(`dp-loc-${driver.driverId}`);
+          if (el) el.innerHTML = `<div class="dp-label">Location</div><div class="dp-loc-value">${label}</div>`;
+        })
+        .catch(() => {});
     },
     [driverProfiles, activeDriverIds]
   );
