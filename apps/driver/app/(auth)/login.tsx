@@ -151,7 +151,11 @@ export default function LoginScreen() {
       router.replace("/(main)/home");
     } catch (err: any) {
       if (err.code === "auth/email-already-in-use") {
-        Alert.alert("Error", "An account with this email already exists.");
+        Alert.alert(
+          "Account Exists",
+          "An account with this email already exists. Tap 'Sign In' below to log in instead.",
+          [{ text: "OK", onPress: () => setIsRegister(false) }]
+        );
       } else {
         Alert.alert("Error", "Registration failed. Please try again.");
       }

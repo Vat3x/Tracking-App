@@ -132,7 +132,7 @@ export default function DriverHistory() {
     navigate("/login");
   }
 
-  const driverList = useMemo(() => Array.from(driverProfiles.entries()).sort((a, b) => a[1].displayName.localeCompare(b[1].displayName)), [driverProfiles]);
+  const driverList = useMemo(() => Array.from(driverProfiles.entries()).sort((a, b) => (a[1].displayName ?? "").localeCompare(b[1].displayName ?? "")), [driverProfiles]);
 
   return (
     <div className="h-screen flex flex-col">

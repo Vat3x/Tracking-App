@@ -90,7 +90,7 @@ export default function Trips() {
   }
 
   const driverList = useMemo(
-    () => Array.from(driverProfiles.entries()).sort((a, b) => a[1].displayName.localeCompare(b[1].displayName)),
+    () => Array.from(driverProfiles.entries()).sort((a, b) => (a[1].displayName ?? "").localeCompare(b[1].displayName ?? "")),
     [driverProfiles]
   );
 
