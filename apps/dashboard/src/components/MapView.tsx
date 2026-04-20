@@ -71,6 +71,7 @@ export default function MapView({
   const routeDataRef = useRef<RouteData | null>(null);
   const historyDataRef = useRef<LocationHistory[] | null>(null);
   const historyPopupRef = useRef<maplibregl.Popup | null>(null);
+  const geoCache = useRef<Map<string, string>>(new Map());
   const mostRecentMarkerRef = useRef<maplibregl.Marker | null>(null);
   const driversRef = useRef(drivers);
   driversRef.current = drivers;
@@ -397,6 +398,13 @@ export default function MapView({
       const battery = Math.round(c.batteryLevel * 100);
       const speed = c.speed > 0 ? `${Math.round(c.speed * 2.237)} mph` : "Stationary";
 
+      // Use cached location if available
+      const cacheKey = `${c.lat.toFixed(3)},${c.lng.toFixed(3)}`;
+      const cachedLoc = geoCache.current.get(cacheKey);
+      const locHtml = cachedLoc
+        ? `<div class="dp-label">Location</div><div class="dp-loc-value">${cachedLoc}</div>`
+        : "";
+
       const popup = new maplibregl.Popup({ offset: 25, closeButton: false, className: "driver-popup" })
         .setLngLat([c.lng, c.lat])
         .setHTML(
@@ -410,7 +418,7 @@ export default function MapView({
                 <div class="dp-status" style="color:${statusColor}">${statusLabel} · ${timeAgo(c.timestamp)}</div>
               </div>
             </div>
-            <div class="dp-location" id="dp-loc-${driver.driverId}"></div>
+            <div class="dp-location" id="dp-loc-${driver.driverId}">${locHtml}</div>
             <div class="dp-cards">
               <div class="dp-card">
                 <div class="dp-label">Battery</div>
@@ -427,20 +435,23 @@ export default function MapView({
 
       popupRef.current = popup;
 
-      // Reverse geocode to fill location label
-      fetch(`https://nominatim.openstreetmap.org/reverse?lat=${c.lat}&lon=${c.lng}&format=json&zoom=10`)
-        .then((r) => r.json())
-        .then((data) => {
-          const a = data.address;
-          if (!a) return;
-          const city = a.city || a.town || a.village || a.county || "";
-          const state = a.state || "";
-          const zip = a.postcode || "";
-          const label = [city, state].filter(Boolean).join(", ") + (zip ? ` ${zip}` : "");
-          const el = document.getElementById(`dp-loc-${driver.driverId}`);
-          if (el) el.innerHTML = `<div class="dp-label">Location</div><div class="dp-loc-value">${label}</div>`;
-        })
-        .catch(() => {});
+      // Reverse geocode only if not cached
+      if (!cachedLoc) {
+        fetch(`https://nominatim.openstreetmap.org/reverse?lat=${c.lat}&lon=${c.lng}&format=json&zoom=10`)
+          .then((r) => r.json())
+          .then((data) => {
+            const a = data.address;
+            if (!a) return;
+            const city = a.city || a.town || a.village || a.county || "";
+            const state = a.state || "";
+            const zip = a.postcode || "";
+            const label = [city, state].filter(Boolean).join(", ") + (zip ? ` ${zip}` : "");
+            geoCache.current.set(cacheKey, label);
+            const el = document.getElementById(`dp-loc-${driver.driverId}`);
+            if (el) el.innerHTML = `<div class="dp-label">Location</div><div class="dp-loc-value">${label}</div>`;
+          })
+          .catch(() => {});
+      }
     },
     [driverProfiles, activeDriverIds]
   );
