@@ -16,6 +16,7 @@ import MapView, { Marker, Polyline, type Region } from "react-native-maps";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import { useAuthStore } from "../../src/stores/auth";
+import { useTrackingStore } from "../../src/stores/tracking";
 import { useTripsStore } from "../../src/stores/trips";
 import { respondToTrip, advanceToNextStop } from "../../src/services/trips";
 import { fetchRoute, type RouteResult } from "../../src/services/routing";
@@ -23,6 +24,7 @@ import { useTheme } from "../../src/hooks/useTheme";
 import { getStatusColors } from "../../src/constants/statusColors";
 import { type Trip, type TripStatus, getStopsFromTrip } from "@nexus/shared";
 import TripMap from "../../src/components/TripMap";
+import { DirectionArrow } from "../../src/components/DirectionArrow";
 
 // Error boundary
 class TripsErrorBoundary extends Component<
@@ -84,7 +86,7 @@ function formatDistance(meters: number, useMiles: boolean): string {
 function handleNavigateExternal(trip: Trip, stopIndex?: number) {
   const stops = getStopsFromTrip(trip);
   const currentIdx = trip.currentStopIndex ?? 0;
-  let target: { lat: number; lng: number } | undefined;
+  let target: { lat: number; lng: number; label?: string } | undefined;
   if (stopIndex != null && stopIndex < stops.length) {
     target = stops[stopIndex];
   } else if (trip.status === "accepted") {
@@ -95,13 +97,15 @@ function handleNavigateExternal(trip: Trip, stopIndex?: number) {
     target = stops[stops.length - 1]; // last stop
   }
   if (!target) return;
-  const { lat, lng } = target;
+  const { lat, lng, label } = target;
+  // Use address label if available, fall back to coordinates
+  const destination = label ? encodeURIComponent(label) : `${lat},${lng}`;
   const googleUrl = Platform.OS === "android"
-    ? `google.navigation:q=${lat},${lng}`
-    : `comgooglemaps://?daddr=${lat},${lng}&directionsmode=driving`;
+    ? `google.navigation:q=${destination}`
+    : `comgooglemaps://?daddr=${destination}&directionsmode=driving`;
   const fallback = Platform.OS === "ios"
-    ? `maps:?daddr=${lat},${lng}`
-    : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+    ? `maps:?daddr=${destination}`
+    : `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
   Linking.openURL(googleUrl).catch(() => Linking.openURL(fallback));
 }
 
@@ -118,11 +122,13 @@ function ActiveTripNavView({
   onShowList: () => void;
 }) {
   const { colors, isDark, mapStyle } = useTheme();
+  const lastSync = useTrackingStore((s) => s.lastSync);
   const mapRef = useRef<MapView>(null);
   const [route, setRoute] = useState<RouteResult | null>(null);
   const [routeLoading, setRouteLoading] = useState(false);
   const [initialRegion, setInitialRegion] = useState<Region | null>(null);
   const [selectedStopIndex, setSelectedStopIndex] = useState<number | null>(null);
+  const [driverPos, setDriverPos] = useState<{ lat: number; lng: number; heading: number } | null>(null);
 
   const isAccepted = trip.status === "accepted";
   const isInProgress = trip.status === "in_progress";
@@ -130,6 +136,26 @@ function ActiveTripNavView({
   const currentIdx = trip.currentStopIndex ?? 0;
   const allStopsCompleted = currentIdx >= stops.length;
   const useMiles = trip.country === "us";
+
+  // Live GPS tracking for arrow position + heading
+  useEffect(() => {
+    let sub: Location.LocationSubscription | null = null;
+    (async () => {
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status !== "granted") return;
+      sub = await Location.watchPositionAsync(
+        { accuracy: Location.Accuracy.High, distanceInterval: 5, timeInterval: 2000 },
+        (loc) => {
+          setDriverPos({
+            lat: loc.coords.latitude,
+            lng: loc.coords.longitude,
+            heading: loc.coords.heading ?? 0,
+          });
+        },
+      );
+    })();
+    return () => { sub?.remove(); };
+  }, []);
 
   // Auto-clear selection when currentStopIndex changes
   useEffect(() => {
@@ -176,6 +202,11 @@ function ActiveTripNavView({
             });
             if (!cancelled) {
               driverCoord = [loc.coords.longitude, loc.coords.latitude];
+              setDriverPos({
+                lat: loc.coords.latitude,
+                lng: loc.coords.longitude,
+                heading: loc.coords.heading ?? 0,
+              });
             }
           }
         } catch (e) {
@@ -278,7 +309,7 @@ function ActiveTripNavView({
           ref={mapRef}
           style={StyleSheet.absoluteFillObject}
           initialRegion={initialRegion}
-          showsUserLocation
+          showsUserLocation={!lastSync && !driverPos}
           showsMyLocationButton={false}
           showsTraffic
           customMapStyle={mapStyle}
@@ -300,23 +331,33 @@ function ActiveTripNavView({
             />
           )}
           {stops.map((stop, i) => {
-            const completed = isInProgress && i < currentIdx;
-            const isSelected = selectedStopIndex === i;
+            // Only show the active destination: selected stop, current stop, or first pickup
+            const targetIdx = selectedStopIndex ?? (isInProgress ? currentIdx : 0);
+            if (i !== targetIdx) return null;
             const color = stop.type === "pickup" ? "#22c55e" : "#ef4444";
             return (
               <Marker
                 key={`stop-${i}`}
                 coordinate={{ latitude: stop.lat, longitude: stop.lng }}
-                pinColor={isSelected ? "#f97316" : completed ? "#22c55e" : color}
-                title={`${stop.type === "pickup" ? "Pickup" : "Drop-off"} ${i + 1}${completed ? " (Done)" : ""}`}
+                pinColor={selectedStopIndex != null ? "#f97316" : color}
+                title={`${stop.type === "pickup" ? "Pickup" : "Drop-off"} ${i + 1}`}
                 description={stop.label}
-                opacity={completed ? 0.5 : 1}
-                onPress={() => {
-                  if (!completed) setSelectedStopIndex(isSelected ? null : i);
-                }}
               />
             );
           })}
+          {(driverPos || lastSync) && (
+            <Marker
+              coordinate={{
+                latitude: (driverPos ?? lastSync)!.lat,
+                longitude: (driverPos ?? lastSync)!.lng,
+              }}
+              anchor={{ x: 0.5, y: 0.5 }}
+              flat
+              tracksViewChanges
+            >
+              <DirectionArrow heading={(driverPos ?? lastSync)!.heading} />
+            </Marker>
+          )}
         </MapView>
       ) : (
         <View style={[styles.mapLoading, { backgroundColor: colors.bgSecondary }]}>

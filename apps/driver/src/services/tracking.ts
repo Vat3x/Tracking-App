@@ -53,6 +53,7 @@ export async function updateDriverLocation(
       batteryLevel: battery.level,
       isCharging: battery.isCharging,
       speed: location.coords.speed ?? 0,
+      heading: location.coords.heading ?? 0,
     });
   } catch (error) {
     console.warn("Location write failed, queuing for offline replay:", error);

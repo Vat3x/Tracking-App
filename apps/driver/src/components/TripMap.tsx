@@ -4,6 +4,8 @@ import MapView, { Polyline, Marker, type Region } from "react-native-maps";
 import * as Location from "expo-location";
 import { fetchRoute, type RouteResult } from "../services/routing";
 import { useTheme } from "../hooks/useTheme";
+import { useTrackingStore } from "../stores/tracking";
+import { DirectionArrow } from "./DirectionArrow";
 import { type Trip, getStopsFromTrip } from "@nexus/shared";
 
 function formatETA(seconds: number): string {
@@ -35,6 +37,7 @@ interface Props {
 
 function TripMapInner({ trip, selectedStopIndex }: Props) {
   const { colors, mapStyle } = useTheme();
+  const lastSync = useTrackingStore((s) => s.lastSync);
   const mapRef = useRef<MapView>(null);
   const mountedRef = useRef(true);
   const [route, setRoute] = useState<RouteResult | null>(null);
@@ -188,6 +191,17 @@ function TripMapInner({ trip, selectedStopIndex }: Props) {
           strokeWidth={4}
           lineDashPattern={isAccepted && selectedStopIndex == null ? [10, 5] : undefined}
         />
+
+        {lastSync && (
+          <Marker
+            coordinate={{ latitude: lastSync.lat, longitude: lastSync.lng }}
+            anchor={{ x: 0.5, y: 0.5 }}
+            flat
+            tracksViewChanges={false}
+          >
+            <DirectionArrow heading={lastSync.heading} />
+          </Marker>
+        )}
 
         {stops.map((stop, i) => {
           const isCompleted = isInProgress && i < currentIdx;

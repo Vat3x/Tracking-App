@@ -121,7 +121,7 @@ function DriverInfoModal({
               { l: "Status", v: !c.isOnline ? "Offline" : hasActiveTrip ? "In Transit" : "Online" },
               { l: "Role", v: profile?.role ?? "driver" },
               { l: "Battery", v: `${Math.round(c.batteryLevel * 100)}%${c.isCharging ? " (Charging)" : ""}` },
-              { l: "Speed", v: c.speed > 0 ? `${Math.round(c.speed * 3.6)} km/h` : "Stationary" },
+              { l: "Speed", v: c.speed > 0 ? `${Math.round(c.speed * 2.237)} mph` : "Stationary" },
               { l: "Last Sync", v: timeAgo(c.timestamp) },
               { l: "Heading", v: c.heading ? `${Math.round(c.heading)}°` : "—" },
             ].map(({ l, v }) => (
@@ -377,8 +377,31 @@ function DriverCard({
   const [infoOpen, setInfoOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [locationLabel, setLocationLabel] = useState<string | null>(null);
+  const geocodedRef = useRef("");
   const c = driver.current;
   const name = profile?.displayName || profile?.phone || `Driver ${driver.driverId.slice(0, 6)}`;
+
+  // Reverse geocode when selected
+  useEffect(() => {
+    if (!isSelected) return;
+    const key = `${c.lat.toFixed(3)},${c.lng.toFixed(3)}`;
+    if (geocodedRef.current === key) return;
+    geocodedRef.current = key;
+    fetch(`https://nominatim.openstreetmap.org/reverse?lat=${c.lat}&lon=${c.lng}&format=json&zoom=10`)
+      .then((r) => r.json())
+      .then((data) => {
+        const a = data.address;
+        if (a) {
+          const city = a.city || a.town || a.village || a.county || "";
+          const state = a.state || "";
+          const zip = a.postcode || "";
+          const parts = [city, state].filter(Boolean).join(", ");
+          setLocationLabel(parts + (zip ? ` ${zip}` : ""));
+        }
+      })
+      .catch(() => {});
+  }, [isSelected, c.lat, c.lng]);
 
   async function handleAction(action: string) {
     switch (action) {
@@ -474,8 +497,23 @@ function DriverCard({
           <span>·</span>
           <span>{Math.round(c.batteryLevel * 100)}%{c.isCharging ? " ⚡" : ""}</span>
           <span>·</span>
-          <span>{c.speed > 0 ? `${Math.round(c.speed * 3.6)} km/h` : "Still"}</span>
+          <span>{c.speed > 0 ? `${Math.round(c.speed * 2.237)} mph` : "Still"}</span>
         </div>
+
+        {isSelected && locationLabel && (
+          <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700/50">
+            <p className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-0.5">Current Location</p>
+            <p className="text-xs font-medium text-blue-600 dark:text-blue-400">{locationLabel}</p>
+            {c.speed > 0 && (
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400 dark:text-gray-500">
+                  <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0" /><path d="M12 2v4" /><path d="M12 18v4" /><path d="M4.93 4.93l2.83 2.83" /><path d="M16.24 16.24l2.83 2.83" />
+                </svg>
+                <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">{Math.round(c.speed * 2.237)} mph</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {isSelected && activeTrip && (() => {
               const pickup = getFirstPickup(activeTrip);

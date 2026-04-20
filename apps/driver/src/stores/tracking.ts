@@ -7,6 +7,7 @@ export interface LastSync {
   batteryLevel: number;
   isCharging: boolean;
   speed: number;
+  heading: number;
 }
 
 interface TrackingState {
