@@ -1,7 +1,9 @@
 import { useState, useRef, type FormEvent } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import ReCAPTCHA from "react-google-recaptcha";
+import { httpsCallable } from "firebase/functions";
 import { registerDispatcher, getUserDoc } from "@/services/auth";
+import { functions } from "@/services/firebase";
 import { useAuthStore } from "@/stores/auth";
 import { Loader2, Crown } from "lucide-react";
 
@@ -84,6 +86,9 @@ export default function Register() {
     setLoading(true);
 
     try {
+      const verify = httpsCallable(functions, "verifyRecaptcha");
+      await verify({ token: recaptchaToken });
+
       const { user } = await registerDispatcher(
         email,
         password,
