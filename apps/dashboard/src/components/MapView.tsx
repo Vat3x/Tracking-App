@@ -382,58 +382,68 @@ export default function MapView({
     };
   }, [theme, drawRouteFromData, drawHistoryFromData]);
 
+  const popupDriverIdRef = useRef<string | null>(null);
+
+  function buildPopupHtml(driver: DriverLocationEntry) {
+    const profile = driverProfiles.get(driver.driverId);
+    const name = profile?.displayName || profile?.phone || driver.driverId.slice(0, 8);
+    const c = driver.current;
+    const hasActiveTrip = activeDriverIds.has(driver.driverId);
+    const statusColor = !c.isOnline ? "#ef4444" : hasActiveTrip ? "#eab308" : "#22c55e";
+    const statusLabel = !c.isOnline ? "Inactive" : hasActiveTrip ? "In Transit" : "Active";
+    const battery = Math.round(c.batteryLevel * 100);
+    const speed = c.speed > 0 ? `${Math.round(c.speed * 2.237)} mph` : "Stationary";
+    const cacheKey = `${c.lat.toFixed(3)},${c.lng.toFixed(3)}`;
+    const cachedLoc = geoCache.current.get(cacheKey);
+    const locHtml = cachedLoc
+      ? `<div class="dp-label">Location</div><div class="dp-loc-value">${cachedLoc}</div>`
+      : "";
+    return { html: `<div class="dp-root">
+      <div class="dp-header">
+        <div class="dp-dot-ring" style="background:${statusColor}20">
+          <div class="dp-dot" style="background:${statusColor}"></div>
+        </div>
+        <div>
+          <div class="dp-name">${name}</div>
+          <div class="dp-status" style="color:${statusColor}">${statusLabel} · ${timeAgo(c.timestamp)}</div>
+        </div>
+      </div>
+      <div class="dp-location" id="dp-loc-${driver.driverId}">${locHtml}</div>
+      <div class="dp-cards">
+        <div class="dp-card">
+          <div class="dp-label">Battery</div>
+          <div class="dp-value">${battery}%${c.isCharging ? " ⚡" : ""}</div>
+        </div>
+        <div class="dp-card">
+          <div class="dp-label">Speed</div>
+          <div class="dp-value">${speed}</div>
+        </div>
+      </div>
+    </div>`, cacheKey, cachedLoc };
+  }
+
   const showPopup = useCallback(
     (driver: DriverLocationEntry) => {
       const map = mapRef.current;
       if (!map) return;
 
-      const profile = driverProfiles.get(driver.driverId);
-      const name = profile?.displayName || profile?.phone || driver.driverId.slice(0, 8);
       const c = driver.current;
-      popupRef.current?.remove();
+      const { html, cacheKey, cachedLoc } = buildPopupHtml(driver);
 
-      const hasActiveTrip = activeDriverIds.has(driver.driverId);
-      const statusColor = !c.isOnline ? "#ef4444" : hasActiveTrip ? "#eab308" : "#22c55e";
-      const statusLabel = !c.isOnline ? "Inactive" : hasActiveTrip ? "In Transit" : "Active";
-      const battery = Math.round(c.batteryLevel * 100);
-      const speed = c.speed > 0 ? `${Math.round(c.speed * 2.237)} mph` : "Stationary";
-
-      // Use cached location if available
-      const cacheKey = `${c.lat.toFixed(3)},${c.lng.toFixed(3)}`;
-      const cachedLoc = geoCache.current.get(cacheKey);
-      const locHtml = cachedLoc
-        ? `<div class="dp-label">Location</div><div class="dp-loc-value">${cachedLoc}</div>`
-        : "";
-
-      const popup = new maplibregl.Popup({ offset: 25, closeButton: false, className: "driver-popup" })
-        .setLngLat([c.lng, c.lat])
-        .setHTML(
-          `<div class="dp-root">
-            <div class="dp-header">
-              <div class="dp-dot-ring" style="background:${statusColor}20">
-                <div class="dp-dot" style="background:${statusColor}"></div>
-              </div>
-              <div>
-                <div class="dp-name">${name}</div>
-                <div class="dp-status" style="color:${statusColor}">${statusLabel} · ${timeAgo(c.timestamp)}</div>
-              </div>
-            </div>
-            <div class="dp-location" id="dp-loc-${driver.driverId}">${locHtml}</div>
-            <div class="dp-cards">
-              <div class="dp-card">
-                <div class="dp-label">Battery</div>
-                <div class="dp-value">${battery}%${c.isCharging ? " ⚡" : ""}</div>
-              </div>
-              <div class="dp-card">
-                <div class="dp-label">Speed</div>
-                <div class="dp-value">${speed}</div>
-              </div>
-            </div>
-          </div>`
-        )
-        .addTo(map);
-
-      popupRef.current = popup;
+      // If popup already exists for this driver, update in place
+      if (popupRef.current && popupDriverIdRef.current === driver.driverId) {
+        popupRef.current.setLngLat([c.lng, c.lat]);
+        const el = popupRef.current.getElement()?.querySelector(".dp-root")?.parentElement;
+        if (el) { el.innerHTML = html; }
+      } else {
+        popupRef.current?.remove();
+        popupDriverIdRef.current = driver.driverId;
+        const popup = new maplibregl.Popup({ offset: 25, closeButton: false, className: "driver-popup" })
+          .setLngLat([c.lng, c.lat])
+          .setHTML(html)
+          .addTo(map);
+        popupRef.current = popup;
+      }
 
       // Reverse geocode only if not cached
       if (!cachedLoc) {
@@ -447,8 +457,8 @@ export default function MapView({
             const zip = a.postcode || "";
             const label = [city, state].filter(Boolean).join(", ") + (zip ? ` ${zip}` : "");
             geoCache.current.set(cacheKey, label);
-            const el = document.getElementById(`dp-loc-${driver.driverId}`);
-            if (el) el.innerHTML = `<div class="dp-label">Location</div><div class="dp-loc-value">${label}</div>`;
+            const locEl = document.getElementById(`dp-loc-${driver.driverId}`);
+            if (locEl) locEl.innerHTML = `<div class="dp-label">Location</div><div class="dp-loc-value">${label}</div>`;
           })
           .catch(() => {});
       }
