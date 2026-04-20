@@ -24,6 +24,7 @@ export default function AcceptInviteScreen() {
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [alreadyConnected, setAlreadyConnected] = useState(false);
 
   useEffect(() => {
     if (!id) {
@@ -38,7 +39,13 @@ export default function AcceptInviteScreen() {
           if (!inv) {
             setError("Invite not found");
           } else if (inv.status === "accepted") {
-            setError("This invite has already been used");
+            const isMe = firebaseUser && (inv as any).acceptedBy === firebaseUser.uid;
+            if (isMe) {
+              setAlreadyConnected(true);
+              setError("You're already connected to this company! Open the app and tap the toggle to go online.");
+            } else {
+              setError("This invite link has already been used by another driver. Ask your dispatcher to send a new one.");
+            }
           } else if (inv.status === "expired" || inv.expiresAt < Date.now()) {
             setError("This invite has expired");
           } else {
@@ -97,14 +104,25 @@ export default function AcceptInviteScreen() {
   if (error) {
     return (
       <View style={[styles.container, { backgroundColor: colors.bg }]}>
-        <Text style={[styles.errorIcon, isDark && { backgroundColor: "#450a0a" }]}>!</Text>
-        <Text style={[styles.errorTitle, { color: colors.text }]}>Cannot Accept Invite</Text>
+        <Text style={[
+          styles.errorIcon,
+          alreadyConnected
+            ? { color: "#16a34a", backgroundColor: isDark ? "#052e16" : "#dcfce7" }
+            : isDark && { backgroundColor: "#450a0a" },
+        ]}>
+          {alreadyConnected ? "\u2713" : "!"}
+        </Text>
+        <Text style={[styles.errorTitle, { color: colors.text }]}>
+          {alreadyConnected ? "Already Connected" : "Cannot Accept Invite"}
+        </Text>
         <Text style={[styles.errorText, { color: colors.textSecondary }]}>{error}</Text>
         <TouchableOpacity
-          style={styles.secondaryButton}
+          style={[styles.primaryButton, alreadyConnected && { backgroundColor: "#16a34a" }]}
           onPress={() => router.replace("/(main)/home")}
         >
-          <Text style={[styles.secondaryButtonText, { color: colors.textSecondary }]}>Go to Home</Text>
+          <Text style={styles.primaryButtonText}>
+            {alreadyConnected ? "Open App" : "Go to Home"}
+          </Text>
         </TouchableOpacity>
       </View>
     );

@@ -118,5 +118,6 @@ export const getInvitePublic = onCall({ cors: true }, async (request) => {
     status: data.status,
     expiresAt: data.expiresAt,
     createdAt: data.createdAt,
+    acceptedBy: data.acceptedBy ?? null,
   };
 });
