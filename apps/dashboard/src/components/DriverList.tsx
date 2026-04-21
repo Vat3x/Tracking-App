@@ -533,13 +533,13 @@ function DriverCard({
                 {pickup && (
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-400 dark:text-gray-500">Pickup</span>
-                    <span className="text-gray-600 dark:text-gray-300 truncate ml-2 max-w-[140px]">{pickup.label}</span>
+                    <span className="text-gray-600 dark:text-gray-300 ml-2 text-right">{pickup.label}</span>
                   </div>
                 )}
                 {dropoff && (
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-400 dark:text-gray-500">Drop-off</span>
-                    <span className="text-gray-600 dark:text-gray-300 truncate ml-2 max-w-[140px]">{dropoff.label}</span>
+                    <span className="text-gray-600 dark:text-gray-300 ml-2 text-right">{dropoff.label}</span>
                   </div>
                 )}
                 {(() => {
