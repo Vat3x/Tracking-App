@@ -147,7 +147,7 @@ export default function OnboardingScreen() {
     if (pendingInviteId) {
       router.replace({ pathname: "/(auth)/login", params: { inviteId: pendingInviteId } } as any);
     } else {
-      router.replace("/(auth)/login");
+      router.replace("/(auth)/welcome");
     }
   }
 

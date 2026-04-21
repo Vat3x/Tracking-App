@@ -150,7 +150,7 @@ function AuthGate() {
         setStartupRoute({ pathname: "/(auth)/login", params: { inviteId: invId } });
       } else {
         const seen = await AsyncStorage.getItem("@onboarding_seen");
-        setStartupRoute({ pathname: seen ? "/(auth)/login" : "/(auth)/onboarding" });
+        setStartupRoute({ pathname: seen ? "/(auth)/welcome" : "/(auth)/onboarding" });
       }
     }
     preload();

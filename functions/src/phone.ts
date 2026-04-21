@@ -20,6 +20,25 @@ function isGeorgianNumber(phone: string): boolean {
   return phone.startsWith("+995");
 }
 
+/**
+ * Check if a phone number is already registered in Firebase Auth.
+ * Used by the driver app sign-in flow (no invite) to reject unregistered numbers
+ * before sending an OTP — avoids creating orphaned Firebase Auth users.
+ */
+export const checkPhoneExists = onCall({ cors: true }, async (request) => {
+  const { phone } = request.data as { phone: string };
+  if (!phone || typeof phone !== "string") {
+    throw new HttpsError("invalid-argument", "phone is required");
+  }
+
+  try {
+    await admin.auth().getUserByPhoneNumber(phone);
+    return { exists: true };
+  } catch {
+    return { exists: false };
+  }
+});
+
 export const sendOtp = onCall(
   { secrets: [twilioAccountSid, twilioAuthToken, twilioVerifySid, verifyGeApiKey] },
   async (request) => {

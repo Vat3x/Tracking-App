@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { loginWithEmail, registerDriver, resetPassword, getUserDoc } from "../../src/services/auth";
-import { sendVerificationCode, verifyOtpAndSignIn, createPhoneUser } from "../../src/services/phoneAuth";
+import { sendVerificationCode, verifyOtpAndSignIn, createPhoneUser, checkPhoneRegistered } from "../../src/services/phoneAuth";
 import { acceptInvite } from "../../src/services/invites";
 import { Logo } from "../../src/components/Logo";
 import { useAuthStore } from "../../src/stores/auth";
@@ -207,6 +207,19 @@ export default function LoginScreen() {
     const fullNumber = buildFullNumber(countryCode, phoneNumber);
     setPhoneStep("sending");
     try {
+      // Sign-in mode (no invite): check if phone is registered first
+      if (!hasInvite) {
+        const exists = await checkPhoneRegistered(fullNumber);
+        if (!exists) {
+          setPhoneStep("idle");
+          Alert.alert(
+            "No Account Found",
+            "This phone number is not registered. Ask your dispatcher for an invite link to create an account."
+          );
+          return;
+        }
+      }
+
       const requestId = await sendVerificationCode(fullNumber);
       setOtpPhone(fullNumber);
       setOtpRequestId(requestId);
@@ -337,14 +350,6 @@ export default function LoginScreen() {
         )}
 
         {/* Info banner — shown when no invite and idle */}
-        {!hasInvite && !isPhoneMultiStep && (
-          <View style={[styles.infoBanner, isDark && { backgroundColor: "#2d2000", borderColor: "#78500a" }]}>
-            <Text style={styles.infoBannerIcon}>💡</Text>
-            <Text style={[styles.infoBannerText, isDark && { color: "#fcd34d" }]}>
-              To create an account, ask your company for an invitation link. Already have one? Open it again to start registration.
-            </Text>
-          </View>
-        )}
 
         {/* OTP subtitle */}
         {(phoneStep === "otp" || phoneStep === "verifying") && (
@@ -665,6 +670,18 @@ export default function LoginScreen() {
           )}
         </View>{/* /formCard */}
 
+        {/* Go back hint — shown when no invite */}
+        {!hasInvite && !isPhoneMultiStep && (
+          <View style={[styles.goBackCard, isDark && { backgroundColor: "#2d2000", borderColor: "#78500a" }]}>
+            <Text style={[styles.goBackText, isDark && { color: "#fcd34d" }]}>
+              Don't have an account? Open the invite link from your company to register and connect.
+            </Text>
+            <TouchableOpacity onPress={() => router.back()}>
+              <Text style={styles.goBackBtn}>← Go Back</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <Text style={[styles.policyText, { color: colors.textMuted }]}>
           By signing in, you agree to our{" "}
           <Text
@@ -737,26 +754,26 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  infoBanner: {
+  goBackCard: {
     backgroundColor: "#fffbeb",
     borderWidth: 1.5,
     borderColor: "#fde68a",
-    borderRadius: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    marginBottom: 14,
-    flexDirection: "row",
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
     alignItems: "center",
-    gap: 8,
   },
-  infoBannerIcon: {
-    fontSize: 16,
-  },
-  infoBannerText: {
-    flex: 1,
+  goBackText: {
     fontSize: 14,
     color: "#92400e",
     lineHeight: 20,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  goBackBtn: {
+    color: "#1a73e8",
+    fontSize: 14,
+    fontWeight: "600",
   },
 
   formCard: {

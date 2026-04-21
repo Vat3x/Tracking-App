@@ -8,6 +8,12 @@ import { COLLECTIONS, type User } from "@nexus/shared";
 
 const functions = getFunctions(app);
 
+export async function checkPhoneRegistered(phoneNumber: string): Promise<boolean> {
+  const check = httpsCallable<{ phone: string }, { exists: boolean }>(functions, "checkPhoneExists");
+  const result = await check({ phone: phoneNumber });
+  return result.data.exists;
+}
+
 export async function sendVerificationCode(phoneNumber: string): Promise<string | null> {
   const sendOtp = httpsCallable<{ phone: string }, { success: boolean; requestId?: string }>(functions, "sendOtp");
   const result = await sendOtp({ phone: phoneNumber });
