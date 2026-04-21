@@ -50,8 +50,16 @@
 
     var storeUrl = isIOS ? appStore : playStore;
 
+    var intentUrl = 'intent://invite/' + inviteId +
+      '#Intent;scheme=nexustracking;package=com.nexus.tracking.driver;' +
+      'S.browser_fallback_url=' + encodeURIComponent(playStore) + ';end';
+
+    // Android: intent URL opens app if installed, falls back to Play Store
+    // iOS: go to App Store (Universal Links handle the app-installed case before this page loads)
+    var startUrl = isIOS ? storeUrl : intentUrl;
+
     document.getElementById('cta').innerHTML =
-      '<a class="btn-start" href="' + storeUrl + '">Start</a>';
+      '<a class="btn-start" href="' + startUrl + '">Start</a>';
   </script>
 </body>
 </html>
