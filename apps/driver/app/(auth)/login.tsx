@@ -17,7 +17,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { loginWithEmail, registerDriver, resetPassword, getUserDoc } from "../../src/services/auth";
 import { sendVerificationCode, verifyOtpAndSignIn, createPhoneUser, checkPhoneRegistered } from "../../src/services/phoneAuth";
-import { acceptInvite } from "../../src/services/invites";
+import { acceptInvite, getInvite } from "../../src/services/invites";
 import { Logo } from "../../src/components/Logo";
 import { useAuthStore } from "../../src/stores/auth";
 import { useTheme } from "../../src/hooks/useTheme";
@@ -36,8 +36,18 @@ export default function LoginScreen() {
   const { setFirebaseUser, setUserDoc, pendingInviteId, setPendingInviteId } = useAuthStore();
 
   const inviteId = params.inviteId || pendingInviteId;
-  const inviteCompanyName = params.inviteCompanyName;
+  const [fetchedCompanyName, setFetchedCompanyName] = useState<string | null>(null);
+  const inviteCompanyName = params.inviteCompanyName || fetchedCompanyName;
   const hasInvite = !!inviteId;
+
+  // Fetch company name when we have inviteId but no company name (deep link via store)
+  useEffect(() => {
+    if (inviteId && !params.inviteCompanyName) {
+      getInvite(inviteId)
+        .then((inv) => { if (inv?.companyName) setFetchedCompanyName(inv.companyName); })
+        .catch(() => {});
+    }
+  }, [inviteId]);
 
   // Tab state
   const [activeTab, setActiveTab] = useState<"phone" | "email">("phone");
