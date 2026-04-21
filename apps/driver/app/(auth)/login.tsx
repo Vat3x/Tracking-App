@@ -38,6 +38,9 @@ export default function LoginScreen() {
   const inviteCompanyName = params.inviteCompanyName;
   const hasInvite = !!inviteId;
 
+  // Tab state
+  const [activeTab, setActiveTab] = useState<"phone" | "email">("phone");
+
   // Email auth state — default to register when coming from invite link
   const [isRegister, setIsRegister] = useState(hasInvite);
   const [displayName, setDisplayName] = useState("");
@@ -447,92 +450,98 @@ export default function LoginScreen() {
               )}
             </>
           ) : (
-            /* ---- COMBINED PHONE + EMAIL ---- */
+            /* ---- TABBED PHONE / EMAIL ---- */
             <>
-              {/* PHONE SECTION */}
-              <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Mobile</Text>
-
-              <View style={styles.phoneRow}>
+              {/* TABS */}
+              <View style={[styles.tabBar, { backgroundColor: isDark ? "#1e293b" : "#f1f5f9" }]}>
                 <TouchableOpacity
-                  style={[styles.countryBtn, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg }]}
-                  onPress={() => { setShowCountryPicker(!showCountryPicker); setCountrySearch(""); }}
+                  style={[styles.tab, activeTab === "phone" && [styles.tabActive, { backgroundColor: isDark ? "#334155" : "#fff" }]]}
+                  onPress={() => setActiveTab("phone")}
                 >
-                  <Text style={[styles.countryBtnText, { color: colors.inputText }]}>{countryCode}</Text>
-                  <Text style={[styles.countryArrow, { color: colors.textMuted }]}>▼</Text>
+                  <Text style={[styles.tabText, { color: isDark ? "#9ca3af" : "#9ca3af" }, activeTab === "phone" && { color: "#1F6AB5" }]}>Phone</Text>
                 </TouchableOpacity>
-                <TextInput
-                  style={[styles.phoneInput, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg, color: colors.inputText }]}
-                  placeholder="Phone number"
-                  placeholderTextColor={colors.placeholder}
-                  value={phoneNumber}
-                  onChangeText={setPhoneNumber}
-                  keyboardType="phone-pad"
-                />
+                <TouchableOpacity
+                  style={[styles.tab, activeTab === "email" && [styles.tabActive, { backgroundColor: isDark ? "#334155" : "#fff" }]]}
+                  onPress={() => setActiveTab("email")}
+                >
+                  <Text style={[styles.tabText, { color: isDark ? "#9ca3af" : "#9ca3af" }, activeTab === "email" && { color: "#1F6AB5" }]}>Email</Text>
+                </TouchableOpacity>
               </View>
 
-              {showCountryPicker && (
-                <View style={[styles.countryList, { borderColor: colors.inputBorder, backgroundColor: colors.bgCard }]}>
-                  <View style={[styles.countrySearchWrapper, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg }]}>
-                    <Text style={[styles.countrySearchIcon, { color: colors.placeholder }]}>🔍</Text>
+              {activeTab === "phone" ? (
+                /* ---- PHONE TAB ---- */
+                <>
+                  <View style={styles.phoneRow}>
+                    <TouchableOpacity
+                      style={[styles.countryBtn, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg }]}
+                      onPress={() => { setShowCountryPicker(!showCountryPicker); setCountrySearch(""); }}
+                    >
+                      <Text style={[styles.countryBtnText, { color: colors.inputText }]}>{countryCode}</Text>
+                      <Text style={[styles.countryArrow, { color: colors.textMuted }]}>▼</Text>
+                    </TouchableOpacity>
                     <TextInput
-                      style={[styles.countrySearch, { color: colors.inputText }]}
-                      placeholder="Search country or code…"
+                      style={[styles.phoneInput, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg, color: colors.inputText }]}
+                      placeholder="Phone number"
                       placeholderTextColor={colors.placeholder}
-                      value={countrySearch}
-                      onChangeText={setCountrySearch}
-                      autoCorrect={false}
-                      autoCapitalize="none"
-                      clearButtonMode="while-editing"
+                      value={phoneNumber}
+                      onChangeText={setPhoneNumber}
+                      keyboardType="phone-pad"
                     />
                   </View>
-                  <ScrollView style={styles.countryScroll} keyboardShouldPersistTaps="handled">
-                    {COUNTRY_CODES.filter((c) => {
-                      const q = countrySearch.toLowerCase();
-                      return !q || c.label.toLowerCase().includes(q);
-                    }).map((c) => (
-                      <TouchableOpacity
-                        key={c.code + c.label}
-                        style={[
-                          styles.countryItem,
-                          { borderBottomColor: colors.divider },
-                          c.code === countryCode && { backgroundColor: isDark ? "#172554" : "#e8f0fe" },
-                        ]}
-                        onPress={() => {
-                          setCountryCode(c.code);
-                          setShowCountryPicker(false);
-                          setCountrySearch("");
-                        }}
-                      >
-                        <Text style={[styles.countryItemText, { color: colors.text }]}>{c.label}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              )}
 
-              <TouchableOpacity
-                style={[styles.button, phoneStep === "sending" && styles.buttonDisabled]}
-                onPress={handleSendOtp}
-                disabled={phoneStep === "sending"}
-              >
-                {phoneStep === "sending" ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.buttonText}>Send Code</Text>
-                )}
-              </TouchableOpacity>
+                  {showCountryPicker && (
+                    <View style={[styles.countryList, { borderColor: colors.inputBorder, backgroundColor: colors.bgCard }]}>
+                      <View style={[styles.countrySearchWrapper, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg }]}>
+                        <Text style={[styles.countrySearchIcon, { color: colors.placeholder }]}>🔍</Text>
+                        <TextInput
+                          style={[styles.countrySearch, { color: colors.inputText }]}
+                          placeholder="Search country or code…"
+                          placeholderTextColor={colors.placeholder}
+                          value={countrySearch}
+                          onChangeText={setCountrySearch}
+                          autoCorrect={false}
+                          autoCapitalize="none"
+                          clearButtonMode="while-editing"
+                        />
+                      </View>
+                      <ScrollView style={styles.countryScroll} keyboardShouldPersistTaps="handled">
+                        {COUNTRY_CODES.filter((c) => {
+                          const q = countrySearch.toLowerCase();
+                          return !q || c.label.toLowerCase().includes(q);
+                        }).map((c) => (
+                          <TouchableOpacity
+                            key={c.code + c.label}
+                            style={[
+                              styles.countryItem,
+                              { borderBottomColor: colors.divider },
+                              c.code === countryCode && { backgroundColor: isDark ? "#172554" : "#e8f0fe" },
+                            ]}
+                            onPress={() => {
+                              setCountryCode(c.code);
+                              setShowCountryPicker(false);
+                              setCountrySearch("");
+                            }}
+                          >
+                            <Text style={[styles.countryItemText, { color: colors.text }]}>{c.label}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  )}
 
-              {/* DIVIDER */}
-              <View style={styles.dividerRow}>
-                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-                <Text style={[styles.dividerText, { color: colors.textMuted }]}>or</Text>
-                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-              </View>
-
-              {/* EMAIL SECTION */}
-              <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Email</Text>
-
-              {forgotMode ? (
+                  <TouchableOpacity
+                    style={[styles.button, phoneStep === "sending" && styles.buttonDisabled]}
+                    onPress={handleSendOtp}
+                    disabled={phoneStep === "sending"}
+                  >
+                    {phoneStep === "sending" ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <Text style={styles.buttonText}>Send Code</Text>
+                    )}
+                  </TouchableOpacity>
+                </>
+              ) : forgotMode ? (
                 /* ---- FORGOT PASSWORD ---- */
                 <>
                   {resetSent ? (
@@ -787,27 +796,28 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
 
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-    marginBottom: 10,
-  },
-
-  dividerRow: {
+  tabBar: {
     flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 20,
-    gap: 10,
+    borderRadius: 10,
+    padding: 3,
+    marginBottom: 18,
   },
-  dividerLine: {
+  tab: {
     flex: 1,
-    height: StyleSheet.hairlineWidth,
+    alignItems: "center",
+    paddingVertical: 10,
+    borderRadius: 8,
   },
-  dividerText: {
-    fontSize: 13,
-    fontWeight: "500",
+  tabActive: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: "600",
   },
 
   phoneRow: {
