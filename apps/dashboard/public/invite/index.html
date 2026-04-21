@@ -50,11 +50,11 @@
 
     var storeUrl = isIOS ? appStore : playStore;
 
-    var intentUrl = 'intent://invite/' + inviteId +
-      '#Intent;scheme=nexustracking;package=com.nexus.tracking.driver;' +
+    // Android: intent with https scheme + package — forces app open if installed, falls back to Play Store
+    var intentUrl = 'intent://tracking-app-f6ad7.web.app/invite/' + inviteId +
+      '#Intent;scheme=https;package=com.nexus.tracking.driver;' +
       'S.browser_fallback_url=' + encodeURIComponent(playStore) + ';end';
 
-    // Android: intent URL opens app if installed, falls back to Play Store
     // iOS: go to App Store (Universal Links handle the app-installed case before this page loads)
     var startUrl = isIOS ? storeUrl : intentUrl;
 
