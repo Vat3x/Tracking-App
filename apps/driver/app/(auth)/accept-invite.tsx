@@ -93,9 +93,8 @@ export default function AcceptInviteScreen() {
       );
     } else {
       Alert.alert("Error", "Failed to accept invite. Please try again.");
-    } finally {
-      setAccepting(false);
     }
+    setAccepting(false);
   }
 
   function handleDecline() {
