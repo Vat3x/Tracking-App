@@ -2,7 +2,8 @@ import nativeAuth from "@react-native-firebase/auth";
 import type { FirebaseAuthTypes } from "@react-native-firebase/auth";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
-import { db, app } from "./firebase";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { db, app, auth } from "./firebase";
 import { COLLECTIONS, type User } from "@nexus/shared";
 
 const functions = getFunctions(app);
@@ -17,6 +18,9 @@ export async function registerDriver(
   const credential = await nativeAuth().createUserWithEmailAndPassword(email, password);
   const uid = credential.user.uid;
 
+  // Sign in JS SDK too — needed for Firestore reads (security rules check JS SDK auth)
+  await signInWithEmailAndPassword(auth, email, password);
+
   const createDoc = httpsCallable(functions, "createDriverDoc");
   await createDoc({ uid, email, displayName });
 
@@ -27,7 +31,11 @@ export async function loginWithEmail(
   email: string,
   password: string
 ): Promise<FirebaseUser> {
-  const credential = await nativeAuth().signInWithEmailAndPassword(email, password);
+  // Sign in both native SDK (for Auth state) and JS SDK (for Firestore reads)
+  const [credential] = await Promise.all([
+    nativeAuth().signInWithEmailAndPassword(email, password),
+    signInWithEmailAndPassword(auth, email, password),
+  ]);
   return credential.user;
 }
 
