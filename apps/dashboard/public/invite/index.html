@@ -33,7 +33,7 @@
       <div class="divider"></div>
       <div class="step">
         <span class="step-icon">🔗</span>
-        <span class="step-text">Tap this link to sign up</span>
+        <span class="step-text">Tap this link again to sign up</span>
       </div>
     </div>
 
@@ -50,13 +50,8 @@
 
     var storeUrl = isIOS ? appStore : playStore;
 
-    // Android: intent with https scheme + package — forces app open if installed, falls back to Play Store
-    var intentUrl = 'intent://tracking-app-f6ad7.web.app/invite/' + inviteId +
-      '#Intent;scheme=https;package=com.nexus.tracking.driver;' +
-      'S.browser_fallback_url=' + encodeURIComponent(playStore) + ';end';
-
-    // iOS: go to App Store (Universal Links handle the app-installed case before this page loads)
-    var startUrl = isIOS ? storeUrl : intentUrl;
+    // "Start" goes to the app store — driver installs, then taps the invite link again
+    var startUrl = storeUrl;
 
     document.getElementById('cta').innerHTML =
       '<a class="btn-start" href="' + startUrl + '">Start</a>';
