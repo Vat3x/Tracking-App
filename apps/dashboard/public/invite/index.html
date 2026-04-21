@@ -7,23 +7,37 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #f5f7fa; color: #333; padding: 20px; }
-    .card { background: #fff; border-radius: 16px; padding: 32px 24px; max-width: 380px; width: 100%; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+    .card { background: #fff; border-radius: 16px; padding: 36px 28px; max-width: 380px; width: 100%; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
     h1 { font-size: 20px; color: #1F6AB5; margin-bottom: 28px; }
 
-    .btn-main { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; padding: 18px 20px; border-radius: 14px; text-decoration: none; font-size: 18px; font-weight: 700; background: #16a34a; color: #fff; }
-    .btn-main:active { background: #15803d; }
-    .btn-icon { font-size: 32px; line-height: 1; }
+    .steps { text-align: left; margin-bottom: 28px; }
+    .step { display: flex; align-items: center; gap: 14px; padding: 14px 0; }
+    .step-icon { font-size: 36px; line-height: 1; flex-shrink: 0; width: 44px; text-align: center; }
+    .step-text { font-size: 17px; font-weight: 600; color: #333; line-height: 1.4; }
 
-    .secondary { margin-top: 24px; }
-    .secondary-label { font-size: 14px; color: #9ca3af; margin-bottom: 6px; }
-    .secondary-link { font-size: 15px; color: #1a73e8; font-weight: 600; text-decoration: none; }
-    .secondary-link:active { color: #1557b0; }
+    .divider { height: 1px; background: #e5e7eb; margin: 0 8px; }
+
+    .btn-start { display: inline-block; background: transparent; color: #1a73e8; border: 1.5px solid #1a73e8; padding: 12px 40px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 15px; }
+    .btn-start:active { background: #e8f0fe; }
   </style>
 </head>
 <body>
   <div class="card">
     <h1>LoadMind Tracker</h1>
-    <div id="content"></div>
+
+    <div class="steps">
+      <div class="step">
+        <span class="step-icon">📱</span>
+        <span class="step-text">Get the app</span>
+      </div>
+      <div class="divider"></div>
+      <div class="step">
+        <span class="step-icon">🔗</span>
+        <span class="step-text">Tap this link to sign up</span>
+      </div>
+    </div>
+
+    <div id="cta"></div>
   </div>
   <script>
     var ua = navigator.userAgent || '';
@@ -36,24 +50,8 @@
 
     var storeUrl = isIOS ? appStore : playStore;
 
-    var intentUrl = 'intent://invite/' + inviteId +
-      '#Intent;scheme=nexustracking;package=com.nexus.tracking.driver;' +
-      'S.browser_fallback_url=' + encodeURIComponent(playStore) + ';end';
-
-    var registerUrl = isIOS
-      ? ('nexustracking://invite/' + inviteId)
-      : intentUrl;
-
-    var container = document.getElementById('content');
-    container.innerHTML =
-      '<a class="btn-main" href="' + registerUrl + '">' +
-        '<span class="btn-icon">\u{1F517}</span>' +
-        'Register' +
-      '</a>' +
-      '<div class="secondary">' +
-        '<p class="secondary-label">Don\'t have the app?</p>' +
-        '<a class="secondary-link" href="' + storeUrl + '">Get the App \u2192</a>' +
-      '</div>';
+    document.getElementById('cta').innerHTML =
+      '<a class="btn-start" href="' + storeUrl + '">Start</a>';
   </script>
 </body>
 </html>
