@@ -2,9 +2,7 @@ import nativeAuth from "@react-native-firebase/auth";
 import type { FirebaseAuthTypes } from "@react-native-firebase/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { signInWithCustomToken as jsSignInWithCustomToken } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
-import { app, auth, db } from "./firebase";
-import { COLLECTIONS, type User } from "@nexus/shared";
+import { app, auth } from "./firebase";
 
 const functions = getFunctions(app);
 
@@ -43,13 +41,6 @@ export async function createPhoneUser(
   phoneNumber: string,
   displayName: string
 ): Promise<void> {
-  const userData: Omit<User, "id"> = {
-    phone: phoneNumber,
-    displayName,
-    role: "driver",
-    companyId: null,
-    fcmToken: null,
-    createdAt: Date.now(),
-  };
-  await setDoc(doc(db, COLLECTIONS.USERS, uid), userData);
+  const createDoc = httpsCallable(functions, "createDriverDoc");
+  await createDoc({ uid, phone: phoneNumber, displayName });
 }

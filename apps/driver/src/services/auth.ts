@@ -1,9 +1,11 @@
 import nativeAuth from "@react-native-firebase/auth";
 import type { FirebaseAuthTypes } from "@react-native-firebase/auth";
-import { doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { db, app } from "./firebase";
 import { COLLECTIONS, type User } from "@nexus/shared";
+
+const functions = getFunctions(app);
 
 type FirebaseUser = FirebaseAuthTypes.User;
 
@@ -15,15 +17,8 @@ export async function registerDriver(
   const credential = await nativeAuth().createUserWithEmailAndPassword(email, password);
   const uid = credential.user.uid;
 
-  const userData: Omit<User, "id"> = {
-    email,
-    displayName,
-    role: "driver",
-    companyId: null,
-    fcmToken: null,
-    createdAt: Date.now(),
-  };
-  await setDoc(doc(db, COLLECTIONS.USERS, uid), userData);
+  const createDoc = httpsCallable(functions, "createDriverDoc");
+  await createDoc({ uid, email, displayName });
 
   return credential.user;
 }

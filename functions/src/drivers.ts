@@ -1,5 +1,5 @@
 import * as admin from "firebase-admin";
-import { onRequest } from "firebase-functions/v2/https";
+import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -7,6 +7,36 @@ if (!admin.apps.length) {
 
 const firestore = admin.firestore();
 const rtdb = admin.database();
+
+/**
+ * Callable: create driver user doc in Firestore.
+ * Uses Admin SDK to bypass security rules (native Auth SDK doesn't sync with JS SDK).
+ */
+export const createDriverDoc = onCall({ cors: true }, async (request) => {
+  const { uid, email, phone, displayName } = request.data as {
+    uid: string;
+    email?: string;
+    phone?: string;
+    displayName: string;
+  };
+
+  if (!uid || !displayName) {
+    throw new HttpsError("invalid-argument", "uid and displayName are required");
+  }
+
+  const userData: Record<string, unknown> = {
+    displayName,
+    role: "driver",
+    companyId: null,
+    fcmToken: null,
+    createdAt: Date.now(),
+  };
+  if (email) userData.email = email;
+  if (phone) userData.phone = phone;
+
+  await firestore.doc(`users/${uid}`).set(userData);
+  return { success: true };
+});
 
 /**
  * HTTP function to remove a driver from a company.
