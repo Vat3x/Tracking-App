@@ -50,8 +50,13 @@
 
     var storeUrl = isIOS ? appStore : playStore;
 
-    // "Start" goes to the app store — driver installs, then taps the invite link again
-    var startUrl = storeUrl;
+    // Android: intent URL tries to open app via nexustracking:// scheme
+    // If app installed → opens app with invite. If not → falls back to Play Store.
+    var intentUrl = 'intent://invite/' + inviteId +
+      '#Intent;scheme=nexustracking;package=com.nexus.tracking.driver;' +
+      'S.browser_fallback_url=' + encodeURIComponent(playStore) + ';end';
+
+    var startUrl = isIOS ? storeUrl : intentUrl;
 
     document.getElementById('cta').innerHTML =
       '<a class="btn-start" href="' + startUrl + '">Start</a>';

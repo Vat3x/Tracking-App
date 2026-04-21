@@ -201,7 +201,8 @@ export default function RootLayout() {
         const update = await Updates.checkForUpdateAsync();
         if (update.isAvailable) {
           await Updates.fetchUpdateAsync();
-          // Update is ready — will be applied automatically on next app launch
+          // Force apply — restarts app with new bundle
+          Updates.reloadAsync();
         }
       } catch {
         // Silently ignore update check failures
