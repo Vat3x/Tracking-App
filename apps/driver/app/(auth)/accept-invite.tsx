@@ -17,7 +17,7 @@ import type { Invite } from "@nexus/shared";
 export default function AcceptInviteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { firebaseUser, setUserDoc } = useAuthStore();
+  const { firebaseUser, userDoc: existingUserDoc, setUserDoc } = useAuthStore();
   const { colors, isDark } = useTheme();
 
   const [invite, setInvite] = useState<Invite | null>(null);
@@ -137,7 +137,7 @@ export default function AcceptInviteScreen() {
     );
   }
 
-  if (!firebaseUser) {
+  if (!firebaseUser || !existingUserDoc) {
     return (
       <View style={[styles.container, { backgroundColor: colors.bg }]}>
         <Text style={[styles.screenTitle, { color: colors.text }]}>Tracking Request</Text>
