@@ -37,9 +37,10 @@ export default function InviteModal({ open, onClose, companyName }: InviteModalP
 
   function handleCopy() {
     if (!link) return;
-    navigator.clipboard.writeText(link);
+    const message = `1. Download the app: https://play.google.com/store/apps/details?id=com.nexus.tracking.driver\n2. Open this link to sign up and connect: ${link}`;
+    navigator.clipboard.writeText(message);
     setCopied(true);
-    toast.success("Link copied to clipboard");
+    toast.success("Message copied to clipboard");
     setTimeout(() => setCopied(false), 2000);
   }
 
@@ -70,19 +71,20 @@ export default function InviteModal({ open, onClose, companyName }: InviteModalP
           </button>
         ) : (
           <div className="space-y-3">
-            <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2">
-              <input
-                readOnly
-                value={link}
-                className="flex-1 bg-transparent text-sm text-gray-700 dark:text-gray-300 outline-none truncate"
-              />
-              <button
-                onClick={handleCopy}
-                className="shrink-0 text-sm font-medium text-blue-600 hover:text-blue-700"
-              >
-                {copied ? "Copied!" : "Copy"}
-              </button>
+            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
+              <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
+                1. Download the app:{" "}
+                <span className="text-blue-600 break-all">https://play.google.com/store/apps/details?id=com.nexus.tracking.driver</span>
+                {"\n"}2. Open this link to sign up and connect:{" "}
+                <span className="text-blue-600 break-all">{link}</span>
+              </p>
             </div>
+            <button
+              onClick={handleCopy}
+              className="w-full h-10 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              {copied ? "Copied!" : "📋 Copy Message"}
+            </button>
             <button
               onClick={handleGenerate}
               disabled={loading}
