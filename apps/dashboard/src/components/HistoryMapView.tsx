@@ -15,6 +15,7 @@ const TRACK_POINTS_LAYER = "history-circles";
 const TRIP_ROUTE_SOURCE = "trip-route";
 const TRIP_ROUTE_LAYER = "trip-route-line";
 
+
 function createWaypointMarker(color: string, label: string): HTMLElement {
   const el = document.createElement("div");
   el.style.cssText = "width:24px;height:24px;overflow:visible;";
@@ -25,16 +26,24 @@ function createWaypointMarker(color: string, label: string): HTMLElement {
   return el;
 }
 
+interface DriverLiveLocation {
+  lat: number;
+  lng: number;
+  heading?: number;
+}
+
 interface Props {
   history: LocationHistory[];
   selectedTrip: Trip | null;
+  driverLocation?: DriverLiveLocation | null;
 }
 
-export default function HistoryMapView({ history, selectedTrip }: Props) {
+export default function HistoryMapView({ history, selectedTrip, driverLocation }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const historyPopupRef = useRef<maplibregl.Popup | null>(null);
   const routeMarkersRef = useRef<maplibregl.Marker[]>([]);
+  const driverMarkerRef = useRef<maplibregl.Marker | null>(null);
   const historyDataRef = useRef<LocationHistory[]>([]);
   const tripDataRef = useRef<Trip | null>(null);
   const theme = useThemeStore((s) => s.theme);
@@ -293,6 +302,32 @@ export default function HistoryMapView({ history, selectedTrip }: Props) {
       map.once("idle", drawTripRoute);
     }
   }, [selectedTrip, drawTripRoute, removeRouteLayers]);
+
+  // --- Driver live marker ---
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (!driverLocation) {
+      driverMarkerRef.current?.remove();
+      driverMarkerRef.current = null;
+      return;
+    }
+
+    if (!driverMarkerRef.current) {
+      const el = document.createElement("div");
+      el.style.cssText = "width:20px;height:20px;overflow:visible;";
+      const inner = document.createElement("div");
+      inner.style.cssText = "width:20px;height:20px;border-radius:50%;background:#3b82f6;border:3px solid #fff;box-shadow:0 0 0 2px rgba(59,130,246,0.4),0 2px 6px rgba(0,0,0,0.3);";
+      el.appendChild(inner);
+      driverMarkerRef.current = new maplibregl.Marker({ element: el })
+        .setLngLat([driverLocation.lng, driverLocation.lat])
+        .addTo(map);
+    } else {
+      driverMarkerRef.current.setLngLat([driverLocation.lng, driverLocation.lat]);
+    }
+  }, [driverLocation]);
 
   return <div ref={containerRef} className="h-full w-full" />;
 }

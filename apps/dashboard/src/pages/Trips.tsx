@@ -117,6 +117,16 @@ export default function Trips() {
     [filteredTrips, selectedTripId]
   );
 
+  const { drivers } = useDriversStore();
+  const selectedDriverLocation = useMemo(() => {
+    if (!selectedTrip?.driverId) return null;
+    const isActive = selectedTrip.status === "accepted" || selectedTrip.status === "in_progress";
+    if (!isActive) return null;
+    const entry = drivers.find((d) => d.driverId === selectedTrip.driverId);
+    if (!entry?.current) return null;
+    return { lat: entry.current.lat, lng: entry.current.lng };
+  }, [selectedTrip, drivers]);
+
   return (
     <div className="h-screen flex flex-col">
       {/* Header */}
@@ -437,7 +447,7 @@ export default function Trips() {
               Back
             </button>
           )}
-          <HistoryMapView history={[]} selectedTrip={selectedTrip} />
+          <HistoryMapView history={[]} selectedTrip={selectedTrip} driverLocation={selectedDriverLocation} />
         </div>
       </div>
 
