@@ -37,7 +37,7 @@ export default function InviteModal({ open, onClose, companyName }: InviteModalP
 
   function handleCopy() {
     if (!link) return;
-    const message = `1. Download the app: https://play.google.com/store/apps/details?id=com.nexus.tracking.driver\n2. Open this link to sign up and connect: ${link}`;
+    const message = `1. Download the app\n2. Open this link to sign up and connect\n${link}`;
     navigator.clipboard.writeText(message);
     setCopied(true);
     toast.success("Message copied to clipboard");
@@ -73,9 +73,7 @@ export default function InviteModal({ open, onClose, companyName }: InviteModalP
           <div className="space-y-3">
             <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
               <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
-                1. Download the app:{" "}
-                <span className="text-blue-600 break-all">https://play.google.com/store/apps/details?id=com.nexus.tracking.driver</span>
-                {"\n"}2. Open this link to sign up and connect:{" "}
+                1. Download the app{"\n"}2. Open this link to sign up and connect{"\n"}
                 <span className="text-blue-600 break-all">{link}</span>
               </p>
             </div>
