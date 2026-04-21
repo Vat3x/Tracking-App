@@ -20,6 +20,8 @@ export const createDriverDoc = onCall({ cors: true }, async (request) => {
     displayName: string;
   };
 
+  console.log("createDriverDoc: called", { uid, email, phone, displayName });
+
   if (!uid || !displayName) {
     throw new HttpsError("invalid-argument", "uid and displayName are required");
   }
@@ -35,6 +37,7 @@ export const createDriverDoc = onCall({ cors: true }, async (request) => {
   if (phone) userData.phone = phone;
 
   await firestore.doc(`users/${uid}`).set(userData);
+  console.log("createDriverDoc: success", uid);
   return { success: true };
 });
 
