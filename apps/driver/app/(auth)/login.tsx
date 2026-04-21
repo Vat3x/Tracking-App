@@ -40,6 +40,15 @@ export default function LoginScreen() {
   const inviteCompanyName = params.inviteCompanyName || fetchedCompanyName;
   const hasInvite = !!inviteId;
 
+  // On mount: check AsyncStorage for invite ID saved by deep link handler
+  useEffect(() => {
+    if (!inviteId) {
+      AsyncStorage.getItem("@pending_invite_id").then((saved) => {
+        if (saved) setPendingInviteId(saved);
+      });
+    }
+  }, []);
+
   // Fetch company name when we have inviteId but no company name (deep link via store)
   useEffect(() => {
     if (inviteId && !params.inviteCompanyName) {
