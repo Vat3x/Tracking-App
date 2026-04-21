@@ -67,21 +67,31 @@ export default function AcceptInviteScreen() {
     setAccepting(true);
     try {
       await acceptInvite(invite.id, firebaseUser.uid);
-      // Poll until cloud function sets companyId (up to ~10s)
-      let updatedUser = null;
-      for (let i = 0; i < 7; i++) {
-        await new Promise((r) => setTimeout(r, 1500));
-        updatedUser = await getUserDoc(firebaseUser.uid);
-        if (updatedUser?.companyId) break;
+    } catch (err: any) {
+      // "failed-precondition" = invite already accepted — check if it was us
+      if (err?.code !== "functions/failed-precondition") {
+        Alert.alert("Error", "Failed to accept invite. Please try again.");
+        setAccepting(false);
+        return;
       }
-      if (updatedUser) setUserDoc(updatedUser);
+    }
 
+    // Poll until companyId is set (works for both fresh accept and already-accepted)
+    let updatedUser = null;
+    for (let i = 0; i < 7; i++) {
+      await new Promise((r) => setTimeout(r, 1500));
+      updatedUser = await getUserDoc(firebaseUser.uid);
+      if (updatedUser?.companyId) break;
+    }
+    if (updatedUser) setUserDoc(updatedUser);
+
+    if (updatedUser?.companyId) {
       Alert.alert(
         "Connected!",
         `You are now linked to ${invite.companyName}. Your dispatcher can see your location when you go online.`,
         [{ text: "OK", onPress: () => router.replace("/(main)/home") }]
       );
-    } catch {
+    } else {
       Alert.alert("Error", "Failed to accept invite. Please try again.");
     } finally {
       setAccepting(false);
