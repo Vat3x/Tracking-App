@@ -32,6 +32,7 @@ export default function LoginScreen() {
   const params = useLocalSearchParams<{
     inviteId?: string;
     inviteCompanyName?: string;
+    mode?: string;
   }>();
   const { setFirebaseUser, setUserDoc, pendingInviteId, setPendingInviteId } = useAuthStore();
 
@@ -61,8 +62,8 @@ export default function LoginScreen() {
   // Tab state
   const [activeTab, setActiveTab] = useState<"phone" | "email">("phone");
 
-  // Email auth state — default to register when coming from invite link
-  const [isRegister, setIsRegister] = useState(hasInvite);
+  // Email auth state — default to register when coming from invite link or explicit mode
+  const [isRegister, setIsRegister] = useState(hasInvite || params.mode === "register");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -230,14 +231,14 @@ export default function LoginScreen() {
     const fullNumber = buildFullNumber(countryCode, phoneNumber);
     setPhoneStep("sending");
     try {
-      // Sign-in mode (no invite): check if phone is registered first
-      if (!hasInvite) {
+      // Sign-in mode: check if phone is registered first
+      if (!hasInvite && !isRegister) {
         const exists = await checkPhoneRegistered(fullNumber);
         if (!exists) {
           setPhoneStep("idle");
           Alert.alert(
             "No Account Found",
-            "This phone number is not registered. Ask your dispatcher for an invite link to create an account."
+            "This phone number is not registered. Please create an account first."
           );
           return;
         }
@@ -681,18 +682,16 @@ export default function LoginScreen() {
                     )}
                   </TouchableOpacity>
 
-                  {hasInvite && (
-                    <TouchableOpacity
-                      style={styles.switchButton}
-                      onPress={() => setIsRegister(!isRegister)}
-                    >
-                      <Text style={styles.switchText}>
-                        {isRegister
-                          ? "Already have an account? Sign in"
-                          : "Don't have an account? Register"}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
+                  <TouchableOpacity
+                    style={styles.switchButton}
+                    onPress={() => setIsRegister(!isRegister)}
+                  >
+                    <Text style={styles.switchText}>
+                      {isRegister
+                        ? "Already have an account? Sign in"
+                        : "Don't have an account? Register"}
+                    </Text>
+                  </TouchableOpacity>
                 </>
               )}
             </>

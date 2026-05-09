@@ -21,12 +21,19 @@ export default function WelcomeScreen() {
       {/* Main card */}
       <View style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
         <Text style={[styles.cardText, { color: colors.text }]}>
-          Open the invite link from your company to start registration and connect.
+          Create your driver account to get started.
         </Text>
         <Text style={[styles.cardSecondary, { color: colors.textSecondary }]}>
-          Don't have one? Ask your company to send you an invite.
+          Your dispatcher will send you an invite link to connect you to the company.
         </Text>
       </View>
+
+      <TouchableOpacity
+        style={styles.registerBtn}
+        onPress={() => router.push({ pathname: "/(auth)/login", params: { mode: "register" } } as any)}
+      >
+        <Text style={styles.registerBtnText}>Create Account</Text>
+      </TouchableOpacity>
 
       {/* Sign in section */}
       <Text style={[styles.signinLabel, { color: colors.textSecondary }]}>Already have an account?</Text>
@@ -95,6 +102,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     textAlign: "center",
+  },
+  registerBtn: {
+    width: "100%",
+    height: 50,
+    backgroundColor: "#1a73e8",
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  registerBtnText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
   signinLabel: {
     fontSize: 14,
