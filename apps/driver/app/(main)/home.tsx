@@ -182,14 +182,6 @@ export default function HomeScreen() {
 
   const handleToggle = useCallback(
     async (value: boolean) => {
-      if (!userDoc?.companyId) {
-        Alert.alert(
-          "No Company",
-          "You need to accept a tracking request from a dispatcher first."
-        );
-        return;
-      }
-
       if (value) {
         const hasFg = await requestForegroundPermission();
         if (!hasFg) {
@@ -318,16 +310,15 @@ export default function HomeScreen() {
             </Text>
             <Text style={[styles.statusHint, { color: colors.textSecondary }]}>
               {isOnline
-                ? "Sharing location with employer"
+                ? hasCompany ? "Sharing location with employer" : "Online — link to company to share location"
                 : hasCompany
                   ? "Enable tracking to receive jobs"
-                  : "Link to company first"}
+                  : "Go online to explore the app"}
             </Text>
           </View>
           <Switch
             value={isOnline}
             onValueChange={handleToggle}
-            disabled={!hasCompany}
             trackColor={{ false: isDark ? "#333" : "#e5e7eb", true: "#86efac" }}
             thumbColor={isOnline ? "#22c55e" : isDark ? "#666" : "#999"}
             ios_backgroundColor={isDark ? "#333" : "#e5e7eb"}
