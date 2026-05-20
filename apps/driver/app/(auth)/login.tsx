@@ -14,10 +14,10 @@ import {
   Keyboard,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { loginWithEmail, registerDriver, resetPassword, getUserDoc } from "../../src/services/auth";
 import { sendVerificationCode, verifyOtpAndSignIn, createPhoneUser, checkPhoneRegistered } from "../../src/services/phoneAuth";
 import { acceptInvite, getInvite } from "../../src/services/invites";
+import { getPendingInvite, clearPendingInvite } from "../../src/services/pendingInvite";
 import { Logo } from "../../src/components/Logo";
 import { useAuthStore } from "../../src/stores/auth";
 import { useTheme } from "../../src/hooks/useTheme";
@@ -44,7 +44,7 @@ export default function LoginScreen() {
   // On mount: check AsyncStorage for invite ID saved by deep link handler
   useEffect(() => {
     if (!inviteId) {
-      AsyncStorage.getItem("@pending_invite_id").then((saved) => {
+      getPendingInvite().then((saved) => {
         if (saved) setPendingInviteId(saved);
       });
     }
@@ -108,7 +108,7 @@ export default function LoginScreen() {
     try {
       await acceptInvite(inviteId, uid);
       setPendingInviteId(null);
-      await AsyncStorage.removeItem("@pending_invite_id");
+      await clearPendingInvite();
       for (let i = 0; i < 7; i++) {
         await new Promise((r) => setTimeout(r, 1500));
         const doc = await getUserDoc(uid);
@@ -280,18 +280,9 @@ export default function LoginScreen() {
         setFirebaseUser({ uid: user.uid, email: user.email });
         setUserDoc(finalDoc);
         router.replace("/(main)/home");
-      } else if (hasInvite) {
+      } else {
         Keyboard.dismiss();
         setPhoneStep("name");
-      } else {
-        await nativeAuth().signOut();
-        Alert.alert(
-          "No Account Found",
-          "Please use an invite link from your dispatcher to register."
-        );
-        setPhoneStep("idle");
-        setOtpCode("");
-        setOtpPhone(null);
       }
     } catch (err: any) {
       setPhoneStep("otp");
@@ -561,6 +552,15 @@ export default function LoginScreen() {
                       <Text style={styles.buttonText}>Send Code</Text>
                     )}
                   </TouchableOpacity>
+
+                  {router.canGoBack() && phoneStep === "idle" && (
+                    <TouchableOpacity
+                      style={styles.switchButton}
+                      onPress={() => router.back()}
+                    >
+                      <Text style={styles.switchText}>Already have an account? Sign in</Text>
+                    </TouchableOpacity>
+                  )}
                 </>
               ) : forgotMode ? (
                 /* ---- FORGOT PASSWORD ---- */
@@ -698,18 +698,6 @@ export default function LoginScreen() {
           )}
         </View>{/* /formCard */}
 
-        {/* Go back hint — shown when no invite */}
-        {!hasInvite && !isPhoneMultiStep && (
-          <View style={[styles.goBackCard, isDark && { backgroundColor: "#2d2000", borderColor: "#78500a" }]}>
-            <Text style={[styles.goBackText, isDark && { color: "#fcd34d" }]}>
-              Don't have an account? Open the invite link from your company to register and connect.
-            </Text>
-            <TouchableOpacity onPress={() => router.back()}>
-              <Text style={styles.goBackBtn}>← Go Back</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
         <Text style={[styles.policyText, { color: colors.textMuted }]}>
           By signing in, you agree to our{" "}
           <Text
@@ -780,28 +768,6 @@ const styles = StyleSheet.create({
   },
   inviteCompany: {
     fontWeight: "700",
-  },
-
-  goBackCard: {
-    backgroundColor: "#fffbeb",
-    borderWidth: 1.5,
-    borderColor: "#fde68a",
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 16,
-    alignItems: "center",
-  },
-  goBackText: {
-    fontSize: 14,
-    color: "#92400e",
-    lineHeight: 20,
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  goBackBtn: {
-    color: "#1a73e8",
-    fontSize: 14,
-    fontWeight: "600",
   },
 
   formCard: {

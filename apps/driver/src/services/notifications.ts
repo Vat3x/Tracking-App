@@ -6,6 +6,7 @@ import { db } from "./firebase";
 import { COLLECTIONS } from "@nexus/shared";
 import { router } from "expo-router";
 import { respondToTrip } from "./trips";
+import Constants from "expo-constants";
 
 // Show notification banners when app is in foreground
 Notifications.setNotificationHandler({
@@ -55,10 +56,10 @@ export async function registerForPushNotifications(
     });
   }
 
-  // Get native device push token (FCM on Android, APNs on iOS)
-  // This is what admin.messaging().send() expects
-  const tokenData = await Notifications.getDevicePushTokenAsync();
-  const token = tokenData.data as string;
+  // Get Expo push token — works on both iOS and Android, server sends via Expo Push API
+  const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+  const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+  const token = tokenData.data;
 
   if (!token) {
     console.warn("Push token was empty, skipping save");
@@ -115,8 +116,7 @@ export function setupNotificationListeners(uid: string): () => void {
 
   // Handle token refresh
   const tokenSub = Notifications.addPushTokenListener(async (newToken) => {
-    const token = newToken.data as string;
-    await updateFcmToken(uid, token);
+    await updateFcmToken(uid, newToken.data as string);
   });
 
   // Foreground notification received — show interactive alerts

@@ -39,6 +39,23 @@ export const checkPhoneExists = onCall({ cors: true }, async (request) => {
   }
 });
 
+/**
+ * Mint a Firebase JS-SDK custom token from a native-SDK ID token.
+ * Used by the driver app after a native Firebase Phone Auth sign-in (US `+1`
+ * route): JS SDK isn't signed in yet, so onCall auth context isn't available;
+ * the client posts the native ID token, we verify it, and mint a custom token
+ * for the same uid so the JS SDK can join the session.
+ */
+export const mintJsToken = onCall(async (request) => {
+  const { idToken } = request.data as { idToken?: string };
+  if (!idToken || typeof idToken !== "string") {
+    throw new HttpsError("invalid-argument", "idToken is required");
+  }
+  const decoded = await admin.auth().verifyIdToken(idToken);
+  const customToken = await admin.auth().createCustomToken(decoded.uid);
+  return { customToken };
+});
+
 export const sendOtp = onCall(
   { secrets: [twilioAccountSid, twilioAuthToken, twilioVerifySid, verifyGeApiKey] },
   async (request) => {

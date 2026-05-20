@@ -3,7 +3,7 @@
     "owner": "vat3x",
     "name": "LoadMind Tracker",
     "slug": "nexus-tracking-driver",
-    "version": "1.0.17",
+    "version": "1.0.20",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -36,11 +36,12 @@
               "com.googleusercontent.apps.463711773961-fk347n4s5from9mqace9nc7hjqjc9h2t"
             ]
           }
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "versionCode": 20,
+      "versionCode": 23,
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyCNzAjZeOqR_1bzGHb7zZEWhiyTFKX_Ju0"

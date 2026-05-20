@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>In-App Navigation — Glass Mock</title>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+<style>
+  :root {
+    --glass-bg: rgba(255, 255, 255, 0.72);
+    --glass-border: rgba(255, 255, 255, 0.55);
+    --glass-shadow: 0 8px 24px rgba(15, 23, 42, 0.22);
+    --text: #0f172a;
+    --muted: #475569;
+    --brand: #1f6ab5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --glass-bg: rgba(20, 28, 40, 0.62);
+      --glass-border: rgba(255, 255, 255, 0.12);
+      --glass-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      --text: #f1f5f9; --muted: #94a3b8;
+    }
+  }
+  html[data-theme="light"] {
+    --glass-bg: rgba(255, 255, 255, 0.72);
+    --glass-border: rgba(255, 255, 255, 0.55);
+    --text: #0f172a; --muted: #475569;
+  }
+  html[data-theme="dark"] {
+    --glass-bg: rgba(20, 28, 40, 0.62);
+    --glass-border: rgba(255, 255, 255, 0.12);
+    --text: #f1f5f9; --muted: #94a3b8;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif; color: var(--text); }
+  #phone {
+    position: relative;
+    width: 100%; max-width: 420px;
+    height: 100dvh;
+    margin: 0 auto;
+    overflow: hidden;
+    background: #000;
+  }
+  #map { position: absolute; inset: 0; }
+
+  .glass {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border-radius: 20px;
+  }
+
+  /* top maneuver banner */
+  .maneuver {
+    position: absolute;
+    top: max(14px, env(safe-area-inset-top));
+    left: 12px; right: 12px;
+    padding: 14px 14px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border-radius: 22px;
+  }
+  .maneuver .arrow {
+    width: 60px; height: 60px;
+    border-radius: 18px;
+    background: var(--brand);
+    color: #fff;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+  }
+  .maneuver .arrow svg { width: 36px; height: 36px; }
+  .maneuver .text { flex: 1; min-width: 0; }
+  .maneuver .dist {
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.5px;
+  }
+  .maneuver .dist .unit {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--muted);
+    margin-left: 4px;
+  }
+  .maneuver .instr {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-top: 4px;
+    line-height: 1.3;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  /* "then" follow-up step */
+  .then {
+    position: absolute;
+    top: calc(max(14px, env(safe-area-inset-top)) + 110px);
+    left: 12px;
+    padding: 8px 12px 8px 8px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .then .mini {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--muted);
+    color: #fff;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+  }
+  .then .mini svg { width: 16px; height: 16px; }
+
+  /* speed gauge — bottom-left */
+  .speed {
+    position: absolute;
+    left: 12px;
+    bottom: calc(env(safe-area-inset-bottom, 0) + 120px);
+    width: 78px; height: 78px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    text-align: center;
+  }
+  .speed .v { font-size: 26px; font-weight: 800; line-height: 1; }
+  .speed .u { font-size: 9px; font-weight: 700; color: var(--muted); letter-spacing: 1px; margin-top: 2px; }
+  .speed .limit {
+    position: absolute;
+    top: -4px; right: -4px;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: #fff;
+    color: #0f172a;
+    border: 3px solid #ef4444;
+    display: grid; place-items: center;
+    font-size: 11px; font-weight: 800;
+  }
+  .speed.over .v { color: #ef4444; }
+
+  /* recenter — bottom-right */
+  .recenter {
+    position: absolute;
+    right: 12px;
+    bottom: calc(env(safe-area-inset-bottom, 0) + 140px);
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    cursor: pointer;
+  }
+  .recenter svg { width: 20px; height: 20px; color: var(--brand); }
+
+  /* bottom strip — ETA · distance · exit */
+  .footer {
+    position: absolute;
+    left: 8px; right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    padding: 14px 12px 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-radius: 22px;
+  }
+  .footer .col { line-height: 1.05; }
+  .footer .col .big { font-size: 22px; font-weight: 800; letter-spacing: -0.3px; }
+  .footer .col .lbl { font-size: 10px; color: var(--muted); letter-spacing: 0.8px; text-transform: uppercase; font-weight: 700; margin-top: 4px; }
+  .footer .divider {
+    width: 1px;
+    align-self: stretch;
+    background: var(--muted);
+    opacity: 0.2;
+    margin: 0 2px;
+  }
+  .footer .arr-time { color: var(--brand); }
+  .footer .exit {
+    margin-left: auto;
+    height: 44px;
+    padding: 0 18px;
+    border-radius: 14px;
+    border: none;
+    background: #ef4444;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+  }
+
+  /* ---- ARRIVED STATE ---- */
+  /* swap arrow color to green + checkmark */
+  body.arrived .maneuver .arrow {
+    background: #16a34a;
+    animation: pop 480ms cubic-bezier(.2,.8,.2,1);
+  }
+  @keyframes pop { from { transform: scale(.85); } to { transform: scale(1); } }
+  body.arrived .maneuver .dist { color: #16a34a; font-size: 22px; }
+  body.arrived .maneuver .dist .unit { display: none; }
+  body.arrived .then,
+  body.arrived .speed { display: none; }
+
+  /* footer collapses into one CTA */
+  body.arrived .footer {
+    padding: 10px;
+    flex-direction: column;
+    gap: 8px;
+  }
+  body.arrived .footer .col,
+  body.arrived .footer .divider,
+  body.arrived .footer .exit { display: none; }
+  body.arrived .footer .deliver {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    height: 56px;
+    border-radius: 16px;
+    border: none;
+    background: #16a34a;
+    color: #fff;
+    font-size: 17px;
+    font-weight: 800;
+    cursor: pointer;
+    letter-spacing: 0.2px;
+  }
+  body.arrived .footer .deliver svg { width: 22px; height: 22px; }
+  body.arrived .footer .notyet {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 8px;
+  }
+  .footer .deliver, .footer .notyet { display: none; }
+
+  /* dev-only state toggle for the mock */
+  .mock-toggle {
+    position: absolute;
+    right: 12px;
+    top: max(14px, env(safe-area-inset-top));
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    cursor: pointer;
+    z-index: 30;
+  }
+</style>
+</head>
+<body>
+<div id="phone">
+  <div id="map"></div>
+
+  <!-- top maneuver banner -->
+  <div class="maneuver glass">
+    <div class="arrow" id="arrowIcon">
+      <svg id="enrouteIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 5 21 12 14 19"/>
+        <path d="M21 12H6a3 3 0 0 1-3-3V5"/>
+      </svg>
+      <svg id="arrivedIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+        <path d="M20 6 9 17l-5-5"/>
+      </svg>
+    </div>
+    <div class="text">
+      <div class="dist" id="distLine">0.4<span class="unit">mi</span></div>
+      <div class="instr" id="instrLine">Turn right onto <b>Pennsylvania Ave NW</b></div>
+    </div>
+  </div>
+
+  <!-- mock state toggle -->
+  <div class="mock-toggle glass" id="mockToggle">▶ Simulate arrival</div>
+
+  <!-- next-after-this step -->
+  <div class="then glass">
+    <span class="mini">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </span>
+    Then continue 1.2 mi
+  </div>
+
+  <!-- speed gauge -->
+  <div class="speed glass" id="speed">
+    <div>
+      <div class="v" id="speedV">42</div>
+      <div class="u">MPH</div>
+    </div>
+    <div class="limit">35</div>
+  </div>
+
+  <!-- recenter -->
+  <div class="recenter glass" id="recenter" title="Recenter">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+  </div>
+
+  <!-- footer -->
+  <div class="footer glass">
+    <div class="col">
+      <div class="big arr-time">11:42</div>
+      <div class="lbl">Arrival</div>
+    </div>
+    <div class="divider"></div>
+    <div class="col">
+      <div class="big">3h 42m</div>
+      <div class="lbl">ETA</div>
+    </div>
+    <div class="divider"></div>
+    <div class="col">
+      <div class="big">188 mi</div>
+      <div class="lbl">Left</div>
+    </div>
+    <button class="exit" id="exitBtn">Exit</button>
+
+    <!-- shown only in arrived state -->
+    <button class="deliver" id="deliverBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      Mark Delivered
+    </button>
+    <button class="notyet" id="notyetBtn">Not yet — find parking</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+  const driver = [-77.04, 38.89];
+  const dest   = [-77.0369, 38.9072];
+
+  const darkMql = window.matchMedia("(prefers-color-scheme: dark)");
+  const lightStyle = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
+  const darkStyle  = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+
+  const map = new maplibregl.Map({
+    container: "map",
+    style: darkMql.matches ? darkStyle : lightStyle,
+    center: driver,
+    zoom: 17,
+    pitch: 60,    // navigation mode
+    bearing: 18,  // rotated to direction of travel
+    attributionControl: false,
+  });
+
+  // driver marker — directional arrow inside a ring
+  const driverEl = document.createElement("div");
+  driverEl.innerHTML = `
+    <div style="width:36px;height:36px;border-radius:50%;background:rgba(31,106,181,0.18);display:grid;place-items:center;">
+      <div style="width:22px;height:22px;border-radius:50%;background:#1f6ab5;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.25);display:grid;place-items:center;color:#fff;">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2 4 22l8-6 8 6Z"/></svg>
+      </div>
+    </div>`;
+  new maplibregl.Marker({ element: driverEl, rotation: 18 }).setLngLat(driver).addTo(map);
+
+  function drawRoute() {
+    if (map.getLayer("route")) map.removeLayer("route");
+    if (map.getLayer("route-edge")) map.removeLayer("route-edge");
+    if (map.getSource("route")) map.removeSource("route");
+
+    map.addSource("route", {
+      type: "geojson",
+      data: {
+        type: "Feature",
+        geometry: {
+          type: "LineString",
+          coordinates: [
+            driver,
+            [-77.039, 38.892],
+            [-77.0378, 38.9035],
+            dest,
+          ],
+        },
+      },
+    });
+    map.addLayer({
+      id: "route-edge", type: "line", source: "route",
+      paint: { "line-color": "#0d4b86", "line-width": 12, "line-opacity": 0.9 },
+      layout: { "line-cap": "round", "line-join": "round" },
+    });
+    map.addLayer({
+      id: "route", type: "line", source: "route",
+      paint: { "line-color": "#1f6ab5", "line-width": 8, "line-opacity": 1 },
+      layout: { "line-cap": "round", "line-join": "round" },
+    });
+  }
+  map.on("style.load", drawRoute);
+
+  document.getElementById("recenter").addEventListener("click", () => {
+    map.flyTo({ center: driver, zoom: 17, pitch: 60, bearing: 18, duration: 500 });
+  });
+
+  // mock speed
+  let s = 42;
+  setInterval(() => {
+    s = Math.max(0, Math.min(55, s + (Math.random() * 4 - 2)));
+    const v = Math.round(s);
+    document.getElementById("speedV").textContent = v;
+    document.getElementById("speed").classList.toggle("over", v > 35);
+  }, 1200);
+
+  // exit → trip detail
+  document.getElementById("exitBtn").addEventListener("click", () => {
+    if (confirm("Exit navigation?")) {
+      window.location.href = "driver-trip-detail-v2.html";
+    }
+  });
+
+  // arrival state toggle
+  function setArrived(on) {
+    document.body.classList.toggle("arrived", on);
+    document.getElementById("enrouteIcon").style.display = on ? "none" : "block";
+    document.getElementById("arrivedIcon").style.display = on ? "block" : "none";
+    document.getElementById("distLine").textContent = on ? "Arrived" : "0.4";
+    if (!on) {
+      const unit = document.createElement("span");
+      unit.className = "unit"; unit.textContent = "mi";
+      document.getElementById("distLine").appendChild(unit);
+    }
+    document.getElementById("instrLine").innerHTML = on
+      ? "2200 Pennsylvania Ave NW · <b>Washington, DC</b>"
+      : "Turn right onto <b>Pennsylvania Ave NW</b>";
+    document.getElementById("mockToggle").textContent = on ? "◀ Back to en-route" : "▶ Simulate arrival";
+
+    // dim the route + speed when arrived
+    if (map.getLayer("route")) map.setPaintProperty("route", "line-opacity", on ? 0.25 : 1);
+    if (map.getLayer("route-edge")) map.setPaintProperty("route-edge", "line-opacity", on ? 0.2 : 0.9);
+  }
+  document.getElementById("mockToggle").addEventListener("click", () => {
+    setArrived(!document.body.classList.contains("arrived"));
+  });
+  document.getElementById("deliverBtn").addEventListener("click", () => {
+    window.location.href = "driver-delivered-v2.html";
+  });
+  document.getElementById("notyetBtn").addEventListener("click", () => setArrived(false));
+</script>
+</body>
+</html>

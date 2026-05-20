@@ -16,6 +16,7 @@ import {
   checkInitialNotification,
 } from "../src/services/notifications";
 import { startNetworkListener } from "../src/services/offlineQueue";
+import { savePendingInvite, getPendingInvite } from "../src/services/pendingInvite";
 import { SplashScreen } from "../src/components/SplashScreen";
 
 const queryClient = new QueryClient();
@@ -137,13 +138,10 @@ function AuthGate() {
 
       if (invId) {
         // Save immediately so it survives an OTA restart
-        await AsyncStorage.setItem("@pending_invite_id", invId);
+        await savePendingInvite(invId);
       } else {
-        // Check for invite ID saved before OTA restart
-        const saved = await AsyncStorage.getItem("@pending_invite_id");
-        if (saved) {
-          invId = saved;
-        }
+        // Check for invite ID saved before OTA restart (expires after 10 min)
+        invId = await getPendingInvite();
       }
 
       if (invId) {

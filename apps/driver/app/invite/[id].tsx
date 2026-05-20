@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { View, ActivityIndicator } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { savePendingInvite } from "../../src/services/pendingInvite";
 import { useAuthStore } from "../../src/stores/auth";
 import { useThemeStore } from "../../src/stores/theme";
 
@@ -22,7 +22,7 @@ export default function InviteRedirect() {
 
     // Persist invite ID so it survives navigation and OTA restarts
     setPendingInviteId(id);
-    AsyncStorage.setItem("@pending_invite_id", id);
+    savePendingInvite(id);
 
     if (firebaseUser && userDoc) {
       // Authenticated driver — go to accept-invite

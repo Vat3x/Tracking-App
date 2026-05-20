@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Delivered — Glass Mock</title>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+<style>
+  :root {
+    --glass-bg: rgba(255, 255, 255, 0.72);
+    --glass-border: rgba(255, 255, 255, 0.55);
+    --glass-shadow: 0 8px 24px rgba(15, 23, 42, 0.22);
+    --text: #0f172a;
+    --muted: #475569;
+    --brand: #1f6ab5;
+    --green: #16a34a;
+    --card-bg: rgba(255,255,255,0.55);
+    --card-border: rgba(255,255,255,0.45);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --glass-bg: rgba(20, 28, 40, 0.62);
+      --glass-border: rgba(255, 255, 255, 0.12);
+      --glass-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      --text: #f1f5f9; --muted: #94a3b8;
+      --card-bg: rgba(255,255,255,0.05); --card-border: rgba(255,255,255,0.08);
+    }
+  }
+  html[data-theme="light"] { --glass-bg: rgba(255,255,255,0.72); --text:#0f172a; --muted:#475569; --card-bg:rgba(255,255,255,0.55); --card-border:rgba(255,255,255,0.45); }
+  html[data-theme="dark"]  { --glass-bg: rgba(20,28,40,0.62); --text:#f1f5f9; --muted:#94a3b8; --card-bg:rgba(255,255,255,0.05); --card-border:rgba(255,255,255,0.08); }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif; color: var(--text); }
+  #phone {
+    position: relative;
+    width: 100%; max-width: 420px;
+    height: 100dvh;
+    margin: 0 auto;
+    overflow: hidden;
+    background: #000;
+  }
+  #map { position: absolute; inset: 0; }
+
+  .glass {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border-radius: 22px;
+  }
+
+  /* hero check */
+  .hero {
+    position: absolute;
+    top: max(40px, env(safe-area-inset-top));
+    left: 0; right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
+  }
+  .check {
+    width: 96px; height: 96px;
+    border-radius: 50%;
+    background: var(--green);
+    color: #fff;
+    display: grid; place-items: center;
+    box-shadow: 0 12px 32px rgba(22, 163, 74, 0.45);
+    animation: popIn 480ms cubic-bezier(.2,.8,.2,1);
+  }
+  .check svg { width: 52px; height: 52px; }
+  @keyframes popIn {
+    0%   { transform: scale(0.4); opacity: 0; }
+    60%  { transform: scale(1.08); opacity: 1; }
+    100% { transform: scale(1); }
+  }
+  .check::after {
+    content: "";
+    position: absolute;
+    width: 96px; height: 96px;
+    border-radius: 50%;
+    border: 2px solid var(--green);
+    opacity: 0.5;
+    animation: ring 1.8s ease-out infinite;
+  }
+  @keyframes ring {
+    from { transform: scale(1); opacity: .5; }
+    to   { transform: scale(1.8); opacity: 0; }
+  }
+  .hero-title {
+    margin-top: 18px;
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.4px;
+    animation: slideIn 480ms 80ms backwards cubic-bezier(.2,.8,.2,1);
+  }
+  .hero-sub {
+    margin-top: 6px;
+    font-size: 14px;
+    color: var(--muted);
+    text-align: center;
+    padding: 0 24px;
+    animation: slideIn 480ms 160ms backwards cubic-bezier(.2,.8,.2,1);
+  }
+  @keyframes slideIn {
+    from { transform: translateY(8px); opacity: 0; }
+    to   { transform: translateY(0); opacity: 1; }
+  }
+
+  /* summary card */
+  .summary {
+    position: absolute;
+    left: 8px; right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    padding: 14px 16px 18px;
+    animation: sheetIn 540ms 220ms backwards cubic-bezier(.2,.8,.2,1);
+  }
+  @keyframes sheetIn {
+    from { transform: translateY(24px); opacity: 0; }
+    to   { transform: translateY(0); opacity: 1; }
+  }
+  .grabber { width: 40px; height: 4px; background: var(--muted); opacity: .35; border-radius: 999px; margin: 0 auto 12px; }
+
+  .id-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .id-row .id { font-size: 12px; color: var(--muted); font-weight: 700; letter-spacing: 0.5px; }
+  .id-row .time { font-size: 12px; color: var(--muted); font-weight: 600; }
+
+  .route {
+    position: relative;
+    padding: 4px 4px 4px 28px;
+  }
+  .route::before {
+    content: "";
+    position: absolute;
+    left: 11px; top: 14px; bottom: 14px;
+    width: 2px;
+    background: linear-gradient(to bottom, #22c55e, #16a34a);
+    border-radius: 2px;
+  }
+  .stop { position: relative; padding: 2px 0; }
+  .stop + .stop { margin-top: 14px; }
+  .stop .dot {
+    position: absolute;
+    left: -22px; top: 6px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 2px var(--card-border);
+  }
+  .stop.from .dot { background: #22c55e; }
+  .stop.to   .dot { background: var(--green); }
+  .stop .label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.8px;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .stop .addr { font-size: 14px; font-weight: 600; line-height: 1.3; margin-top: 2px; }
+  .stop .meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .meta-grid {
+    margin-top: 14px;
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .meta {
+    padding: 10px;
+    border-radius: 12px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    text-align: center;
+  }
+  .meta .l { font-size: 10px; color: var(--muted); letter-spacing: 0.6px; text-transform: uppercase; font-weight: 700; }
+  .meta .v { font-size: 15px; font-weight: 800; margin-top: 4px; }
+  .meta.pay .v { color: var(--green); }
+
+  .actions {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .btn {
+    height: 50px;
+    border-radius: 14px;
+    border: none;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 8px;
+  }
+  .btn.primary { background: var(--brand); color: #fff; }
+  .btn.ghost {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--card-border);
+  }
+  .btn svg { width: 18px; height: 18px; }
+</style>
+</head>
+<body>
+<div id="phone">
+  <div id="map"></div>
+
+  <div class="hero">
+    <div class="check">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 6 9 17l-5-5"/>
+      </svg>
+    </div>
+    <div class="hero-title">Delivered</div>
+    <div class="hero-sub">Nice work — dispatcher has been notified.</div>
+  </div>
+
+  <div class="summary glass">
+    <div class="grabber"></div>
+    <div class="id-row">
+      <div class="id">Trip T-1041</div>
+      <div class="time">Delivered · 11:38 AM</div>
+    </div>
+
+    <div class="route">
+      <div class="stop from">
+        <div class="dot"></div>
+        <div class="label">Pickup · 7:54 AM</div>
+        <div class="addr">450 W 33rd St, Manhattan, NY</div>
+      </div>
+      <div class="stop to">
+        <div class="dot"></div>
+        <div class="label">Drop · 11:38 AM</div>
+        <div class="addr">2200 Pennsylvania Ave NW, Washington, DC</div>
+      </div>
+    </div>
+
+    <div class="meta-grid">
+      <div class="meta"><div class="l">Drive</div><div class="v">3h 44m</div></div>
+      <div class="meta"><div class="l">Distance</div><div class="v">188 mi</div></div>
+      <div class="meta pay"><div class="l">Pay</div><div class="v">$1,420</div></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn primary" id="doneBtn">Done</button>
+      <button class="btn ghost" id="viewBtn">View analytics</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+  const darkMql = window.matchMedia("(prefers-color-scheme: dark)");
+  const lightStyle = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
+  const darkStyle  = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+
+  const dest = [-77.0369, 38.9072];
+  const map = new maplibregl.Map({
+    container: "map",
+    style: darkMql.matches ? darkStyle : lightStyle,
+    center: dest,
+    zoom: 14.4,
+    pitch: 45,
+    bearing: 18,
+    attributionControl: false,
+  });
+
+  const pin = document.createElement("div");
+  pin.style.cssText = "width:18px;height:18px;border-radius:50%;background:#16a34a;border:3px solid #fff;box-shadow:0 0 0 8px rgba(22,163,74,0.25);";
+  new maplibregl.Marker({ element: pin }).setLngLat(dest).addTo(map);
+
+  // confetti
+  function confetti() {
+    const colors = ["#16a34a", "#1f6ab5", "#22c55e", "#3b82f6", "#facc15"];
+    for (let i = 0; i < 28; i++) {
+      const c = document.createElement("div");
+      const left = 50 + (Math.random() * 60 - 30);
+      const size = 6 + Math.random() * 6;
+      const dur = 1400 + Math.random() * 1200;
+      c.style.cssText = `position:absolute;top:120px;left:${left}%;width:${size}px;height:${size * 0.5}px;background:${colors[i % colors.length]};border-radius:1px;transform:rotate(${Math.random()*360}deg);pointer-events:none;animation:fall ${dur}ms ${i * 30}ms ease-out forwards;`;
+      document.getElementById("phone").appendChild(c);
+      setTimeout(() => c.remove(), dur + 1500);
+    }
+  }
+  const style = document.createElement("style");
+  style.textContent = `@keyframes fall { to { transform: translateY(80vh) rotate(720deg); opacity: 0; } }`;
+  document.head.appendChild(style);
+  setTimeout(confetti, 200);
+
+  document.getElementById("doneBtn").addEventListener("click", () => {
+    window.location.href = "driver-home-v2.html";
+  });
+  document.getElementById("viewBtn").addEventListener("click", () => {
+    window.location.href = "driver-analytics-v2.html";
+  });
+</script>
+</body>
+</html>

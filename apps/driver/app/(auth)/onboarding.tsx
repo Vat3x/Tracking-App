@@ -11,6 +11,7 @@ import {
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Svg, { Path, Circle, Line } from "react-native-svg";
+import { getPendingInvite } from "../../src/services/pendingInvite";
 import { Logo } from "../../src/components/Logo";
 import { useTheme } from "../../src/hooks/useTheme";
 
@@ -143,7 +144,7 @@ export default function OnboardingScreen() {
 
   async function finish() {
     await AsyncStorage.setItem(ONBOARDING_KEY, "true");
-    const pendingInviteId = await AsyncStorage.getItem("@pending_invite_id");
+    const pendingInviteId = await getPendingInvite();
     if (pendingInviteId) {
       router.replace({ pathname: "/(auth)/login", params: { inviteId: pendingInviteId } } as any);
     } else {

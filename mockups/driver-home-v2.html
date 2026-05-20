@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Driver Home — Glass Chips Mock</title>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+<style>
+  :root {
+    --glass-bg: rgba(255, 255, 255, 0.62);
+    --glass-border: rgba(255, 255, 255, 0.5);
+    --glass-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+    --text: #0f172a;
+    --muted: #475569;
+    --brand: #1f6ab5;
+    --accent: #33a15e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --glass-bg: rgba(20, 28, 40, 0.55);
+      --glass-border: rgba(255, 255, 255, 0.12);
+      --glass-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif; color: var(--text); }
+  #phone {
+    position: relative;
+    width: 100%;
+    max-width: 420px;
+    height: 100dvh;
+    margin: 0 auto;
+    overflow: hidden;
+    background: #000;
+  }
+  #map { position: absolute; inset: 0; }
+
+  /* shared glass */
+  .glass {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    border-radius: 16px;
+  }
+
+  /* top-left identity stack */
+  .top-left {
+    position: absolute;
+    top: max(14px, env(safe-area-inset-top));
+    left: 14px;
+    right: 70px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+  }
+  .identity {
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    pointer-events: auto;
+  }
+  .avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(135deg, #1f6ab5, #33a15e);
+    color: #fff; display: grid; place-items: center;
+    font-weight: 700; font-size: 14px;
+  }
+  .identity .who { line-height: 1.15; }
+  .identity .who .hi { font-size: 12px; color: var(--muted); }
+  .identity .who .name { font-size: 15px; font-weight: 700; }
+
+  .chips-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    pointer-events: auto;
+  }
+  .chip {
+    padding: 8px 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 999px;
+    color: var(--text);
+  }
+  .chip .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #94a3b8;
+  }
+  .chip.online .dot { background: #22c55e; box-shadow: 0 0 0 4px rgba(34,197,94,0.18); }
+  .chip .icon { font-size: 14px; }
+
+  /* manual theme override applied via [data-theme] */
+  html[data-theme="light"] {
+    --glass-bg: rgba(255, 255, 255, 0.62);
+    --glass-border: rgba(255, 255, 255, 0.5);
+    --glass-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+    --text: #0f172a;
+    --muted: #475569;
+  }
+  html[data-theme="dark"] {
+    --glass-bg: rgba(20, 28, 40, 0.55);
+    --glass-border: rgba(255, 255, 255, 0.12);
+    --glass-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+  }
+  html[data-theme="dark"] .stat { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.08); }
+  html[data-theme="dark"] .trip-card { background: rgba(31, 106, 181, 0.18); }
+
+  /* top-right round button */
+  .top-right {
+    position: absolute;
+    top: max(14px, env(safe-area-inset-top));
+    right: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .icon-btn {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    font-size: 18px;
+    cursor: pointer;
+  }
+
+  /* recenter FAB */
+  .fab {
+    position: absolute;
+    right: 14px;
+    bottom: 270px; /* sits above the collapsed sheet + nav */
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    font-size: 18px;
+    cursor: pointer;
+  }
+
+  /* bottom sheet */
+  .sheet {
+    position: absolute;
+    left: 8px; right: 8px;
+    bottom: 84px; /* sits above the nav bar */
+    padding: 14px 16px 18px;
+    border-radius: 22px;
+    transition: transform 280ms cubic-bezier(.2,.8,.2,1);
+  }
+
+  /* bottom nav bar */
+  .nav {
+    position: absolute;
+    left: 8px; right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    padding: 8px 6px;
+    border-radius: 22px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+  }
+  .nav .tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 0;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: background 160ms;
+  }
+  .nav .tab .ico {
+    width: 22px; height: 22px;
+    display: block;
+    color: var(--muted);
+  }
+  .nav .tab .ico svg { width: 100%; height: 100%; display: block; }
+  .nav .tab .lbl { font-size: 10px; font-weight: 600; color: var(--muted); letter-spacing: 0.2px; }
+  .nav .tab.active .ico { color: var(--brand); }
+  .nav .tab.active .lbl { color: var(--brand); }
+  .nav .tab.active {
+    background: rgba(31, 106, 181, 0.10);
+  }
+  .sheet .grabber {
+    width: 40px; height: 4px;
+    background: var(--muted);
+    opacity: .35;
+    border-radius: 999px;
+    margin: 0 auto 12px;
+  }
+  .sheet .status-row {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .status-text { flex: 1; }
+  .status-text .label { font-size: 16px; font-weight: 700; }
+  .status-text .hint { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* switch */
+  .switch {
+    width: 56px; height: 32px; border-radius: 999px;
+    background: rgba(120, 120, 128, 0.32);
+    position: relative; cursor: pointer;
+    transition: background 200ms;
+  }
+  .switch::after {
+    content: "";
+    position: absolute; top: 2px; left: 2px;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    transition: transform 200ms;
+  }
+  .switch.on { background: #22c55e; }
+  .switch.on::after { transform: translateX(24px); }
+
+  /* expanded content */
+  .sheet .extra { display: none; margin-top: 14px; }
+  .sheet.expanded .extra { display: block; }
+  .sheet.expanded { /* same position, just taller; CSS grows via content */ }
+
+  .trip-card {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(31, 106, 181, 0.10);
+    border: 1px solid rgba(31, 106, 181, 0.25);
+  }
+  .trip-card .title { font-size: 12px; color: var(--muted); margin-bottom: 4px; font-weight: 600; }
+  .trip-card .row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .trip-card .row + .row { margin-top: 4px; }
+  .trip-card .pin { width: 10px; height: 10px; border-radius: 50%; }
+  .pin.from { background: #22c55e; }
+  .pin.to   { background: #ef4444; }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .stat {
+    padding: 10px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.45);
+    border: 1px solid rgba(255,255,255,0.4);
+    text-align: center;
+  }
+  @media (prefers-color-scheme: dark) {
+    .stat { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.08); }
+    .trip-card { background: rgba(31, 106, 181, 0.18); }
+  }
+  .stat .n { font-size: 18px; font-weight: 800; }
+  .stat .l { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* active trip alert banner */
+  .active-alert {
+    position: absolute;
+    left: 14px; right: 14px;
+    top: 170px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: linear-gradient(135deg, rgba(31,106,181,0.92), rgba(51,161,94,0.88));
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.25);
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.3);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    cursor: pointer;
+    animation: alertIn 320ms cubic-bezier(.2,.8,.2,1);
+  }
+  @keyframes alertIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .active-alert .pulse {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 0 0 rgba(255,255,255,0.7);
+    animation: pulse 1.6s ease-out infinite;
+    flex-shrink: 0;
+  }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.6); }
+    70%  { box-shadow: 0 0 0 14px rgba(255,255,255,0); }
+    100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+  }
+  .active-alert .info { flex: 1; min-width: 0; }
+  .active-alert .info .title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    opacity: 0.85;
+    text-transform: uppercase;
+  }
+  .active-alert .info .body {
+    font-size: 14px;
+    font-weight: 600;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .active-alert .eta {
+    text-align: right;
+    flex-shrink: 0;
+    line-height: 1.05;
+  }
+  .active-alert .eta .num { font-size: 18px; font-weight: 800; }
+  .active-alert .eta .lbl { font-size: 10px; opacity: 0.85; letter-spacing: 1px; }
+  .active-alert .chev {
+    font-size: 18px;
+    opacity: 0.8;
+    margin-left: 2px;
+  }
+
+  .legend {
+    position: absolute;
+    left: 14px; bottom: 320px;
+    font-size: 11px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    color: var(--muted);
+    pointer-events: none;
+    opacity: 0.85;
+  }
+
+  /* speed viewer — bottom-left circular gauge */
+  .speed {
+    position: absolute;
+    left: 14px;
+    bottom: 270px;
+    width: 86px; height: 86px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    text-align: center;
+    user-select: none;
+  }
+  .speed .v { font-size: 28px; font-weight: 800; line-height: 1; }
+  .speed .u { font-size: 10px; font-weight: 700; color: var(--muted); letter-spacing: 1px; margin-top: 2px; }
+  .speed .limit {
+    position: absolute;
+    top: -6px; right: -6px;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: #fff;
+    color: #0f172a;
+    border: 3px solid #ef4444;
+    display: grid; place-items: center;
+    font-size: 11px; font-weight: 800;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  }
+  .speed.over .v { color: #ef4444; }
+</style>
+</head>
+<body>
+<div id="phone">
+  <div id="map"></div>
+
+  <!-- top-left identity + chips -->
+  <div class="top-left">
+    <div class="identity glass">
+      <div class="avatar">VM</div>
+      <div class="who">
+        <div class="hi">Hi,</div>
+        <div class="name">Vato Mikaberidze</div>
+      </div>
+    </div>
+    <div class="chips-row">
+      <div class="chip glass online"><span class="dot"></span>Online</div>
+      <div class="chip glass"><span class="icon">🔋</span>87%</div>
+      <div class="chip glass"><span class="icon">📶</span>5G</div>
+      <div class="chip glass"><span class="icon">⏱</span>2m ago</div>
+    </div>
+  </div>
+
+  <!-- top-right buttons -->
+  <div class="top-right">
+    <div class="icon-btn glass" id="themeBtn" title="Theme (auto)">🌓</div>
+    <div class="icon-btn glass" title="Settings">⚙︎</div>
+    <div class="icon-btn glass" title="History">🗂</div>
+  </div>
+
+  <!-- active trip alert -->
+  <div class="active-alert" id="activeAlert">
+    <div class="pulse"></div>
+    <div class="info">
+      <div class="title">Active trip · In progress</div>
+      <div class="body">→ 2200 Pennsylvania Ave NW, Washington, DC</div>
+    </div>
+    <div class="eta">
+      <div class="num">3h 42m</div>
+      <div class="lbl">ETA</div>
+    </div>
+    <div class="chev">›</div>
+  </div>
+
+  <!-- recenter -->
+  <div class="fab glass" id="recenter" title="Recenter">⌖</div>
+
+  <!-- speed viewer -->
+  <div class="speed glass" id="speed">
+    <div>
+      <div class="v" id="speedV">62</div>
+      <div class="u">MPH</div>
+    </div>
+    <div class="limit" id="speedLimit">65</div>
+  </div>
+
+  <!-- bottom sheet -->
+  <div class="sheet glass" id="sheet">
+    <div class="grabber"></div>
+    <div class="status-row">
+      <div class="status-text">
+        <div class="label" id="statusLabel">Online</div>
+        <div class="hint" id="statusHint">Sharing location every 40 minutes</div>
+      </div>
+      <div class="switch on" id="switch"></div>
+    </div>
+
+    <div class="extra">
+      <div class="trip-card">
+        <div class="title">ACTIVE TRIP · IN PROGRESS</div>
+        <div class="row"><span class="pin from"></span>Pickup — 1450 Old Country Rd, Plainview, NY</div>
+        <div class="row"><span class="pin to"></span>Drop — 2200 Pennsylvania Ave NW, Washington, DC</div>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="n">1</div><div class="l">Active</div></div>
+        <div class="stat"><div class="n">3</div><div class="l">Pending</div></div>
+        <div class="stat"><div class="n">128</div><div class="l">Completed</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- bottom nav -->
+  <div class="nav glass">
+    <div class="tab active" data-tab="home">
+      <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg></div>
+      <div class="lbl">Home</div>
+    </div>
+    <div class="tab" data-tab="trips">
+      <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="2"/><circle cx="18" cy="12" r="2"/><path d="M12 4v6"/><path d="M12 14v6"/><path d="M12 10c1.5 0 4-1.5 4-4"/><path d="M12 14c-1.5 0-4 1.5-4 4"/></svg></div>
+      <div class="lbl">Trips</div>
+    </div>
+    <div class="tab" data-tab="history">
+      <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+      <div class="lbl">History</div>
+    </div>
+    <div class="tab" data-tab="settings">
+      <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06A2 2 0 1 1 4.27 16.96l.06-.06A1.65 1.65 0 0 0 4.66 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6 1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.13.31.2.65.2 1s-.07.69-.2 1Z"/></svg></div>
+      <div class="lbl">Settings</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+  const driver = [-73.4673, 40.7787]; // Plainview, NY
+  const darkMql = window.matchMedia("(prefers-color-scheme: dark)");
+  const lightStyle = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
+  const darkStyle = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+
+  const map = new maplibregl.Map({
+    container: "map",
+    style: darkMql.matches ? darkStyle : lightStyle,
+    center: driver,
+    zoom: 12.5,
+    pitch: 35,
+    bearing: -10,
+    attributionControl: false,
+  });
+
+  // manual theme cycle: auto → light → dark → auto
+  const THEMES = ["auto", "light", "dark"];
+  const THEME_ICONS = { auto: "🌓", light: "☀️", dark: "🌙" };
+  let themeIdx = 0;
+
+  function isDarkActive() {
+    const t = THEMES[themeIdx];
+    if (t === "dark") return true;
+    if (t === "light") return false;
+    return darkMql.matches;
+  }
+  function applyTheme() {
+    const t = THEMES[themeIdx];
+    if (t === "auto") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", t);
+    document.getElementById("themeBtn").textContent = THEME_ICONS[t];
+    document.getElementById("themeBtn").title = `Theme (${t})`;
+    map.setStyle(isDarkActive() ? darkStyle : lightStyle);
+  }
+  document.getElementById("themeBtn").addEventListener("click", () => {
+    themeIdx = (themeIdx + 1) % THEMES.length;
+    applyTheme();
+  });
+  darkMql.addEventListener("change", () => {
+    if (THEMES[themeIdx] === "auto") map.setStyle(isDarkActive() ? darkStyle : lightStyle);
+  });
+
+  function addRoute() {
+    if (map.getLayer("route")) map.removeLayer("route");
+    if (map.getSource("route")) map.removeSource("route");
+    map.addSource("route", {
+      type: "geojson",
+      data: {
+        type: "Feature",
+        geometry: {
+          type: "LineString",
+          coordinates: [
+            driver,
+            [-74.0060, 40.7128],
+            [-75.1652, 39.9526],
+            [-76.6122, 39.2904],
+            [-77.0369, 38.9072],
+          ],
+        },
+      },
+    });
+    map.addLayer({
+      id: "route",
+      type: "line",
+      source: "route",
+      paint: { "line-color": "#1f6ab5", "line-width": 5, "line-opacity": 0.9, "line-blur": 0.5 },
+      layout: { "line-cap": "round", "line-join": "round" },
+    });
+  }
+
+  // markers persist across style changes
+  const driverEl = document.createElement("div");
+  driverEl.style.cssText = "width:18px;height:18px;border-radius:50%;background:#1f6ab5;border:3px solid #fff;box-shadow:0 0 0 6px rgba(31,106,181,0.25);";
+  new maplibregl.Marker({ element: driverEl }).setLngLat(driver).addTo(map);
+
+  const dropEl = document.createElement("div");
+  dropEl.style.cssText = "width:14px;height:14px;border-radius:50%;background:#ef4444;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.25);";
+  new maplibregl.Marker({ element: dropEl }).setLngLat([-77.0369, 38.9072]).addTo(map);
+
+  map.on("style.load", addRoute);
+
+  // simulate moving speed for the mock
+  let s = 62;
+  setInterval(() => {
+    s = Math.max(0, Math.min(80, s + (Math.random() * 6 - 3)));
+    const v = Math.round(s);
+    document.getElementById("speedV").textContent = v;
+    const wrap = document.getElementById("speed");
+    if (v > 65) wrap.classList.add("over"); else wrap.classList.remove("over");
+  }, 1200);
+
+  // tapping the alert opens the Trip Detail screen
+  document.getElementById("activeAlert").addEventListener("click", () => {
+    window.location.href = "driver-trip-detail-v2.html";
+  });
+
+  // nav tabs — navigate between mock pages
+  const NAV_HREF = {
+    home: "driver-home-v2.html",
+    trips: "driver-trips-v2.html",
+    history: "driver-trips-v2.html",
+    settings: "driver-trips-v2.html",
+  };
+  document.querySelectorAll(".nav .tab").forEach((t) => {
+    t.addEventListener("click", () => {
+      const dest = NAV_HREF[t.dataset.tab];
+      if (dest) window.location.href = dest;
+    });
+  });
+
+  document.getElementById("recenter").addEventListener("click", () => {
+    map.flyTo({ center: driver, zoom: 13, pitch: 35, bearing: -10 });
+  });
+
+  // sheet expand/collapse
+  const sheet = document.getElementById("sheet");
+  sheet.addEventListener("click", (e) => {
+    if (e.target.classList.contains("switch")) return;
+    sheet.classList.toggle("expanded");
+  });
+
+  // online toggle
+  const sw = document.getElementById("switch");
+  const chipOnline = document.querySelector(".chip.online");
+  sw.addEventListener("click", () => {
+    const on = sw.classList.toggle("on");
+    document.getElementById("statusLabel").textContent = on ? "Online" : "Offline";
+    document.getElementById("statusHint").textContent = on
+      ? "Sharing location every 40 minutes"
+      : "Location sharing is paused";
+    if (on) {
+      chipOnline.classList.add("online");
+      chipOnline.lastChild.textContent = "Online";
+    } else {
+      chipOnline.classList.remove("online");
+      chipOnline.lastChild.textContent = "Offline";
+    }
+  });
+</script>
+</body>
+</html>

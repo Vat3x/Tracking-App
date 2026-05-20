@@ -41,6 +41,57 @@ const androidHighPriority = {
 };
 
 /**
+ * Send a push notification — auto-detects token type:
+ * - Expo push tokens (ExponentPushToken[...]) → Expo Push API
+ * - FCM tokens → Firebase Admin SDK (used for dispatcher web tokens)
+ */
+async function sendPush(
+  token: string,
+  title: string,
+  body: string,
+  data: Record<string, string>
+): Promise<void> {
+  const isExpoToken = token.startsWith("ExponentPushToken[") || token.startsWith("ExpoPushToken[");
+
+  if (isExpoToken) {
+    const res = await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Accept-Encoding": "gzip, deflate",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        to: token,
+        title,
+        body,
+        data,
+        sound: "default",
+        priority: "high",
+        channelId: "default",
+      }),
+    });
+    if (!res.ok) {
+      throw new Error(`Expo Push API failed: ${res.status} ${await res.text()}`);
+    }
+    const json = await res.json() as { data?: { status?: string; message?: string; details?: { error?: string } } };
+    if (json.data?.status === "error") {
+      const err = new Error(json.data.message || "Expo push error");
+      (err as { code?: string }).code = json.data.details?.error;
+      throw err;
+    }
+    return;
+  }
+
+  await admin.messaging().send({
+    token,
+    notification: { title, body },
+    data,
+    ...androidHighPriority,
+  });
+}
+
+/**
  * When a new trip is created, send FCM push to the assigned driver.
  */
 export const onTripCreated = onDocumentCreated("trips/{tripId}", async (event) => {
@@ -74,23 +125,19 @@ export const onTripCreated = onDocumentCreated("trips/{tripId}", async (event) =
   }
 
   try {
-    await admin.messaging().send({
-      token: fcmToken,
-      notification: {
-        title: "New Trip Assignment",
-        body: routeDesc,
-      },
-      data: {
-        type: "trip_created",
-        tripId: event.params.tripId,
-      },
-      ...androidHighPriority,
+    await sendPush(fcmToken, "New Trip Assignment", routeDesc, {
+      type: "trip_created",
+      tripId: event.params.tripId,
     });
     console.log(`onTripCreated: Notification sent to driver ${driverId}`);
   } catch (err: unknown) {
     const code = (err as { code?: string }).code;
-    if (code === "messaging/invalid-registration-token" || code === "messaging/registration-token-not-registered") {
-      console.log(`onTripCreated: Invalid FCM token for driver ${driverId}, clearing`);
+    if (
+      code === "messaging/invalid-registration-token" ||
+      code === "messaging/registration-token-not-registered" ||
+      code === "DeviceNotRegistered"
+    ) {
+      console.log(`onTripCreated: Invalid push token for driver ${driverId}, clearing`);
       await firestore.doc(`users/${driverId}`).update({ fcmToken: null });
     } else {
       console.error(`onTripCreated: Failed to send notification to driver ${driverId}:`, err);
@@ -124,18 +171,10 @@ export const onTripStatusChanged = onDocumentUpdated("trips/{tripId}", async (ev
     const driverFcmToken = driverDoc?.data()?.fcmToken;
     if (driverFcmToken) {
       try {
-        await admin.messaging().send({
-          token: driverFcmToken,
-          notification: {
-            title: "Route Updated",
-            body: "Your trip route has been updated by the dispatcher",
-          },
-          data: {
-            type: "trip_location_updated",
-            tripId: event.params.tripId,
-            field: "route",
-          },
-          ...androidHighPriority,
+        await sendPush(driverFcmToken, "Route Updated", "Your trip route has been updated by the dispatcher", {
+          type: "trip_location_updated",
+          tripId: event.params.tripId,
+          field: "route",
         });
         console.log(`onTripStatusChanged: Route update notification sent to driver ${driverId}`);
       } catch (err) {
@@ -177,18 +216,10 @@ export const onTripStatusChanged = onDocumentUpdated("trips/{tripId}", async (ev
       return;
     }
     try {
-      await admin.messaging().send({
-        token: driverFcmToken,
-        notification: {
-          title: "Trip Cancelled",
-          body: "Your trip was cancelled by the dispatcher",
-        },
-        data: {
-          type: "trip_status_changed",
-          tripId: event.params.tripId,
-          status,
-        },
-        ...androidHighPriority,
+      await sendPush(driverFcmToken, "Trip Cancelled", "Your trip was cancelled by the dispatcher", {
+        type: "trip_status_changed",
+        tripId: event.params.tripId,
+        status,
       });
       console.log(`onTripStatusChanged: Cancelled notification sent to driver ${driverId}`);
     } catch (err) {
@@ -217,18 +248,10 @@ export const onTripStatusChanged = onDocumentUpdated("trips/{tripId}", async (ev
   }
 
   try {
-    await admin.messaging().send({
-      token: fcmToken,
-      notification: {
-        title: "Trip Update",
-        body: message,
-      },
-      data: {
-        type: "trip_status_changed",
-        tripId: event.params.tripId,
-        status,
-      },
-      ...androidHighPriority,
+    await sendPush(fcmToken, "Trip Update", message, {
+      type: "trip_status_changed",
+      tripId: event.params.tripId,
+      status,
     });
     console.log(`onTripStatusChanged: Notification sent to dispatcher ${assignedBy}`);
   } catch (err) {
