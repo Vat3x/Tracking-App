@@ -88,6 +88,25 @@ async function fetchRoute(waypoints: [number, number][]): Promise<RouteInfo | nu
   }
 }
 
+async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=14&addressdetails=1`,
+      { headers: { "Accept-Language": "en" } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const a = data.address ?? {};
+    const city = a.city || a.town || a.village || a.hamlet || a.suburb || a.county;
+    const region = a.state || a.region;
+    const country = a.country_code?.toUpperCase();
+    const parts = [city, region, country].filter(Boolean);
+    return parts.length > 0 ? parts.join(", ") : (data.display_name ?? null);
+  } catch {
+    return null;
+  }
+}
+
 function formatETA(seconds: number): string {
   if (seconds < 3600) return `${Math.round(seconds / 60)} min`;
   const hrs = Math.floor(seconds / 3600);
@@ -195,6 +214,8 @@ export default function TrackingPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [route, setRoute] = useState<RouteInfo | null>(null);
+  const [currentAddress, setCurrentAddress] = useState<string | null>(null);
+  const lastGeocodedPos = useRef<{ lat: number; lng: number } | null>(null);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -337,6 +358,21 @@ export default function TrackingPage() {
       }
     }
   }, [data]);
+
+  // Reverse-geocode current driver location (throttled by distance)
+  useEffect(() => {
+    const loc = data?.driverLocation;
+    if (!loc) return;
+    const prev = lastGeocodedPos.current;
+    const moved = !prev || Math.abs(prev.lat - loc.lat) > 0.005 || Math.abs(prev.lng - loc.lng) > 0.005;
+    if (!moved && currentAddress) return;
+    lastGeocodedPos.current = { lat: loc.lat, lng: loc.lng };
+    let cancelled = false;
+    reverseGeocode(loc.lat, loc.lng).then((addr) => {
+      if (!cancelled && addr) setCurrentAddress(addr);
+    });
+    return () => { cancelled = true; };
+  }, [data?.driverLocation?.lat, data?.driverLocation?.lng]);
 
   // Draw route polyline
   useEffect(() => {
@@ -502,6 +538,17 @@ export default function TrackingPage() {
                   {data.driverLocation ? ` · ${timeAgo(data.driverLocation.timestamp)}` : ""}
                 </span>
               </div>
+              {currentAddress && (
+                <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3, maxWidth: 240 }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={textSecondary} strokeWidth="2" style={{ flexShrink: 0 }}>
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+                    <circle cx="12" cy="9" r="2.5"/>
+                  </svg>
+                  <span style={{ fontSize: 11, color: textSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>
+                    {currentAddress}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -526,7 +573,7 @@ export default function TrackingPage() {
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={textSecondary} strokeWidth="2">
                   <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
                 </svg>
-                <span style={{ fontSize: 10, color: textSecondary, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" as const }}>ETA</span>
+                <span style={{ fontSize: 10, color: textSecondary, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" as const }}>ETA to Drop-off</span>
               </div>
               <div style={{ fontSize: 18, fontWeight: 800, color: "#2563eb", lineHeight: 1 }}>{formatETA(route.duration)}</div>
             </div>
@@ -535,7 +582,7 @@ export default function TrackingPage() {
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={textSecondary} strokeWidth="2">
                   <path d="M3 12h18M3 6h18M3 18h18"/>
                 </svg>
-                <span style={{ fontSize: 10, color: textSecondary, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" as const }}>Distance</span>
+                <span style={{ fontSize: 10, color: textSecondary, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" as const }}>{useMiles ? "Miles" : "Distance"} to Drop-off</span>
               </div>
               <div style={{ fontSize: 18, fontWeight: 800, color: "#2563eb", lineHeight: 1 }}>{formatDistance(route.distance, useMiles)}</div>
             </div>
